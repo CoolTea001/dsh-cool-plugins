@@ -7,6 +7,10 @@
  * because the menu unmounts as soon as it closes and cannot own a dialog that
  * must outlive that click; the section lives in `settings.section`, which the
  * settings shell projects into its navigation.
+ *
+ * The section reads the shell's Session and Workspace stores directly and
+ * archives through the Workspace controller, so only deletion — the operation
+ * the client face does not expose — needs this package's own Host route.
  */
 export declare const name = "dsh-cool-session/client";
 /**

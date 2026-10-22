@@ -7,11 +7,12 @@
  * consumes, keyed by asset filename stem — the arrangement dsh-cool-git uses.
  *
  * dsh-cool-git renders each asset as a React component because those glyphs live
- * in its own trees. This plugin's one glyph sits in the Settings shell's
- * navigation, whose cell is shell-owned DOM, so the parsed artwork is exposed as
- * the markup the patch writes into that seat (the way dsh-cool-theme installs its
- * palette). Parsing still happens once, at module evaluation, with the same
- * viewBox/inner split.
+ * in its own trees. This plugin's glyphs have different owners: the Settings
+ * navigation cell is shell-owned DOM, so the archive artwork is exposed as the
+ * markup the patch writes into that seat (the way dsh-cool-theme installs its
+ * palette); the filter caret is drawn by this package's own page, so its markup
+ * is embedded the same way inside the trigger. Parsing still happens once, at
+ * module evaluation, with the same viewBox/inner split.
  */
 
 /** Build-time define from tsdown.config.ts: raw SVG text per asset stem. */
@@ -44,10 +45,19 @@ function iconArtwork(name: string): IconArtwork {
   }
 }
 
+/** Complete SVG markup for one asset at a fixed square size. */
+function iconMarkup(name: string, size: number): string {
+  const artwork = iconArtwork(name)
+  return '<svg xmlns="http://www.w3.org/2000/svg" ' +
+    `width="${size}" height="${size}" viewBox="${artwork.viewBox}" ` +
+    `aria-hidden="true" focusable="false">${artwork.inner}</svg>`
+}
+
 /** The Settings navigation's icon seat: the shell draws its own glyphs at 16px. */
 const NAV_ICON_SIZE = 16
 
-const ARCHIVE = iconArtwork('archive')
+/** The filter triggers' caret, sized to sit inside a 32px control. */
+const CARET_SIZE = 12
 
 /**
  * The Sessions glyph as complete markup for the shell's navigation seat.
@@ -56,7 +66,12 @@ const ARCHIVE = iconArtwork('archive')
  * the nav cell's 14px text, and the stroke is `currentColor`, so the glyph takes
  * the label's color in both appearances.
  */
-export const ARCHIVE_NAV_MARKUP =
-  '<svg xmlns="http://www.w3.org/2000/svg" ' +
-  `width="${NAV_ICON_SIZE}" height="${NAV_ICON_SIZE}" viewBox="${ARCHIVE.viewBox}" ` +
-  `aria-hidden="true" focusable="false">${ARCHIVE.inner}</svg>`
+export const ARCHIVE_NAV_MARKUP = iconMarkup('archive', NAV_ICON_SIZE)
+
+/**
+ * The caret beside the panel's two filter triggers.
+ *
+ * `assets/arrow-down.svg` strokes with `currentColor`, so the trigger's label
+ * color reaches it; the fixed 12px keeps it clear of the control's 13px text.
+ */
+export const ARROW_DOWN_MARKUP = iconMarkup('arrow-down', CARET_SIZE)

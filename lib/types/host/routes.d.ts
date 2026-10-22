@@ -2,10 +2,11 @@
  * The Host half's HTTP surface.
  *
  * The browser half has no Cordis context and no remote namespace of its own, so
- * the one destructive command crosses a same-origin route registered on the
- * `webServer` carrier. The route answers JSON and never rejects: a transport,
- * service, or filesystem failure becomes an `{ ok: false }` result the dialog
- * reports in place.
+ * the destructive command crosses same-origin routes registered on the
+ * `webServer` carrier: one Session per request from the native menu, and one
+ * selection per request from the management panel. The routes answer JSON and
+ * never reject: a transport, service, or filesystem failure becomes an
+ * `{ ok: false }` result the page reports in place.
  *
  * The Host stays authoritative about *what* is deleted. A request names a
  * Session id but never a directory or an Agent: the artifact path is derived and
@@ -15,9 +16,10 @@
 /** Route table, kept in one place so the two halves cannot drift. */
 export declare const ROUTES: {
     readonly delete: "/dsh-cool-session/api/delete";
+    readonly deleteMany: "/dsh-cool-session/api/delete-many";
 };
 /**
- * Serve the deletion route for one plugin instance.
+ * Serve the deletion routes for one plugin instance.
  *
  * @param ctx - the Host plugin context.
  * @returns a disposer that unregisters exactly this route.

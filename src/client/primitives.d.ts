@@ -8,7 +8,7 @@
  * pulling the whole Host component library into the build.
  */
 declare module '@deepseek-ai/dsh-client-ui-primitives' {
-  import type { ReactElement, ReactNode } from 'react'
+  import type { InputHTMLAttributes, ReactElement, ReactNode } from 'react'
 
   /** The menu row primitive: one `role="menuitem"` button with Host styling. */
   export interface MenuItemButtonProps {
@@ -24,6 +24,57 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
 
   /** The Host's outline trash glyph, used by the native Session menu. */
   export function IconTrashOutlineRegular(props: { readonly size?: number }): ReactElement
+
+  /** One selectable dropdown row, optionally opening a nested card. */
+  export interface MenuItem {
+    readonly id: string
+    readonly label: ReactNode
+    readonly disabled?: boolean
+    readonly icon?: ReactNode
+    readonly danger?: boolean
+    readonly submenu?: readonly MenuItem[]
+  }
+
+  /** A hairline between menu groups. */
+  export interface MenuSeparator {
+    readonly type: 'separator'
+    readonly id: string
+  }
+
+  /** A non-interactive heading above a group. */
+  export interface MenuLabel {
+    readonly type: 'label'
+    readonly id: string
+    readonly text: string
+  }
+
+  /** One primary-menu entry: a row, a separator, or a heading label. */
+  export type MenuEntry = MenuItem | MenuSeparator | MenuLabel
+
+  /** The anchored dropdown card, with the same selection and keyboard rules as the product. */
+  export interface MenuProps {
+    readonly open: boolean
+    readonly anchor: ReactNode
+    readonly items?: readonly MenuEntry[]
+    readonly children?: ReactNode
+    readonly footer?: readonly MenuEntry[]
+    readonly selectedId?: string | undefined
+    readonly selectedIds?: readonly string[] | undefined
+    readonly onSelect?: (id: string) => void
+    readonly onClose: () => void
+    readonly align?: 'start' | 'end'
+    readonly side?: 'bottom' | 'top' | 'right'
+    readonly portal?: boolean
+    readonly closeOnPointerLeave?: boolean
+    readonly dense?: boolean
+    readonly compact?: boolean
+    readonly autoFocus?: boolean
+    readonly selection?: 'check' | 'fill'
+    readonly className?: string | undefined
+    readonly listClassName?: string | undefined
+  }
+
+  export function Menu(props: MenuProps): ReactElement
 
   /** The shared dialog: body portal, blurred mask, focus trap, and Escape close. */
   export interface ModalProps {
@@ -53,4 +104,21 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   }
 
   export function Button(props: ButtonProps): ReactElement
+
+  /** Single-line text input with an optional 16px leading glyph. */
+  export function Input(
+    props: { readonly icon?: ReactNode; readonly className?: string } & InputHTMLAttributes<HTMLInputElement>,
+  ): ReactElement
+
+  /** Controlled native checkbox with a visible label the caller supplies. */
+  export interface CheckboxProps {
+    readonly checked: boolean
+    readonly onChange: (next: boolean) => void
+    readonly label: string
+    readonly disabled?: boolean
+    readonly title?: string
+    readonly className?: string
+  }
+
+  export function Checkbox(props: CheckboxProps): ReactElement
 }

@@ -1,12 +1,13 @@
 /**
  * Package-owned stylesheet for the plugin's three surfaces.
  *
- * The native Session menu row and the delete confirmation are drawn by DSH's own
+ * The native Session menu row and both confirmations are drawn by DSH's own
  * primitives, so this sheet only adds the danger tint on the menu row and on the
- * dialog's confirm action, plus the inline refusal block. The Settings section
- * follows the same heading and row rhythm as the shipped sections. Every color is
- * a `--dsw-*` theme token, so all three follow the active light or dark appearance
- * — including third-party theme presets — instead of forcing a palette of their own.
+ * dialogs' confirm action, the inline refusal blocks, and the Settings page's
+ * own controls and table. The section follows the shipped sections' heading and
+ * row rhythm. Every color is a `--dsw-*` theme token, so every surface follows
+ * the active light or dark appearance — including third-party theme presets —
+ * instead of forcing a palette of its own.
  */
 /**
  * Insert the stylesheet once for the plugin lifetime.

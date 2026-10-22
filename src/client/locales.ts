@@ -19,15 +19,61 @@ import type { FailureCode } from '../shared/contract.js'
 /** The dictionary namespace this page owns. */
 export const NS = 'coolSession'
 
-/** The copy of the menu row, the Settings section, the confirmation, and its refusals. */
+/** The copy of the menu row, the Settings page, the confirmations, and their refusals. */
 type UiKey =
   /** The native Session menu's row. */
   | 'action.delete'
   /** The Settings navigation entry and the page behind it. */
   | 'settings.nav'
   | 'settings.title'
-  | 'settings.empty'
-  /** The confirmation's dialog and buttons. */
+  | 'settings.description'
+  /** The management panel's controls. */
+  | 'sessions.search'
+  | 'sessions.searchPlaceholder'
+  | 'sessions.allWorkspaces'
+  | 'sessions.noWorkspace'
+  | 'sessions.allSessions'
+  | 'sessions.unarchived'
+  | 'sessions.archived'
+  | 'sessions.running'
+  | 'sessions.selectAll'
+  | 'sessions.selectOne'
+  | 'sessions.archiveSelected'
+  | 'sessions.deleteSelected'
+  | 'sessions.selectedCount'
+  | 'sessions.columnTitle'
+  | 'sessions.columnStatus'
+  | 'sessions.columnActions'
+  | 'sessions.archive'
+  | 'sessions.unarchive'
+  | 'sessions.delete'
+  /** The management panel's list states. */
+  | 'sessions.loading'
+  | 'sessions.empty'
+  | 'sessions.noMatches'
+  | 'sessions.loadFailed'
+  | 'sessions.retry'
+  | 'sessions.unavailable'
+  | 'sessions.actionFailed'
+  | 'sessions.bulkPartial'
+  | 'sessions.bulkStopped'
+  | 'sessions.bulkArchivePartial'
+  | 'sessions.bulkArchiveFailed'
+  /** The panel's delete confirmation. */
+  | 'sessions.deleteSelectedTitle'
+  | 'sessions.deleteBatchDescription'
+  /** The panel's stop-and-archive confirmation. */
+  | 'sessions.archiveStopTitle'
+  | 'sessions.archiveStopDescription'
+  | 'sessions.archiveActivity'
+  | 'sessions.activityTurn'
+  | 'sessions.activitySubagents'
+  | 'sessions.activityJobs'
+  | 'sessions.activitySchedules'
+  | 'sessions.activityOther'
+  | 'sessions.archiveStopAction'
+  | 'sessions.archiveStopPending'
+  /** The native menu's confirmation and both dialogs' buttons. */
   | 'action.cancel'
   | 'action.close'
   | 'delete.title'
@@ -59,7 +105,53 @@ export const en = {
 
   'settings.nav': 'Sessions',
   'settings.title': 'Sessions',
-  'settings.empty': 'Session management will appear here in a later release.',
+  'settings.description': 'Search, filter, archive, or delete sessions.',
+
+  'sessions.search': 'Search session titles',
+  'sessions.searchPlaceholder': 'Search...',
+  'sessions.allWorkspaces': 'All workspaces',
+  'sessions.noWorkspace': 'No workspace',
+  'sessions.allSessions': 'All sessions',
+  'sessions.unarchived': 'Unarchived',
+  'sessions.archived': 'Archived',
+  'sessions.running': 'Running',
+  'sessions.selectAll': 'Select all',
+  'sessions.selectOne': 'Select {title}',
+  'sessions.archiveSelected': 'Archive selected',
+  'sessions.deleteSelected': 'Delete selected',
+  'sessions.selectedCount': '{count} selected',
+  'sessions.columnTitle': 'Session',
+  'sessions.columnStatus': 'Status',
+  'sessions.columnActions': 'Actions',
+  'sessions.archive': 'Archive',
+  'sessions.unarchive': 'Unarchive',
+  'sessions.delete': 'Delete',
+
+  'sessions.loading': 'Loading sessions…',
+  'sessions.empty': 'No sessions yet',
+  'sessions.noMatches': 'No matching sessions',
+  'sessions.loadFailed': 'The session list could not be loaded',
+  'sessions.retry': 'Retry',
+  'sessions.unavailable': 'Session services are not ready, so the archive action is unavailable',
+  'sessions.actionFailed': 'The action failed',
+  'sessions.bulkPartial': 'Deleted {deleted} session(s); {failed} could not be deleted.',
+  'sessions.bulkStopped': 'Deleted {deleted} session(s); the rest could not be processed.',
+  'sessions.bulkArchivePartial': 'Archived {archived} session(s); {skipped} running session(s) were skipped.',
+  'sessions.bulkArchiveFailed': 'Archived {archived} session(s); {failed} could not be archived.',
+
+  'sessions.deleteSelectedTitle': 'Delete selected sessions',
+  'sessions.deleteBatchDescription': 'This removes the {count} selected sessions and all of their subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!',
+
+  'sessions.archiveStopTitle': 'Stop and archive this session?',
+  'sessions.archiveStopDescription': '“{title}” still has work in progress. Archiving stops it first; the stopped work will not resume on its own.',
+  'sessions.archiveActivity': 'Work that will be stopped',
+  'sessions.activityTurn': 'The turn in progress',
+  'sessions.activitySubagents': '{count} running subagent(s)',
+  'sessions.activityJobs': '{count} background job(s)',
+  'sessions.activitySchedules': '{count} scheduled reminder(s)',
+  'sessions.activityOther': '{count} other item(s) of work ({kind})',
+  'sessions.archiveStopAction': 'Stop and archive',
+  'sessions.archiveStopPending': 'Stopping and archiving…',
 
   'delete.title': 'Delete session',
   'delete.description': 'This removes this session and all of its subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!',
@@ -86,7 +178,53 @@ export const zh: typeof en = {
 
   'settings.nav': '会话管理',
   'settings.title': '会话管理',
-  'settings.empty': '会话管理功能将在后续版本中开放。',
+  'settings.description': '搜索、筛选、归档或删除会话。',
+
+  'sessions.search': '搜索会话标题',
+  'sessions.searchPlaceholder': '搜索...',
+  'sessions.allWorkspaces': '全部工作区',
+  'sessions.noWorkspace': '未关联工作区',
+  'sessions.allSessions': '全部会话',
+  'sessions.unarchived': '未归档',
+  'sessions.archived': '已归档',
+  'sessions.running': '运行中',
+  'sessions.selectAll': '全选',
+  'sessions.selectOne': '选择 {title}',
+  'sessions.archiveSelected': '归档已选',
+  'sessions.deleteSelected': '删除已选',
+  'sessions.selectedCount': '已选择 {count} 个',
+  'sessions.columnTitle': '会话标题',
+  'sessions.columnStatus': '状态',
+  'sessions.columnActions': '操作',
+  'sessions.archive': '归档',
+  'sessions.unarchive': '取消归档',
+  'sessions.delete': '删除',
+
+  'sessions.loading': '正在载入会话…',
+  'sessions.empty': '暂无会话',
+  'sessions.noMatches': '没有匹配的会话',
+  'sessions.loadFailed': '无法读取会话列表',
+  'sessions.retry': '重试',
+  'sessions.unavailable': '会话服务尚未就绪，无法归档',
+  'sessions.actionFailed': '操作失败',
+  'sessions.bulkPartial': '已删除 {deleted} 个会话，{failed} 个删除失败。',
+  'sessions.bulkStopped': '已删除 {deleted} 个会话，其余未能继续处理。',
+  'sessions.bulkArchivePartial': '已归档 {archived} 个会话，{skipped} 个运行中的会话已跳过。',
+  'sessions.bulkArchiveFailed': '已归档 {archived} 个会话，{failed} 个归档失败。',
+
+  'sessions.deleteSelectedTitle': '删除选中的会话',
+  'sessions.deleteBatchDescription': '从磁盘移除选中的 {count} 个会话及其所有子会话的日志，正在运行的会话将被终止。此操作不可撤销！',
+
+  'sessions.archiveStopTitle': '停止并归档此会话？',
+  'sessions.archiveStopDescription': '“{title}”仍有正在进行的工作。归档会先停止这些工作，停止的工作不会自动继续。',
+  'sessions.archiveActivity': '将被停止的工作',
+  'sessions.activityTurn': '进行中的回合',
+  'sessions.activitySubagents': '{count} 个运行中的子智能体',
+  'sessions.activityJobs': '{count} 个后台任务',
+  'sessions.activitySchedules': '{count} 条定时提醒',
+  'sessions.activityOther': '{count} 项其他工作（{kind}）',
+  'sessions.archiveStopAction': '停止并归档',
+  'sessions.archiveStopPending': '正在停止并归档…',
 
   'delete.title': '删除会话',
   'delete.description': '从磁盘移除此会话及其所有子会话的日志，正在运行的会话将被终止。此操作不可撤销！',

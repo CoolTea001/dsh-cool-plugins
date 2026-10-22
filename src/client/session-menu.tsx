@@ -15,8 +15,8 @@
 import { useEffect, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Button, IconTrashOutlineRegular, MenuItemButton, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deleteSession } from './api.js'
-import type { MessageKey, Translate } from './locales.js'
-import type { DeletePayload } from '../shared/contract.js'
+import { reasonOf } from './reason.js'
+import type { Translate } from './locales.js'
 
 /** One pending delete, raised by the menu row and consumed by the overlay. */
 interface DeleteRequest {
@@ -97,28 +97,6 @@ interface DeleteDialogProps {
   readonly t: Translate
   /** Called after a successful deletion so the shell can clear its main view. */
   readonly onDeleted?: (sessionId: string) => void
-}
-
-/**
- * One failed delete as the sentence the dialog shows.
- *
- * @param t - the page's translate seat.
- * @param payload - the Host answer.
- * @param fallback - the entry to state when the answer carried no reason.
- * @returns the reason to show.
- */
-function reasonOf(t: Translate, payload: DeletePayload, fallback: MessageKey): string {
-  if (payload.failure !== undefined) {
-    const sentence = t(`error.${payload.failure.code}` as MessageKey, payload.failure.params)
-    // A partial delete carries both the retryable summary and the service's own
-    // reason for the item that failed; keep the detail visible after the count.
-    if (payload.failure.code === 'delete-partial' && typeof payload.error === 'string' && payload.error !== '') {
-      return `${sentence} ${payload.error}`
-    }
-    return sentence
-  }
-  if (payload.error === 'HTTP 405') return t('error.host-stale')
-  return typeof payload.error === 'string' && payload.error !== '' ? payload.error : t(fallback)
 }
 
 /**

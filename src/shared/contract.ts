@@ -44,6 +44,18 @@ export interface Failure {
   readonly params?: Readonly<Record<string, string | number>>
 }
 
+/** `POST /delete-many`: remove several Sessions in one request, in order. */
+export interface DeleteManyPayload {
+  readonly ok: boolean
+  /**
+   * Raw refusal when a batch request could not be carried out. Results from
+   * batches that finished before it are still present.
+   */
+  readonly error?: string
+  /** One answer per attempted Session, in request order. */
+  readonly results?: readonly DeletePayload[]
+}
+
 /** `POST /delete`: remove one Session and every subagent Session beneath it. */
 export interface DeletePayload {
   readonly ok: boolean

@@ -7,10 +7,15 @@
  * because the menu unmounts as soon as it closes and cannot own a dialog that
  * must outlive that click; the section lives in `settings.section`, which the
  * settings shell projects into its navigation.
+ *
+ * The section reads the shell's Session and Workspace stores directly and
+ * archives through the Workspace controller, so only deletion — the operation
+ * the client face does not expose — needs this package's own Host route.
  */
 
 import { SessionDeleteDialog, SessionDeleteMenuItem } from './session-menu.js'
 import { SessionsSection } from './settings-section.js'
+import { setSessionArchived } from './archive.js'
 import { installSessionNavIcon } from './nav-icon.js'
 import { en, NS, zh, type Translate } from './locales.js'
 import { insertStyles } from './styles.js'
@@ -67,6 +72,16 @@ export function apply(ctx: any): void {
     try { void (ctx.get('workspaces') as any)?.refresh?.() } catch { /* optional client store */ }
   }
 
+  // Archive and listing already exist on the browser's Workspace and Session
+  // services, so the section borrows them instead of adding routes. The service
+  // is resolved per call: this plugin must not fail to load just because the
+  // Workspace controller mounted later than it did.
+  const setArchived = (sessionId: string, archived: boolean, stopActivity: boolean) =>
+    setSessionArchived(ctx.get('workspaces'), sessionId, archived, stopActivity)
+  const refreshSessions = (): void => {
+    try { void (ctx.get('sessions') as any)?.refresh?.() } catch { /* optional client store */ }
+  }
+
   // The Settings panel is a projection of this list slot. The section is
   // ordered between Models (10) and Built-in plugins (15); its label is a thunk
   // so the shell can re-read it after a language switch.
@@ -77,6 +92,7 @@ export function apply(ctx: any): void {
       order: 12,
       label: () => t('settings.nav'),
       locale: NS,
+      inject: () => ({ setArchived, refresh: refreshSessions, onDeleted: afterDelete }),
     }, SessionsSection))
 
   // The shell derives a section's nav glyph from its id, so a plugin id gets the
