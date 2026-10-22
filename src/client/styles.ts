@@ -1,11 +1,12 @@
 /**
- * Package-owned stylesheet for the plugin's two surfaces.
+ * Package-owned stylesheet for the plugin's three surfaces.
  *
  * The native Session menu row and the delete confirmation are drawn by DSH's own
  * primitives, so this sheet only adds the danger tint on the menu row and on the
- * dialog's confirm action, plus the inline refusal block. Every color is a
- * `--dsw-*` theme token, so both follow the active light or dark appearance —
- * including third-party theme presets — instead of forcing a palette of their own.
+ * dialog's confirm action, plus the inline refusal block. The Settings section
+ * follows the same heading and row rhythm as the shipped sections. Every color is
+ * a `--dsw-*` theme token, so all three follow the active light or dark appearance
+ * — including third-party theme presets — instead of forcing a palette of their own.
  */
 
 /** Build-time define from tsdown.config.ts: the id the loader registers this bundle under. */
@@ -24,6 +25,17 @@ const PLUGIN_CSS = [
   // A refusal stays inside the dialog, under the description, and keeps the
   // service's own diagnostic text readable when it follows the sentence.
   '.dsh-cs-delete-error{padding:8px 9px;border:.5px solid color-mix(in srgb,var(--dsw-alias-state-error-primary) 35%,transparent);border-radius:var(--dsw-radius-sm,6px);background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 9%,transparent);color:var(--dsw-alias-state-error-primary);font-size:11.5px;line-height:1.55;white-space:pre-wrap}',
+
+  // The Settings page reuses the shipped sections' content measure and rhythm:
+  // an 18px heading over a tertiary empty-state line.
+  '.dsh-cs-settings{display:flex;flex-direction:column;gap:12px;max-width:760px;color:var(--dsw-alias-label-primary)}',
+  '.dsh-cs-settings-heading{margin:0;font-size:18px;font-weight:600}',
+  '.dsh-cs-settings-empty{margin:0;color:var(--dsw-alias-label-tertiary);font-size:13px}',
+
+  // The replaced navigation glyph occupies the same 16px seat as the shell's
+  // own icons and inherits the cell's label color through `currentColor`.
+  '.dsh-cs-nav-icon{display:inline-flex;flex:none;align-items:center;justify-content:center}',
+  '.dsh-cs-nav-icon svg{width:16px;height:16px;display:block}',
 ].join('\n')
 
 /**

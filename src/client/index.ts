@@ -1,13 +1,17 @@
 /**
  * Client entry for dsh-cool-session.
  *
- * Contributes one native Session-menu row and the frame-wide confirmation it
- * opens. The row lives in `sidebar.workspaces.session.menu.item`; the dialog
- * lives in `shell.overlay`, because the menu unmounts as soon as it closes and
- * cannot own a dialog that must outlive that click.
+ * Contributes one native Session-menu row, the frame-wide confirmation it
+ * opens, and the Sessions section of the Settings panel. The row lives in
+ * `sidebar.workspaces.session.menu.item`; the dialog lives in `shell.overlay`,
+ * because the menu unmounts as soon as it closes and cannot own a dialog that
+ * must outlive that click; the section lives in `settings.section`, which the
+ * settings shell projects into its navigation.
  */
 
 import { SessionDeleteDialog, SessionDeleteMenuItem } from './session-menu.js'
+import { SessionsSection } from './settings-section.js'
+import { installSessionNavIcon } from './nav-icon.js'
 import { en, NS, zh, type Translate } from './locales.js'
 import { insertStyles } from './styles.js'
 
@@ -62,6 +66,22 @@ export function apply(ctx: any): void {
     try { void (ctx.get('sessions') as any)?.refresh?.() } catch { /* optional client store */ }
     try { void (ctx.get('workspaces') as any)?.refresh?.() } catch { /* optional client store */ }
   }
+
+  // The Settings panel is a projection of this list slot. The section is
+  // ordered between Models (10) and Built-in plugins (15); its label is a thunk
+  // so the shell can re-read it after a language switch.
+  slots.inject('settings.section', () =>
+    slots.register({
+      name: 'settings.section',
+      id: 'dsh-cool-session.sessions',
+      order: 12,
+      label: () => t('settings.nav'),
+      locale: NS,
+    }, SessionsSection))
+
+  // The shell derives a section's nav glyph from its id, so a plugin id gets the
+  // generic gear. Replace it with `assets/archive.svg` whenever the nav mounts.
+  ctx.effect(() => installSessionNavIcon(t), 'dsh-cool-session: settings nav icon')
 
   // The native sidebar menu is a list slot owned by ui-workspace. This row is
   // ordered after the shipped Copy Session ID row (450) and opens the frame-wide

@@ -16,10 +16,12 @@
 import type { FailureCode } from '../shared/contract.js';
 /** The dictionary namespace this page owns. */
 export declare const NS = "coolSession";
-/** The copy of the menu row, the confirmation, and its refusals. */
+/** The copy of the menu row, the Settings section, the confirmation, and its refusals. */
 type UiKey = 
 /** The native Session menu's row. */
 'action.delete'
+/** The Settings navigation entry and the page behind it. */
+ | 'settings.nav' | 'settings.title' | 'settings.empty'
 /** The confirmation's dialog and buttons. */
  | 'action.cancel' | 'action.close' | 'delete.title' | 'delete.description' | 'delete.pending' | 'delete.confirm'
 /** A Host half that has not reloaded the new delete route yet. */
@@ -38,6 +40,9 @@ export declare const en: {
     'action.delete': string;
     'action.cancel': string;
     'action.close': string;
+    'settings.nav': string;
+    'settings.title': string;
+    'settings.empty': string;
     'delete.title': string;
     'delete.description': string;
     'delete.pending': string;

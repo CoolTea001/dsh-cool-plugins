@@ -19,10 +19,14 @@ import type { FailureCode } from '../shared/contract.js'
 /** The dictionary namespace this page owns. */
 export const NS = 'coolSession'
 
-/** The copy of the menu row, the confirmation, and its refusals. */
+/** The copy of the menu row, the Settings section, the confirmation, and its refusals. */
 type UiKey =
   /** The native Session menu's row. */
   | 'action.delete'
+  /** The Settings navigation entry and the page behind it. */
+  | 'settings.nav'
+  | 'settings.title'
+  | 'settings.empty'
   /** The confirmation's dialog and buttons. */
   | 'action.cancel'
   | 'action.close'
@@ -53,6 +57,10 @@ export const en = {
   'action.cancel': 'Cancel',
   'action.close': 'Close',
 
+  'settings.nav': 'Sessions',
+  'settings.title': 'Sessions',
+  'settings.empty': 'Session management will appear here in a later release.',
+
   'delete.title': 'Delete session',
   'delete.description': 'This removes this session and all of its subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!',
   'delete.pending': 'Stopping and deleting…',
@@ -75,6 +83,10 @@ export const zh: typeof en = {
   'action.delete': '删除会话',
   'action.cancel': '取消',
   'action.close': '关闭',
+
+  'settings.nav': '会话管理',
+  'settings.title': '会话管理',
+  'settings.empty': '会话管理功能将在后续版本中开放。',
 
   'delete.title': '删除会话',
   'delete.description': '从磁盘移除此会话及其所有子会话的日志，正在运行的会话将被终止。此操作不可撤销！',

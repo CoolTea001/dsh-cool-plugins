@@ -1,10 +1,12 @@
 /**
  * Client entry for dsh-cool-session.
  *
- * Contributes one native Session-menu row and the frame-wide confirmation it
- * opens. The row lives in `sidebar.workspaces.session.menu.item`; the dialog
- * lives in `shell.overlay`, because the menu unmounts as soon as it closes and
- * cannot own a dialog that must outlive that click.
+ * Contributes one native Session-menu row, the frame-wide confirmation it
+ * opens, and the Sessions section of the Settings panel. The row lives in
+ * `sidebar.workspaces.session.menu.item`; the dialog lives in `shell.overlay`,
+ * because the menu unmounts as soon as it closes and cannot own a dialog that
+ * must outlive that click; the section lives in `settings.section`, which the
+ * settings shell projects into its navigation.
  */
 export declare const name = "dsh-cool-session/client";
 /**
