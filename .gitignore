@@ -41,6 +41,13 @@ build/Release
 node_modules/
 jspm_packages/
 
+# pnpm project store: a local cache, not source
+.pnpm-store/
+
+# `lib/` is build output, but it is committed on purpose so the plugin can be
+# installed straight from a git checkout without a separate build step. Only
+# `src/` is source of truth.
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
