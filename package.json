@@ -1,7 +1,7 @@
 {
   "name": "dsh-cool-session",
   "version": "0.1.0",
-  "description": "DSH 会话管理插件",
+  "description": "DeepSeek Harness session management plugin — a Sessions page in Settings for search, filters, archive, and batch delete, plus a delete row in the session menu.",
   "type": "module",
   "license": "MIT",
   "author": "CoolTea",

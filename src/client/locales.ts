@@ -12,12 +12,33 @@
  * The two dictionaries must carry exactly the same keys: `zh` is typed as
  * `typeof en`, so a key added to one and forgotten in the other is a compile
  * error rather than a dialog that falls back mid-sentence.
+ *
+ * Count-bearing sentences come in the `.one` / `.other` pair the shipped
+ * dictionaries use. The locale service interpolates `{name}` placeholders but
+ * does not choose plural forms, so the caller picks the spelling from the count
+ * through {@link countKey}; Chinese spells both variants the same way.
  */
 
 import type { FailureCode } from '../shared/contract.js'
 
 /** The dictionary namespace this page owns. */
 export const NS = 'coolSession'
+
+/**
+ * The messages whose wording follows a count.
+ *
+ * Each base owns a `.one` and an `.other` entry; nothing else may be drawn from
+ * it, so a missing plural spelling is a compile error like any other key.
+ */
+export type PluralBase =
+  | 'sessions.bulkPartial'
+  | 'sessions.bulkStopped'
+  | 'sessions.bulkArchivePartial'
+  | 'sessions.bulkArchiveFailed'
+  | 'sessions.activitySubagents'
+  | 'sessions.activityJobs'
+  | 'sessions.activitySchedules'
+  | 'sessions.activityOther'
 
 /** The copy of the menu row, the Settings page, the confirmations, and their refusals. */
 type UiKey =
@@ -55,10 +76,6 @@ type UiKey =
   | 'sessions.retry'
   | 'sessions.unavailable'
   | 'sessions.actionFailed'
-  | 'sessions.bulkPartial'
-  | 'sessions.bulkStopped'
-  | 'sessions.bulkArchivePartial'
-  | 'sessions.bulkArchiveFailed'
   /** The panel's delete confirmation. */
   | 'sessions.deleteSelectedTitle'
   | 'sessions.deleteBatchDescription'
@@ -67,12 +84,11 @@ type UiKey =
   | 'sessions.archiveStopDescription'
   | 'sessions.archiveActivity'
   | 'sessions.activityTurn'
-  | 'sessions.activitySubagents'
-  | 'sessions.activityJobs'
-  | 'sessions.activitySchedules'
-  | 'sessions.activityOther'
   | 'sessions.archiveStopAction'
   | 'sessions.archiveStopPending'
+  /** The count-bearing messages, in their singular and plural spellings. */
+  | `${PluralBase}.one`
+  | `${PluralBase}.other`
   /** The native menu's confirmation and both dialogs' buttons. */
   | 'action.cancel'
   | 'action.close'
@@ -96,6 +112,17 @@ export type Translate = (
   key: MessageKey,
   params?: Readonly<Record<string, string | number>>,
 ) => string
+
+/**
+ * Pick the singular or plural spelling of a count-bearing message.
+ *
+ * @param base - the message family, whose `.one` and `.other` entries exist.
+ * @param count - the number the sentence reports.
+ * @returns the key to translate.
+ */
+export function countKey(base: PluralBase, count: number): MessageKey {
+  return `${base}.${count === 1 ? 'one' : 'other'}` as MessageKey
+}
 
 /** The English copy, which is also the fallback every lookup ends at. */
 export const en = {
@@ -134,10 +161,14 @@ export const en = {
   'sessions.retry': 'Retry',
   'sessions.unavailable': 'Session services are not ready, so the archive action is unavailable',
   'sessions.actionFailed': 'The action failed',
-  'sessions.bulkPartial': 'Deleted {deleted} session(s); {failed} could not be deleted.',
-  'sessions.bulkStopped': 'Deleted {deleted} session(s); the rest could not be processed.',
-  'sessions.bulkArchivePartial': 'Archived {archived} session(s); {skipped} running session(s) were skipped.',
-  'sessions.bulkArchiveFailed': 'Archived {archived} session(s); {failed} could not be archived.',
+  'sessions.bulkPartial.one': 'Deleted 1 session; {failed} could not be deleted.',
+  'sessions.bulkPartial.other': 'Deleted {deleted} sessions; {failed} could not be deleted.',
+  'sessions.bulkStopped.one': 'Deleted 1 session; the rest could not be processed.',
+  'sessions.bulkStopped.other': 'Deleted {deleted} sessions; the rest could not be processed.',
+  'sessions.bulkArchivePartial.one': 'Archived 1 session; {skipped} skipped because work was still running.',
+  'sessions.bulkArchivePartial.other': 'Archived {archived} sessions; {skipped} skipped because work was still running.',
+  'sessions.bulkArchiveFailed.one': 'Archived 1 session; {failed} could not be archived.',
+  'sessions.bulkArchiveFailed.other': 'Archived {archived} sessions; {failed} could not be archived.',
 
   'sessions.deleteSelectedTitle': 'Delete selected sessions',
   'sessions.deleteBatchDescription': 'This removes the {count} selected sessions and all of their subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!',
@@ -146,10 +177,14 @@ export const en = {
   'sessions.archiveStopDescription': '“{title}” still has work in progress. Archiving stops it first; the stopped work will not resume on its own.',
   'sessions.archiveActivity': 'Work that will be stopped',
   'sessions.activityTurn': 'The turn in progress',
-  'sessions.activitySubagents': '{count} running subagent(s)',
-  'sessions.activityJobs': '{count} background job(s)',
-  'sessions.activitySchedules': '{count} scheduled reminder(s)',
-  'sessions.activityOther': '{count} other item(s) of work ({kind})',
+  'sessions.activitySubagents.one': '1 running subagent',
+  'sessions.activitySubagents.other': '{count} running subagents',
+  'sessions.activityJobs.one': '1 background job',
+  'sessions.activityJobs.other': '{count} background jobs',
+  'sessions.activitySchedules.one': '1 scheduled reminder',
+  'sessions.activitySchedules.other': '{count} scheduled reminders',
+  'sessions.activityOther.one': '1 other item of work ({kind})',
+  'sessions.activityOther.other': '{count} other items of work ({kind})',
   'sessions.archiveStopAction': 'Stop and archive',
   'sessions.archiveStopPending': 'Stopping and archiving…',
 
@@ -167,7 +202,7 @@ export const en = {
   'error.delete-unsupported': 'This Harness does not expose the on-disk session layout needed for deletion',
   'error.delete-active': 'The session is still running ({activity}) and could not be stopped, so it was not deleted',
   'error.session-live': 'The session is still live and could not be released',
-  'error.delete-partial': 'Deleted {deleted} session(s), but {remaining} could not be deleted; retry the remaining ones',
+  'error.delete-partial': 'Some sessions could not be deleted: {deleted} removed, {remaining} still present. Retry the remaining ones',
 } satisfies Record<MessageKey, string>
 
 /** The Chinese copy, key for key the same page. */
@@ -207,10 +242,14 @@ export const zh: typeof en = {
   'sessions.retry': '重试',
   'sessions.unavailable': '会话服务尚未就绪，无法归档',
   'sessions.actionFailed': '操作失败',
-  'sessions.bulkPartial': '已删除 {deleted} 个会话，{failed} 个删除失败。',
-  'sessions.bulkStopped': '已删除 {deleted} 个会话，其余未能继续处理。',
-  'sessions.bulkArchivePartial': '已归档 {archived} 个会话，{skipped} 个运行中的会话已跳过。',
-  'sessions.bulkArchiveFailed': '已归档 {archived} 个会话，{failed} 个归档失败。',
+  'sessions.bulkPartial.one': '已删除 1 个会话，{failed} 个删除失败。',
+  'sessions.bulkPartial.other': '已删除 {deleted} 个会话，{failed} 个删除失败。',
+  'sessions.bulkStopped.one': '已删除 1 个会话，其余未能继续处理。',
+  'sessions.bulkStopped.other': '已删除 {deleted} 个会话，其余未能继续处理。',
+  'sessions.bulkArchivePartial.one': '已归档 1 个会话，{skipped} 个运行中的会话已跳过。',
+  'sessions.bulkArchivePartial.other': '已归档 {archived} 个会话，{skipped} 个运行中的会话已跳过。',
+  'sessions.bulkArchiveFailed.one': '已归档 1 个会话，{failed} 个归档失败。',
+  'sessions.bulkArchiveFailed.other': '已归档 {archived} 个会话，{failed} 个归档失败。',
 
   'sessions.deleteSelectedTitle': '删除选中的会话',
   'sessions.deleteBatchDescription': '从磁盘移除选中的 {count} 个会话及其所有子会话的日志，正在运行的会话将被终止。此操作不可撤销！',
@@ -219,10 +258,14 @@ export const zh: typeof en = {
   'sessions.archiveStopDescription': '“{title}”仍有正在进行的工作。归档会先停止这些工作，停止的工作不会自动继续。',
   'sessions.archiveActivity': '将被停止的工作',
   'sessions.activityTurn': '进行中的回合',
-  'sessions.activitySubagents': '{count} 个运行中的子智能体',
-  'sessions.activityJobs': '{count} 个后台任务',
-  'sessions.activitySchedules': '{count} 条定时提醒',
-  'sessions.activityOther': '{count} 项其他工作（{kind}）',
+  'sessions.activitySubagents.one': '1 个运行中的子智能体',
+  'sessions.activitySubagents.other': '{count} 个运行中的子智能体',
+  'sessions.activityJobs.one': '1 个后台任务',
+  'sessions.activityJobs.other': '{count} 个后台任务',
+  'sessions.activitySchedules.one': '1 条定时提醒',
+  'sessions.activitySchedules.other': '{count} 条定时提醒',
+  'sessions.activityOther.one': '1 项其他工作（{kind}）',
+  'sessions.activityOther.other': '{count} 项其他工作（{kind}）',
   'sessions.archiveStopAction': '停止并归档',
   'sessions.archiveStopPending': '正在停止并归档…',
 

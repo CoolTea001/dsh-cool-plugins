@@ -17,7 +17,7 @@
  */
 import { type ReactElement } from 'react';
 import type { ArchiveResult } from './archive.js';
-import type { Translate } from './locales.js';
+import { type Translate } from './locales.js';
 /** The selector-hook shape DSH hands every slot component. */
 type SelectorHook = (selector: (state: any) => any) => any;
 /** The section's injected share: the locale seat plus the Host-backed actions. */

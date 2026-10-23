@@ -24,7 +24,7 @@ import { deleteSessions } from './api.js'
 import { ARROW_DOWN_MARKUP } from './icons.js'
 import { reasonOf } from './reason.js'
 import type { ArchiveActivity, ArchiveResult } from './archive.js'
-import type { MessageKey, Translate } from './locales.js'
+import { countKey, type MessageKey, type Translate } from './locales.js'
 import type { Failure } from '../shared/contract.js'
 
 /** The selector-hook shape DSH hands every slot component. */
@@ -189,10 +189,10 @@ function rawReason(t: Translate, error: string | undefined, fallback: MessageKey
 function activityLine(t: Translate, activity: ArchiveActivity): string {
   switch (activity.kind) {
     case 'turn': return t('sessions.activityTurn')
-    case 'subagent': return t('sessions.activitySubagents', { count: activity.count })
-    case 'job': return t('sessions.activityJobs', { count: activity.count })
-    case 'schedule': return t('sessions.activitySchedules', { count: activity.count })
-    default: return t('sessions.activityOther', { count: activity.count, kind: activity.kind })
+    case 'subagent': return t(countKey('sessions.activitySubagents', activity.count), { count: activity.count })
+    case 'job': return t(countKey('sessions.activityJobs', activity.count), { count: activity.count })
+    case 'schedule': return t(countKey('sessions.activitySchedules', activity.count), { count: activity.count })
+    default: return t(countKey('sessions.activityOther', activity.count), { count: activity.count, kind: activity.kind })
   }
 }
 
@@ -485,14 +485,14 @@ export function SessionsSection({
       const first = failed[0]
       const detail = requestError ?? first?.error
       setProblem({
-        prefix: { key: 'sessions.bulkPartial', params: { deleted: succeeded.length, failed: failed.length } },
+        prefix: { key: countKey('sessions.bulkPartial', succeeded.length), params: { deleted: succeeded.length, failed: failed.length } },
         ...(first === undefined || first.failure === undefined ? {} : { failure: first.failure }),
         ...(detail === undefined ? {} : { error: detail }),
       })
     } else if (requestError !== undefined) {
       // A later batch could not be attempted; the completed ones still count.
       setProblem({
-        prefix: { key: 'sessions.bulkStopped', params: { deleted: succeeded.length } },
+        prefix: { key: countKey('sessions.bulkStopped', succeeded.length), params: { deleted: succeeded.length } },
         error: requestError,
       })
     }
@@ -566,7 +566,7 @@ export function SessionsSection({
       setProblem({
         ...(archivedIds.length === 0
           ? {}
-          : { prefix: { key: 'sessions.bulkArchiveFailed' as const, params: { archived: archivedIds.length, failed } } }),
+          : { prefix: { key: countKey('sessions.bulkArchiveFailed', archivedIds.length), params: { archived: archivedIds.length, failed } } }),
         ...(firstFailure?.failure === undefined ? {} : { failure: firstFailure.failure }),
         ...(firstFailure?.message === undefined ? {} : { error: firstFailure.message }),
       })
@@ -575,7 +575,7 @@ export function SessionsSection({
     if (skipped > 0) {
       setProblem({
         prefix: {
-          key: 'sessions.bulkArchivePartial',
+          key: countKey('sessions.bulkArchivePartial', archivedIds.length),
           params: { archived: archivedIds.length, skipped },
         },
       })
