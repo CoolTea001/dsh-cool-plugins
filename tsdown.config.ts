@@ -58,6 +58,11 @@ export default defineConfig([
       // (packages/client/web/src/platform.ts): they must stay `require`
       // calls rather than being inlined.
       neverBundle: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
+      // The syntax highlighter, by contrast, is deliberately inlined: the page
+      // never resolves a package that is not one of the seeds above, so a
+      // runtime `require('highlight.js')` would fail and the preview would lose
+      // its colours. Naming it here keeps the inlining intentional.
+      onlyBundle: ['highlight.js'],
     },
     outputOptions: {
       entryFileNames: 'client.js',

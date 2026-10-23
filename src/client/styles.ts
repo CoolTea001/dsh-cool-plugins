@@ -89,7 +89,10 @@ const FILES_CSS = [
   // is one workspace and one root level, and the name is what the reader needs
   // to know about the tree below it. The name is what gives ground when the
   // sidebar is narrow; Refresh keeps its seat on the right.
-  '.dsh-cf-side-head{flex:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 10px}',
+  // Both column heads carry the section rule themselves and share one height, so
+  // the seam runs straight across the page instead of stepping down a couple of
+  // pixels at the boundary.
+  '.dsh-cf-side-head{flex:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 10px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
   '.dsh-cf-side-title{flex:1 1 auto;min-width:0;display:flex;align-items:center;overflow:hidden}',
   '.dsh-cf-side-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:11.5px;font-weight:600}',
   '.dsh-cf-icon-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}',
@@ -105,7 +108,7 @@ const FILES_CSS = [
   // depth. The arrow is the branch's own disclosure: it points right while
   // closed and turns down while open, and it keeps its 12px seat on files so
   // every name in a level starts on the same axis.
-  '.dsh-cf-list{flex:1 1 auto;min-height:0;overflow:auto;padding:4px 6px 10px;border-top:.5px solid var(--dsw-alias-border-l3)}',
+  '.dsh-cf-list{flex:1 1 auto;min-height:0;overflow:auto;padding:4px 6px 10px}',
   '.dsh-cf-node{display:block}',
   '.dsh-cf-row{display:flex;align-items:center;gap:6px;width:100%;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}',
   '.dsh-cf-row:hover{background:var(--dsw-alias-interactive-bg-hover)}',
@@ -130,11 +133,36 @@ const FILES_CSS = [
 
   // 6. The preview pane.
   '.dsh-cf-main{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}',
-  '.dsh-cf-main-head{flex:none;display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
+  '.dsh-cf-main-head{flex:none;display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
   '.dsh-cf-file-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:600}',
   '.dsh-cf-file-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);opacity:.8;font-size:11px}',
-  '.dsh-cf-body{flex:1 1 auto;min-height:0;overflow:auto}',
-  '.dsh-cf-code{margin:0;padding:12px 16px 24px;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:1.6;white-space:pre;tab-size:2;color:var(--dsw-alias-label-primary)}',
+  // The body is the vertical scroller; the code block inside it owns the
+  // horizontal one, so the line numbers keep their column while a long line
+  // slides sideways under the pointer.
+  '.dsh-cf-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}',
+  '.dsh-cf-code-view{display:flex;align-items:flex-start}',
+  // The gutter repeats the code's line box exactly — the same 19.2px line
+  // height and 12px top padding, with the numbers as one `white-space: pre`
+  // text — which is what aligns number n with line n. It is dimmer and smaller
+  // than the code because it is a ruler, not content.
+  '.dsh-cf-gutter{flex:none;padding:12px 10px 24px 14px;text-align:right;color:var(--dsw-alias-label-secondary);opacity:.55;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;font-variant-numeric:tabular-nums;white-space:pre;user-select:none}',
+  '.dsh-cf-code{margin:0;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;padding:12px 16px 24px;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;white-space:pre;tab-size:2;color:var(--shiki-foreground,var(--dsw-alias-label-primary))}',
+  // The shell's own syntax palette, named token by token. `ui-theme` defines
+  // these variables for light and dark, so the preview reads as the same code
+  // as a chat answer rather than as a second colour scheme. highlight.js names
+  // a token by role, so one rule usually covers several of its classes.
+  '.dsh-cf-code .hljs-comment,.dsh-cf-code .hljs-quote{color:var(--shiki-token-comment,var(--dsw-alias-label-secondary))}',
+  '.dsh-cf-code .hljs-keyword,.dsh-cf-code .hljs-selector-tag,.dsh-cf-code .hljs-literal,.dsh-cf-code .hljs-doctag,.dsh-cf-code .hljs-name,.dsh-cf-code .hljs-tag{color:var(--shiki-token-keyword,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code .hljs-string,.dsh-cf-code .hljs-regexp,.dsh-cf-code .hljs-addition{color:var(--shiki-token-string,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code .hljs-number,.dsh-cf-code .hljs-symbol,.dsh-cf-code .hljs-bullet,.dsh-cf-code .hljs-built_in,.dsh-cf-code .hljs-type{color:var(--shiki-token-constant,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code .hljs-title,.dsh-cf-code .hljs-section{color:var(--shiki-token-function,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code .hljs-attr,.dsh-cf-code .hljs-attribute,.dsh-cf-code .hljs-property,.dsh-cf-code .hljs-params,.dsh-cf-code .hljs-variable,.dsh-cf-code .hljs-template-variable,.dsh-cf-code .hljs-selector-class,.dsh-cf-code .hljs-selector-id{color:var(--shiki-token-parameter,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code .hljs-meta,.dsh-cf-code .hljs-meta .hljs-keyword{color:var(--shiki-token-comment,var(--dsw-alias-label-secondary))}',
+  '.dsh-cf-code .hljs-link{color:var(--shiki-token-link,var(--dsw-alias-link));text-decoration:underline}',
+  '.dsh-cf-code .hljs-deletion{color:var(--dsw-alias-state-error-primary)}',
+  '.dsh-cf-code .hljs-emphasis{font-style:italic}',
+  '.dsh-cf-code .hljs-strong{font-weight:600}',
+  '.dsh-cf-code .hljs-punctuation{color:var(--shiki-token-punctuation,inherit)}',
   '.dsh-cf-truncated{flex:none;margin:8px 16px 0;padding:6px 10px;border-radius:5px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
   '.dsh-cf-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--dsw-alias-label-secondary)}',
   '.dsh-cf-empty-title{color:var(--dsw-alias-label-primary);font-size:13px}',

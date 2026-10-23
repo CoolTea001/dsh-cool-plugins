@@ -36,6 +36,7 @@ import {
 } from 'react'
 import { fetchFile, fetchListing } from './api.js'
 import { suppressComposerSeat } from './chrome.js'
+import { CodePreview } from './code.js'
 import { IconArrow, IconFile, IconFolder, IconHide, IconRefresh, IconShow } from './icons.js'
 import { clampSideWidth, readLayout, ResizeHandle, writeLayout, type FileLayout } from './layout.js'
 import type { Translate } from './locales.js'
@@ -627,13 +628,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               <div className="dsh-cf-truncated">{t('preview.truncated', { count: preview.lines })}</div>
             ) : null}
 
-            <div className="dsh-cf-body">
+            {/* Keyed by the selected file so a new file starts at its first
+                line and column: the two scrollers are reused otherwise, and
+                the reader would land wherever the previous file was left. */}
+            <div className="dsh-cf-body" key={selected}>
               {fileLoading ? (
                 <div className="dsh-cf-note">{t('preview.loading')}</div>
               ) : fileError !== null ? (
                 <div className="dsh-cf-error">{fileError}</div>
               ) : preview !== null ? (
-                <pre className="dsh-cf-code">{preview.text}</pre>
+                <CodePreview text={preview.text} path={selected} />
               ) : null}
             </div>
           </>
