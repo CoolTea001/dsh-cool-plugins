@@ -48,6 +48,10 @@ export default defineConfig([
     platform: 'browser',
     target: 'es2022',
     dts: false,
+    // The tokenizer's grammars are the bulk of this file, and they are data:
+    // minifying costs the plugin nothing it can debug at runtime and trims the
+    // code around the grammars, which is worth the one build flag.
+    minify: true,
     define: {
       // The icon map is built from the assets above rather than imported, so
       // the bundle carries its own artwork and fetches nothing at runtime.
@@ -58,11 +62,15 @@ export default defineConfig([
       // (packages/client/web/src/platform.ts): they must stay `require`
       // calls rather than being inlined.
       neverBundle: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
-      // The syntax highlighter, by contrast, is deliberately inlined: the page
-      // never resolves a package that is not one of the seeds above, so a
-      // runtime `require('highlight.js')` would fail and the preview would lose
-      // its colours. Naming it here keeps the inlining intentional.
-      onlyBundle: ['highlight.js'],
+      // Everything else is inlined on purpose: the page never resolves a
+      // package that is not one of the seeds above, so a runtime
+      // `require('shiki')` would fail and the preview would lose its colours.
+      // The tokenizer, its grammars and its own dependencies therefore travel
+      // inside the bundle. The allowlist check is off because those transitive
+      // packages are Shiki's implementation detail, not dependencies this
+      // package should have to enumerate — the seed list above is the actual
+      // boundary that matters.
+      onlyBundle: false,
     },
     outputOptions: {
       entryFileNames: 'client.js',

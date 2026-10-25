@@ -137,32 +137,35 @@ const FILES_CSS = [
   '.dsh-cf-file-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:600}',
   '.dsh-cf-file-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);opacity:.8;font-size:11px}',
   // The body is the vertical scroller; the code block inside it owns the
-  // horizontal one, so the line numbers keep their column while a long line
-  // slides sideways under the pointer.
+  // horizontal one, so a long line slides sideways under the pointer. The number
+  // column is a sibling of that block, never inside it: that is what leaves the
+  // numbers still while the source moves.
   '.dsh-cf-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}',
-  '.dsh-cf-code-view{display:flex;align-items:flex-start}',
-  // The gutter repeats the code's line box exactly — the same 19.2px line
-  // height and 12px top padding, with the numbers as one `white-space: pre`
-  // text — which is what aligns number n with line n. It is dimmer and smaller
-  // than the code because it is a ruler, not content.
-  '.dsh-cf-gutter{flex:none;padding:12px 10px 24px 14px;text-align:right;color:var(--dsw-alias-label-secondary);opacity:.55;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;font-variant-numeric:tabular-nums;white-space:pre;user-select:none}',
-  '.dsh-cf-code{margin:0;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;padding:12px 16px 24px;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;white-space:pre;tab-size:2;color:var(--shiki-foreground,var(--dsw-alias-label-primary))}',
-  // The shell's own syntax palette, named token by token. `ui-theme` defines
-  // these variables for light and dark, so the preview reads as the same code
-  // as a chat answer rather than as a second colour scheme. highlight.js names
-  // a token by role, so one rule usually covers several of its classes.
-  '.dsh-cf-code .hljs-comment,.dsh-cf-code .hljs-quote{color:var(--shiki-token-comment,var(--dsw-alias-label-secondary))}',
-  '.dsh-cf-code .hljs-keyword,.dsh-cf-code .hljs-selector-tag,.dsh-cf-code .hljs-literal,.dsh-cf-code .hljs-doctag,.dsh-cf-code .hljs-name,.dsh-cf-code .hljs-tag{color:var(--shiki-token-keyword,var(--dsw-alias-label-primary))}',
-  '.dsh-cf-code .hljs-string,.dsh-cf-code .hljs-regexp,.dsh-cf-code .hljs-addition{color:var(--shiki-token-string,var(--dsw-alias-label-primary))}',
-  '.dsh-cf-code .hljs-number,.dsh-cf-code .hljs-symbol,.dsh-cf-code .hljs-bullet,.dsh-cf-code .hljs-built_in,.dsh-cf-code .hljs-type{color:var(--shiki-token-constant,var(--dsw-alias-label-primary))}',
-  '.dsh-cf-code .hljs-title,.dsh-cf-code .hljs-section{color:var(--shiki-token-function,var(--dsw-alias-label-primary))}',
-  '.dsh-cf-code .hljs-attr,.dsh-cf-code .hljs-attribute,.dsh-cf-code .hljs-property,.dsh-cf-code .hljs-params,.dsh-cf-code .hljs-variable,.dsh-cf-code .hljs-template-variable,.dsh-cf-code .hljs-selector-class,.dsh-cf-code .hljs-selector-id{color:var(--shiki-token-parameter,var(--dsw-alias-label-primary))}',
-  '.dsh-cf-code .hljs-meta,.dsh-cf-code .hljs-meta .hljs-keyword{color:var(--shiki-token-comment,var(--dsw-alias-label-secondary))}',
-  '.dsh-cf-code .hljs-link{color:var(--shiki-token-link,var(--dsw-alias-link));text-decoration:underline}',
-  '.dsh-cf-code .hljs-deletion{color:var(--dsw-alias-state-error-primary)}',
-  '.dsh-cf-code .hljs-emphasis{font-style:italic}',
-  '.dsh-cf-code .hljs-strong{font-weight:600}',
-  '.dsh-cf-code .hljs-punctuation{color:var(--shiki-token-punctuation,inherit)}',
+  // The row is the one place the code metrics are declared, and both columns
+  // inherit them: the gutter and the code cannot disagree about how tall a line
+  // is, because there is only one height. The file sizes its own gutter in `ch`.
+  // The columns start at the top rather than stretching: a stretched code block
+  // would pay for its horizontal scrollbar out of its own height and clip the
+  // last row, while an auto-height one grows to keep it.
+  '.dsh-cf-code-view{display:flex;align-items:flex-start;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px}',
+  // The gutter is a `<pre>` holding one number per line, right-aligned against
+  // the code. It repeats the code's top and bottom padding so both columns begin
+  // and end on the same line; `overflow:hidden` keeps it out of any scrolling.
+  // `tabular-nums` keeps the digits one width so the right edge does not wobble,
+  // and `user-select:none` keeps a copied selection free of numbers.
+  '.dsh-cf-gutter{flex:none;margin:0;padding:12px 8px 24px;overflow:hidden;text-align:right;white-space:pre;font-family:inherit;font-size:inherit;line-height:inherit;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);opacity:.55;user-select:none;-webkit-user-select:none;pointer-events:none}',
+  // One row, one line of source. A fixed `height` is what pins the pitch: with
+  // `white-space:pre` a row never wraps, and with a fixed height it never grows,
+  // so row n always sits at `12px + 19.2px * n` — the same arithmetic the nth
+  // number follows in the gutter.
+  '.dsh-cf-code{flex:1 1 auto;min-width:0;margin:0;padding:12px 16px 24px 8px;overflow-x:auto;overflow-y:hidden;font-family:inherit;font-size:inherit;line-height:inherit;tab-size:2;color:var(--shiki-foreground,var(--dsw-alias-label-primary))}',
+  '.dsh-cf-code code{display:block;font:inherit;line-height:inherit;white-space:normal}',
+  '.dsh-cf-line{display:block;height:19.2px;white-space:pre}',
+  // Syntax colours are not styled here: the tokenizer emits the shell's
+  // `--shiki-*` colours (and italic/bold/underline) inline on the spans it
+  // builds (see `highlight.ts`), and only paints a token when it differs from
+  // the plain foreground. The sheet therefore owns the block's font and the
+  // plain foreground, and nothing else about how code is coloured.
   '.dsh-cf-truncated{flex:none;margin:8px 16px 0;padding:6px 10px;border-radius:5px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
   '.dsh-cf-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--dsw-alias-label-secondary)}',
   '.dsh-cf-empty-title{color:var(--dsw-alias-label-primary);font-size:13px}',

@@ -1,18 +1,28 @@
 /**
- * The code body of the preview pane: a fixed line-number gutter beside the
- * text, with the text coloured by the grammar its file name picks.
+ * The code body of the preview pane: a number column beside coloured source rows.
  *
- * The gutter is a sibling of the code, not part of it: the code block owns the
- * horizontal scroll while the pane owns the vertical one, so a long line slides
- * under the pointer without taking the line numbers with it, and the numbers
- * stay put while the reader scrolls down. Both columns draw the same line box —
- * same size, line height and top padding — which is what keeps number n on the
- * line it belongs to; the gutter repeats that box as plain text (`white-space:
- * pre`) rather than as one element per line, so a five-thousand-line file still
- * mounts one node per column.
+ * The numbers are a column of their own, a sibling of the block that scrolls.
+ * That is what keeps them still: the `<pre>` owning the horizontal scroll holds
+ * the source and nothing else, so a long line slides sideways underneath the
+ * pointer while its number stays on the left edge. Vertical motion needs no
+ * syncing at all — the body scrolls the gutter and the rows together, because
+ * they are siblings in the same scroller.
  *
- * Highlighting is memoised per text and path: selecting another file replaces
- * both, while re-rendering for a resize or a tab switch costs nothing.
+ * Both columns are measured by the same rules (`styles.ts`): the same monospaced
+ * font, the same 12px size and 19.2px line height, the same 12px top padding and
+ * the same bottom padding. Every source row is a fixed-height block, and a number
+ * is one line of the gutter's `<pre>`, so row *n* and number *n* start at the same
+ * offset for every *n* — the two columns cannot accumulate a difference because
+ * neither one has a height of its own to vary.
+ *
+ * The gutter's width follows the file: it is sized in `ch` from the digits of the
+ * last line number, so a 9-line file gets a narrow column and a 100 000-line file
+ * still fits its numbers without re-measuring.
+ *
+ * Rendering is memoised per text and path: selecting another file replaces both,
+ * while re-rendering for a resize or a tab switch costs nothing. The tokenizer
+ * lives in `highlight.ts`; what it returns is escaped HTML — one block per row,
+ * coloured tokens inside — plus the row count the gutter needs.
  */
 import { type ReactElement } from 'react';
 /** Props of the preview body. */
@@ -26,7 +36,7 @@ interface CodePreviewProps {
  * Draw one file's text with line numbers and syntax colours.
  *
  * @param props - the text to draw and the path it came from.
- * @returns the two-column code body.
+ * @returns the code body.
  */
 export declare function CodePreview({ text, path }: CodePreviewProps): ReactElement;
 export {};
