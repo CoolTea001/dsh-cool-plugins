@@ -10,8 +10,9 @@ const PACKAGE_ID = 'dsh-cool-daily'
  *   CJS file, so it is wrapped in the loader's `load` call rather than emitted
  *   as a plain module.
  *
- * Both entries are empty shells for now; functionality is added to the source
- * files, not to this config.
+ * Both entries are built from the source files; this config only shapes them.
+ * The client half additionally reads `assets/*.svg` as text, so the artwork is
+ * already inside the published `lib/client.js` and the browser fetches nothing.
  */
 export default defineConfig([
   {
@@ -32,6 +33,20 @@ export default defineConfig([
     platform: 'browser',
     target: 'es2022',
     dts: false,
+    // Icons are read as their own source text (see src/client/icons.tsx), which
+    // keeps the published package JavaScript-only: `files` ships `lib`, and the
+    // artwork is already inside it by the time the bundle is written.
+    loader: { '.svg': 'text' },
+    define: {
+      // The stylesheet's ownership tag has to name the id the loader registers
+      // this bundle under, so the banner and the tag read the one constant.
+      __DSH_CD_PLUGIN_ID__: JSON.stringify(PACKAGE_ID),
+    },
+    deps: {
+      // React and the Host UI primitives come from the browser module table:
+      // inlining them would install a second copy beside the shell's.
+      neverBundle: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
+    },
     outputOptions: {
       entryFileNames: 'client.js',
       banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(PACKAGE_ID)}, factory: (require) => {`,

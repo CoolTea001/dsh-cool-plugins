@@ -64,8 +64,12 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "packageManager": "pnpm@11.7.0",
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/react": "~18.3.31",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3"
   }
