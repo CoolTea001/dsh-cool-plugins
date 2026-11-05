@@ -1,0 +1,72 @@
+{
+  "name": "dsh-cool-daily",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness Daily plugin — use custom prompts to have AI generate daily articles on topics like learning, news, or anything else you choose.",
+  "type": "module",
+  "license": "MIT",
+  "author": "CoolTea",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CoolTea001/dsh-cool-daily.git"
+  },
+  "homepage": "https://github.com/CoolTea001/dsh-cool-daily#readme",
+  "bugs": {
+    "url": "https://github.com/CoolTea001/dsh-cool-daily/issues"
+  },
+  "keywords": [
+    "dsh",
+    "cordis",
+    "plugin",
+    "daily",
+    "deepseek-harness"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/types/host/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/host/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsdown && tsc -p tsconfig.json --emitDeclarationOnly",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "pnpm typecheck && pnpm build",
+    "prepublishOnly": "pnpm run check",
+    "dev": "tsdown --watch",
+    "dev:types": "tsc -p tsconfig.json --watch --emitDeclarationOnly"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3"
+  }
+}
