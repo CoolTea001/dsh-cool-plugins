@@ -9,7 +9,7 @@
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import type { DailySettings } from '../shared/contract.js'
+import type { DailyModel, DailySettings } from '../shared/contract.js'
 import { settingsPath } from './paths.js'
 
 /** Longest prompt accepted, in characters. */
@@ -28,10 +28,30 @@ export const DEFAULT_SETTINGS: DailySettings = {
   prompt: DEFAULT_PROMPT,
   count: 1,
   days: [0, 1, 2, 3, 4, 5, 6],
+  model: null,
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * Coerce one stored or submitted model route.
+ *
+ * A route naming no provider or no model is the same answer as no route at all:
+ * the plugin then follows DSH's current default instead of pinning a broken one.
+ */
+function normalizeModel(value: unknown): DailyModel | null {
+  if (!isRecord(value)) return null
+  const provider = typeof value.provider === 'string' ? value.provider.trim() : ''
+  const model = typeof value.model === 'string' ? value.model.trim() : ''
+  if (provider === '' || model === '') return null
+  const effort = typeof value.reasoningEffort === 'string' ? value.reasoningEffort.trim() : ''
+  return {
+    provider: provider.slice(0, 120),
+    model: model.slice(0, 200),
+    ...(effort === '' ? {} : { reasoningEffort: effort.slice(0, 100) }),
+  }
 }
 
 /** Coerce one stored or submitted settings record into the accepted shape. */
@@ -50,6 +70,7 @@ export function normalizeSettings(value: unknown): DailySettings {
     prompt: prompt === '' ? DEFAULT_SETTINGS.prompt : prompt,
     count,
     days,
+    model: normalizeModel(value.model),
   }
 }
 

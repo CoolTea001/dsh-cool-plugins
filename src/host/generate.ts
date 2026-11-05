@@ -14,8 +14,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { DailySettings, ArticleSummary } from '../shared/contract.js'
-import { localDate, saveArticle, type GeneratedArticle } from './articles.js'
+import type { DailyModel, DailySettings, ArticleSummary } from '../shared/contract.js'
+import { cleanTags, localDate, saveArticle, type GeneratedArticle } from './articles.js'
 import { readSettings } from './settings.js'
 
 /** Longest one batch may run before it is cancelled. */
@@ -55,6 +55,7 @@ interface LlmService {
     system?: string
     messages: Array<{ role: 'user'; content: Array<{ type: 'text'; text: string }> }>
     temperature?: number
+    reasoningEffort?: string
     maxTokens?: number
     signal?: AbortSignal
     sessionId?: string
@@ -73,7 +74,7 @@ interface StreamChunkLike {
 
 /** The slice of the default-model service this plugin reads. */
 interface DefaultModelService {
-  currentSelection(): { provider?: unknown; model?: unknown }
+  currentSelection(): { provider?: unknown; model?: unknown; reasoningEffort?: unknown }
 }
 
 /** The system message for one batch. */
@@ -83,11 +84,12 @@ function systemPrompt(count: number): string {
     `本轮需要写 ${count} 篇文章，每篇彼此独立：主题不同、角度不同，不要重复同一论点。`,
     '',
     '只输出一个 JSON 数组，不要输出解释、前言或 Markdown 代码围栏。数组恰好包含以下对象：',
-    '{ "title": "文章标题", "category": "分类", "content": "Markdown 正文" }',
+    '{ "title": "文章标题", "category": "分类", "tags": ["标签1", "标签2", "标签3"], "content": "Markdown 正文" }',
     '',
     '写作用户指定的语言。要求：',
     '- title：具体、有信息量，不超过 30 字，不写序号。',
     '- category：2-6 个字的短分类，用于列表筛选（例如：科技、学习、效率、生活、观点）。',
+    '- tags：3-5 个短标签，每个 2-6 字，从正文内容里提炼具体主题、方法或对象，供列表展示；不要与 category 重复，也不要写宽泛的词（如「思考」「方法」）。',
     '- content：完整的 Markdown 正文，600-900 字；包含一级或二级小标题、自然段落，必要时使用列表或引用；不要出现文章标题本身，不要使用代码围栏包裹全文。',
     '- 观点要有依据，方法要可执行，避免空泛的口号与营销腔。',
   ].join('\n')
@@ -108,15 +110,32 @@ function userPrompt(settings: DailySettings, date: string): string {
  * @throws when no default model is configured, which is also why the model
  *   cannot be resolved per batch at settings-save time.
  */
-function resolveModel(ctx: any): { provider: string; model: string } {
+function resolveModel(
+  ctx: any,
+  pinned?: DailyModel | null,
+): { provider: string; model: string; reasoningEffort?: string } {
+  // A route this plugin pinned wins over DSH's default; the pinned route is only
+  // ever written by the settings dialog, which lists what the service offers.
+  if (pinned !== undefined && pinned !== null && pinned.provider !== '' && pinned.model !== '') {
+    return {
+      provider: pinned.provider,
+      model: pinned.model,
+      ...(pinned.reasoningEffort === undefined ? {} : { reasoningEffort: pinned.reasoningEffort }),
+    }
+  }
   const service = ctx.get('agentDefaultModel') as DefaultModelService | undefined
   const selection = service?.currentSelection()
   const provider = selection?.provider
   const model = selection?.model
+  const effort = selection?.reasoningEffort
   if (typeof provider !== 'string' || typeof model !== 'string' || provider === '' || model === '') {
     throw new Error('尚未配置默认模型，无法生成每日贴')
   }
-  return { provider, model }
+  return {
+    provider,
+    model,
+    ...(typeof effort === 'string' && effort !== '' ? { reasoningEffort: effort } : {}),
+  }
 }
 
 /** Translate one failed stream chunk into an error message. */
@@ -126,34 +145,52 @@ function failureMessage(chunk: StreamChunkLike): string {
   return `${chunk.reason?.kind === 'aborted' ? '生成已取消' : '模型调用失败'}${code}：${failure?.message ?? '未知错误'}`
 }
 
+/** One complete model call, shaped by the caller's prompt. */
+export interface LlmCallOptions {
+  /** The system message. */
+  system: string
+  /** The single user message. */
+  user: string
+  /** Answer cap, in tokens. */
+  maxTokens: number
+  /** Sampling temperature. */
+  temperature: number
+  /** How long the call may run before it is cancelled. */
+  timeoutMs: number
+  /** The route to call; omitted or null follows DSH's current default. */
+  model?: DailyModel | null
+}
+
 /**
  * Run one model call and return its complete text.
  *
  * The stream is drained into one string; a terminal `error` or `aborted` chunk
  * becomes a thrown error, and a stream that ends without any terminal chunk is
- * treated as a failure instead of a silent empty answer.
+ * treated as a failure instead of a silent empty answer. The call is stateless:
+ * nothing here belongs to a Session.
  */
-async function callModel(ctx: any, settings: DailySettings, date: string): Promise<string> {
+export async function callLlmText(ctx: any, options: LlmCallOptions): Promise<string> {
   const llm = ctx.get('llm') as LlmService | undefined
   if (llm === undefined) throw new Error('LLM 服务未就绪，无法生成每日贴')
-  const { provider, model } = resolveModel(ctx)
+  const { provider, model, reasoningEffort } = resolveModel(ctx, options.model)
 
   const controller = new AbortController()
-  const timer = setTimeout(() => { controller.abort() }, GENERATION_TIMEOUT_MS)
+  const timer = setTimeout(() => { controller.abort() }, options.timeoutMs)
   let text = ''
   let finished = false
   try {
     for await (const chunk of llm.stream({
       provider,
       model,
-      system: systemPrompt(settings.count),
-      messages: [{ role: 'user', content: [{ type: 'text', text: userPrompt(settings, date) }] }],
-      temperature: 0.7,
-      maxTokens: MAX_TOKENS,
+      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+      system: options.system,
+      messages: [{ role: 'user', content: [{ type: 'text', text: options.user }] }],
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
       signal: controller.signal,
       // Some provider adapters route requests by a session header. Nothing in
-      // this batch is a Session, but a stable identifier per batch keeps that
-      // routing working without inventing a conversation.
+      // this call is a Session, but an identifier per call keeps that routing
+      // working without inventing a conversation.
       sessionId: sessionIdForBatch(),
     })) {
       if (chunk.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text
@@ -169,10 +206,23 @@ async function callModel(ctx: any, settings: DailySettings, date: string): Promi
   return text.trim()
 }
 
+/** Run one generation batch and return the model's answer. */
+function callModel(ctx: any, settings: DailySettings, date: string): Promise<string> {
+  return callLlmText(ctx, {
+    system: systemPrompt(settings.count),
+    user: userPrompt(settings, date),
+    maxTokens: MAX_TOKENS,
+    temperature: 0.7,
+    timeoutMs: GENERATION_TIMEOUT_MS,
+    model: settings.model,
+  })
+}
+
 /** One object in the model's JSON array, before validation. */
 interface RawArticle {
   title?: unknown
   category?: unknown
+  tags?: unknown
   content?: unknown
 }
 
@@ -210,7 +260,8 @@ export function parseGenerated(raw: string, count: number, date: string): Genera
           const title = typeof entry.title === 'string' ? entry.title.trim().slice(0, 60) : ''
           const content = typeof entry.content === 'string' ? entry.content.trim() : ''
           if (title === '' || content === '') continue
-          articles.push({ title, category: categoryOf(entry.category), content })
+          const tags = Array.isArray(entry.tags) ? cleanTags(entry.tags) : []
+          articles.push({ title, category: categoryOf(entry.category), tags, content })
           if (articles.length >= count) break
         }
         if (articles.length > 0) return articles
@@ -220,7 +271,7 @@ export function parseGenerated(raw: string, count: number, date: string): Genera
     }
   }
   if (raw.trim() === '') throw new Error('模型没有返回内容')
-  return [{ title: `${date} 每日贴`, category: '每日贴', content: raw.trim() }]
+  return [{ title: `${date} 每日贴`, category: '每日贴', tags: [], content: raw.trim() }]
 }
 
 /**

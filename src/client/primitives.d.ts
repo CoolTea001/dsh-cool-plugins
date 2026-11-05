@@ -9,7 +9,7 @@
  */
 
 declare module '@deepseek-ai/dsh-client-ui-primitives' {
-  import type { ButtonHTMLAttributes, ReactElement, ReactNode } from 'react'
+  import type { ButtonHTMLAttributes, ReactElement, ReactNode, RefObject } from 'react'
 
   /** The dialog chrome: portaled card, blurred mask, focus trap, Escape handling. */
   export interface ModalProps {
@@ -72,4 +72,83 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   }
 
   export function Tag(props: TagProps): ReactElement
+
+  /** One selectable row of a {@link Menu}'s list. */
+  export interface MenuItem {
+    readonly id: string
+    readonly label: ReactNode
+    readonly icon?: ReactNode
+    readonly disabled?: boolean
+  }
+
+  /** A hairline between two runs of rows; not selectable. */
+  export interface MenuSeparator {
+    readonly type: 'separator'
+    readonly id: string
+  }
+
+  /** A caption inside the list, for a state the rows cannot state themselves. */
+  export interface MenuLabel {
+    readonly type: 'label'
+    readonly id: string
+    readonly text: string
+  }
+
+  /** One menu entry: a row, a separator, or a caption. */
+  export type MenuEntry = MenuItem | MenuSeparator | MenuLabel
+
+  /** Anchored dropdown menu (the subset this plugin uses). */
+  export interface MenuProps {
+    readonly open: boolean
+    /** The trigger element, rendered in place inside the menu's own wrapper. */
+    readonly anchor: ReactNode
+    /** Selectable rows and separators, in the order the list draws them. */
+    readonly items?: readonly MenuEntry[]
+    /** Row activation; closing the list stays the owner's decision. */
+    readonly onSelect?: (id: string) => void
+    /** The row id drawn as the current choice. */
+    readonly selectedId?: string
+    /** Outside click, Escape, or focus loss. */
+    readonly onClose: () => void
+    readonly align?: 'start' | 'end'
+    readonly side?: 'bottom' | 'top' | 'right'
+    /** Render the list into `document.body`, escaping ancestor clipping. */
+    readonly portal?: boolean
+    /** Extra class on the anchor wrapper span. */
+    readonly className?: string
+    /** Extra class on the dropdown card; the only hook that reaches a portaled list. */
+    readonly listClassName?: string
+  }
+
+  export function Menu(props: MenuProps): ReactElement
+
+  /** Where an anchored panel sits, as a viewport corner. */
+  export interface AnchoredPosition {
+    readonly left: number
+    readonly top: number
+  }
+
+  /** Inputs of {@link useAnchoredPosition}. */
+  export interface AnchoredPositionOptions {
+    readonly open: boolean
+    /** The control the panel hangs from. */
+    readonly anchorRef: RefObject<HTMLElement | null>
+    /** The panel itself, measured so it can be clamped inside the viewport. */
+    readonly panelRef: RefObject<HTMLElement | null>
+    readonly side?: 'bottom' | 'top'
+    readonly align?: 'start' | 'end'
+    /** Anchor-to-panel distance in pixels. */
+    readonly gap?: number
+    /** Distance the panel keeps from the viewport's edges. */
+    readonly margin?: number
+  }
+
+  /** Track the viewport position of a panel anchored to a control. */
+  export function useAnchoredPosition(options: AnchoredPositionOptions): AnchoredPosition | null
+
+  /**
+   * Put a panel on the platform's modal layer stack: Escape closes it before the
+   * dialog under it, Tab stays inside it, and focus returns to the anchor.
+   */
+  export function useModalLayer(panelRef: RefObject<HTMLElement | null>, open: boolean, onClose: () => void): void
 }

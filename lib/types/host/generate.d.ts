@@ -12,7 +12,7 @@
  * one article so a partial result still reaches the page, and the parse problem
  * becomes a notice rather than an empty day.
  */
-import type { ArticleSummary } from '../shared/contract.js';
+import type { DailyModel, ArticleSummary } from '../shared/contract.js';
 import { type GeneratedArticle } from './articles.js';
 /** The in-memory generation state the page polls. */
 interface GenerationRuntime {
@@ -22,6 +22,30 @@ interface GenerationRuntime {
 }
 /** Read the current in-memory generation state. */
 export declare function generationState(): Readonly<GenerationRuntime>;
+/** One complete model call, shaped by the caller's prompt. */
+export interface LlmCallOptions {
+    /** The system message. */
+    system: string;
+    /** The single user message. */
+    user: string;
+    /** Answer cap, in tokens. */
+    maxTokens: number;
+    /** Sampling temperature. */
+    temperature: number;
+    /** How long the call may run before it is cancelled. */
+    timeoutMs: number;
+    /** The route to call; omitted or null follows DSH's current default. */
+    model?: DailyModel | null;
+}
+/**
+ * Run one model call and return its complete text.
+ *
+ * The stream is drained into one string; a terminal `error` or `aborted` chunk
+ * becomes a thrown error, and a stream that ends without any terminal chunk is
+ * treated as a failure instead of a silent empty answer. The call is stateless:
+ * nothing here belongs to a Session.
+ */
+export declare function callLlmText(ctx: any, options: LlmCallOptions): Promise<string>;
 /**
  * Parse the model's answer into at most `count` articles.
  *

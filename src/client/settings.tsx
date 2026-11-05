@@ -13,19 +13,21 @@
 import * as React from 'react'
 import { Button, Modal, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
 
-import { saveSettings } from './api.js'
+import { fetchModels, saveSettings } from './api.js'
 import type { Translate } from './locales.js'
+import { ModelPicker } from './model-picker.js'
+import type { DailySettings, ModelGroup } from '../shared/contract.js'
 
 /** The props the page hands the dialog. */
 export interface SettingsDialogProps {
   /** The plugin's translate seat. */
   t: Translate
   /** The stored settings the draft starts from. */
-  settings: { prompt: string; count: number; days: number[] }
+  settings: DailySettings
   /** Close without saving. */
   onClose: () => void
   /** The stored result, after a successful write. */
-  onSaved: (settings: { prompt: string; count: number; days: number[] }) => void
+  onSaved: (settings: DailySettings) => void
 }
 
 /** Display order of the weekday toggles: Monday first, Sunday last. */
@@ -63,8 +65,23 @@ export function SettingsDialog({
   const [prompt, setPrompt] = React.useState(settings.prompt)
   const [count, setCount] = React.useState(String(settings.count))
   const [days, setDays] = React.useState<number[]>(settings.days)
+  const [model, setModel] = React.useState(settings.model)
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [groups, setGroups] = React.useState<ModelGroup[]>([])
+  const [current, setCurrent] = React.useState<DailySettings['model']>(null)
+
+  // The catalog is read when the dialog opens rather than at page mount: a model
+  // added or removed elsewhere in DSH is reflected the next time it is opened.
+  React.useEffect(() => {
+    let alive = true
+    void fetchModels().then((answer) => {
+      if (!alive || answer.ok !== true) return
+      setGroups(answer.groups)
+      setCurrent(answer.current)
+    })
+    return () => { alive = false }
+  }, [])
 
   const close = (): void => {
     if (!saving) onClose()
@@ -80,7 +97,7 @@ export function SettingsDialog({
     if (saving) return
     setSaving(true)
     setError(null)
-    const next = { prompt: prompt.trim(), count: clampCount(count), days }
+    const next: DailySettings = { prompt: prompt.trim(), count: clampCount(count), days, model }
     const answer = await saveSettings(next)
     if (answer.ok !== true) {
       setSaving(false)
@@ -98,7 +115,6 @@ export function SettingsDialog({
       title={t('settings.title')}
       description={t('settings.description')}
       closeLabel={t('settings.close')}
-      contentClassName="dsh-cd-dialog-content"
       footer={(
         <>
           <Button variant="outline" data-modal-autofocus disabled={saving} onClick={close}>
@@ -110,48 +126,62 @@ export function SettingsDialog({
         </>
       )}
     >
-      <label className="dsh-cd-field">
-        <span className="dsh-cd-field-label">{t('settings.prompt')}</span>
-        <textarea
-          className="dsh-cd-textarea"
-          value={prompt}
-          rows={6}
-          onChange={(event) => { setPrompt(event.target.value) }}
-          disabled={saving}
-        />
-        <span className="dsh-cd-hint">{t('settings.promptHint')}</span>
-      </label>
-
-      <div className="dsh-cd-field">
-        <span className="dsh-cd-field-label">{t('settings.days')}</span>
-        <div className="dsh-cd-days">
-          {WEEK_ORDER.map(day => (
-            <button
-              key={day}
-              type="button"
-              className={days.includes(day) ? 'dsh-cd-day dsh-cd-day-active' : 'dsh-cd-day'}
-              aria-pressed={days.includes(day)}
-              onClick={() => { toggleDay(day) }}
-              disabled={saving}
-            >
-              {t(`weekday.${day}`)}
-            </button>
-          ))}
+      <div className="dsh-cd-dialog-scroll">
+        <div className="dsh-cd-field">
+          <span className="dsh-cd-field-label">{t('settings.model')}</span>
+          <ModelPicker
+            t={t}
+            groups={groups}
+            current={current}
+            value={model}
+            disabled={saving}
+            onChange={setModel}
+          />
         </div>
-      </div>
 
-      <div className="dsh-cd-count">
-        <SettingsValueField
-          id="dsh-cd-count"
-          label={t('settings.count')}
-          text={count}
-          numeric
-          disabled={saving}
-          onEdit={(value) => { setCount(limitCount(value)) }}
-        />
-      </div>
+        <label className="dsh-cd-field">
+          <span className="dsh-cd-field-label">{t('settings.prompt')}</span>
+          <textarea
+            className="dsh-cd-textarea"
+            value={prompt}
+            rows={6}
+            onChange={(event) => { setPrompt(event.target.value) }}
+            disabled={saving}
+          />
+          <span className="dsh-cd-hint">{t('settings.promptHint')}</span>
+        </label>
 
-      {error !== null && <p className="dsh-cd-dialog-error" role="alert">{error}</p>}
+        <div className="dsh-cd-field">
+          <span className="dsh-cd-field-label">{t('settings.days')}</span>
+          <div className="dsh-cd-days">
+            {WEEK_ORDER.map(day => (
+              <button
+                key={day}
+                type="button"
+                className={days.includes(day) ? 'dsh-cd-day dsh-cd-day-active' : 'dsh-cd-day'}
+                aria-pressed={days.includes(day)}
+                onClick={() => { toggleDay(day) }}
+                disabled={saving}
+              >
+                {t(`weekday.${day}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="dsh-cd-count">
+          <SettingsValueField
+            id="dsh-cd-count"
+            label={t('settings.count')}
+            text={count}
+            numeric
+            disabled={saving}
+            onEdit={(value) => { setCount(limitCount(value)) }}
+          />
+        </div>
+
+        {error !== null && <p className="dsh-cd-dialog-error" role="alert">{error}</p>}
+      </div>
     </Modal>
   )
 }

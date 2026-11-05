@@ -10,6 +10,7 @@
 
 import { registerRoutes } from './routes.js'
 import { startScheduler } from './scheduler.js'
+import { startTagBackfill } from './tagging.js'
 
 export const name = 'dsh-cool-daily'
 
@@ -22,4 +23,7 @@ export function apply(ctx: any): void {
   // instance.
   ctx.effect(() => registerRoutes(ctx), 'dsh-cool-daily: routes')
   ctx.effect(() => startScheduler(ctx), 'dsh-cool-daily: scheduler')
+  // Articles written before tags existed get them from the model once, shortly
+  // after startup; the state route never waits on that work.
+  ctx.effect(() => startTagBackfill(ctx), 'dsh-cool-daily: tag backfill')
 }

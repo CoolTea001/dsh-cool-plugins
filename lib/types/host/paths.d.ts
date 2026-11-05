@@ -14,4 +14,6 @@ export declare function dataRoot(): string;
 export declare function articlesDir(): string;
 /** The settings document. */
 export declare function settingsPath(): string;
+/** The read receipts: which articles the reader has already opened. */
+export declare function readsPath(): string;
 //# sourceMappingURL=paths.d.ts.map

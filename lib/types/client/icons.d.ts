@@ -26,8 +26,18 @@ export declare const DocIcon: React.FC<IconProps>;
 export declare const SettingsIcon: React.FC<IconProps>;
 /** The sparkle glyph: the manual generation action and its running state. */
 export declare const SparkleIcon: React.FC<IconProps>;
+/** The up arrow: the reading view's back-to-top control. */
+export declare const ArrowUpIcon: React.FC<IconProps>;
 /** The magnifier glyph: the article search field. */
 export declare const SearchIcon: React.FC<IconProps>;
 /** The left arrow: the article reader's way back to the list. */
 export declare const BackIcon: React.FC<IconProps>;
+/**
+ * The disclosure mark, drawn pointing right and turned by the stylesheet: the
+ * model picker's trigger turns it down while closed and up while open, and a
+ * provider row turns it down while its models are showing.
+ */
+export declare const ArrowRightIcon: React.FC<IconProps>;
+/** The check a chosen row carries. */
+export declare const CheckIcon: React.FC<IconProps>;
 //# sourceMappingURL=icons.d.ts.map

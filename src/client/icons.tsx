@@ -16,7 +16,10 @@
 
 import * as React from 'react'
 
+import arrowRightSource from './assets/arrow-right.svg'
+import arrowUpSource from './assets/arrow-up.svg'
 import backSource from './assets/back.svg'
+import checkSource from './assets/check.svg'
 import docSource from './assets/doc.svg'
 import searchSource from './assets/search.svg'
 import settingsSource from './assets/settings.svg'
@@ -85,8 +88,21 @@ export const SettingsIcon = icon('SettingsIcon', 'settings.svg', settingsSource)
 /** The sparkle glyph: the manual generation action and its running state. */
 export const SparkleIcon = icon('SparkleIcon', 'sparkle.svg', sparkleSource)
 
+/** The up arrow: the reading view's back-to-top control. */
+export const ArrowUpIcon = icon('ArrowUpIcon', 'arrow-up.svg', arrowUpSource)
+
 /** The magnifier glyph: the article search field. */
 export const SearchIcon = icon('SearchIcon', 'search.svg', searchSource)
 
 /** The left arrow: the article reader's way back to the list. */
 export const BackIcon = icon('BackIcon', 'back.svg', backSource)
+
+/**
+ * The disclosure mark, drawn pointing right and turned by the stylesheet: the
+ * model picker's trigger turns it down while closed and up while open, and a
+ * provider row turns it down while its models are showing.
+ */
+export const ArrowRightIcon = icon('ArrowRightIcon', 'arrow-right.svg', arrowRightSource)
+
+/** The check a chosen row carries. */
+export const CheckIcon = icon('CheckIcon', 'check.svg', checkSource)

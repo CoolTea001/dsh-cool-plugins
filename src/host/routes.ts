@@ -13,8 +13,10 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { API_PATHS, API_PREFIX, type DailyStatePayload } from '../shared/contract.js'
-import { isArticleId, listArticles, readArticle } from './articles.js'
+import { deleteArticle, isArticleId, listArticles, readArticle } from './articles.js'
 import { generationState, startGeneration } from './generate.js'
+import { defaultSelection, readModelEfforts, readModelGroups } from './models.js'
+import { forgetRead, markRead } from './reads.js'
 import { readSettings, writeSettings } from './settings.js'
 
 /** Longest body a settings write accepts. */
@@ -91,6 +93,23 @@ async function handleState(res: ServerResponse): Promise<void> {
   sendJson(res, 200, payload)
 }
 
+/** Answer the model catalog the settings picker offers. */
+async function handleModels(ctx: any, res: ServerResponse): Promise<void> {
+  const groups = await readModelGroups(ctx)
+  sendJson(res, 200, { ok: true, groups, current: defaultSelection(ctx) })
+}
+
+/** Answer the reasoning levels one route offers. */
+async function handleEfforts(url: URL, ctx: any, res: ServerResponse): Promise<void> {
+  const provider = url.searchParams.get('provider') ?? ''
+  const model = url.searchParams.get('model') ?? ''
+  if (provider === '' || model === '' || provider.length > 200 || model.length > 300) {
+    sendJson(res, 400, { ok: false, error: 'invalid model route' })
+    return
+  }
+  sendJson(res, 200, await readModelEfforts(ctx, provider, model))
+}
+
 /** Persist one settings write and answer what was stored. */
 async function handleSettings(req: IncomingMessage, res: ServerResponse): Promise<void> {
   let body: Record<string, unknown>
@@ -113,6 +132,29 @@ function handleGenerate(res: ServerResponse, ctx: any): void {
   sendJson(res, 200, { ok: true, started: true })
 }
 
+/**
+ * Record that the reader opened one article.
+ *
+ * The receipt is separate from the article file, so opening an article never
+ * rewrites the user's Markdown; a repeated call keeps the first timestamp.
+ */
+async function handleRead(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let body: Record<string, unknown>
+  try {
+    body = await readBody(req, MAX_BODY_BYTES)
+  } catch (error) {
+    sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    return
+  }
+  const id = body.id
+  if (!isArticleId(id)) {
+    sendJson(res, 400, { ok: false, error: 'invalid article id' })
+    return
+  }
+  await markRead(id)
+  sendJson(res, 200, { ok: true, read: true })
+}
+
 /** Read one article body by id. */
 async function handleArticle(url: URL, res: ServerResponse): Promise<void> {
   const id = url.searchParams.get('id')
@@ -126,6 +168,22 @@ async function handleArticle(url: URL, res: ServerResponse): Promise<void> {
     return
   }
   sendJson(res, 200, { ok: true, article })
+}
+
+/** Delete one article by id and drop its read receipt. */
+async function handleDelete(url: URL, res: ServerResponse): Promise<void> {
+  const id = url.searchParams.get('id')
+  if (!isArticleId(id)) {
+    sendJson(res, 400, { ok: false, error: 'invalid article id' })
+    return
+  }
+  const removed = await deleteArticle(id)
+  if (!removed) {
+    sendJson(res, 404, { ok: false, error: 'article not found' })
+    return
+  }
+  await forgetRead(id)
+  sendJson(res, 200, { ok: true })
 }
 
 /** Dispatch one request below the plugin prefix. */
@@ -146,8 +204,21 @@ async function dispatch(req: IncomingMessage, res: ServerResponse, ctx: any): Pr
       return handleGenerate(res, ctx)
     }
     if (path === API_PATHS.article) {
-      if (!methodAllowed(req, res, ['GET'])) return
+      if (!methodAllowed(req, res, ['GET', 'DELETE'])) return
+      if (req.method === 'DELETE') return await handleDelete(url, res)
       return await handleArticle(url, res)
+    }
+    if (path === API_PATHS.read) {
+      if (!methodAllowed(req, res, ['PUT'])) return
+      return await handleRead(req, res)
+    }
+    if (path === API_PATHS.models) {
+      if (!methodAllowed(req, res, ['GET'])) return
+      return await handleModels(ctx, res)
+    }
+    if (path === API_PATHS.efforts) {
+      if (!methodAllowed(req, res, ['GET'])) return
+      return await handleEfforts(url, ctx, res)
     }
     sendJson(res, 404, { ok: false, error: 'not found' })
   } catch (error) {

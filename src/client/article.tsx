@@ -55,9 +55,17 @@ export function ArticleView({ t, id, onBack }: ArticleViewProps): React.ReactEle
 
   return (
     <div className="dsh-cd-article">
-      <button type="button" className="dsh-cd-btn dsh-cd-back" onClick={onBack}>
-        <BackIcon size={14} />
-        {t('article.back')}
+      {/* Icon-only: the row is punctuation, not a destination the reader needs
+          spelled out. The wording survives as the accessible name and the native
+          tooltip, so the control still says what it does to anyone who asks. */}
+      <button
+        type="button"
+        className="dsh-cd-back"
+        onClick={onBack}
+        aria-label={t('article.back')}
+        title={t('article.back')}
+      >
+        <BackIcon size={16} />
       </button>
 
       {loading && <p className="dsh-cd-state">{t('article.loading')}</p>}
@@ -79,6 +87,13 @@ export function ArticleView({ t, id, onBack }: ArticleViewProps): React.ReactEle
               <span>{article.date}</span>
               <Tag tone="neutral">{article.category}</Tag>
             </div>
+            {article.tags.length > 0 && (
+              <div className="dsh-cd-article-tags" role="group" aria-label={t('tags.label')}>
+                {article.tags.map(tag => (
+                  <Tag key={tag} tone="outline">{tag}</Tag>
+                ))}
+              </div>
+            )}
           </header>
           <Markdown text={article.content} />
         </article>

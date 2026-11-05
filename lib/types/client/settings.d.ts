@@ -11,24 +11,17 @@
  */
 import * as React from 'react';
 import type { Translate } from './locales.js';
+import type { DailySettings } from '../shared/contract.js';
 /** The props the page hands the dialog. */
 export interface SettingsDialogProps {
     /** The plugin's translate seat. */
     t: Translate;
     /** The stored settings the draft starts from. */
-    settings: {
-        prompt: string;
-        count: number;
-        days: number[];
-    };
+    settings: DailySettings;
     /** Close without saving. */
     onClose: () => void;
     /** The stored result, after a successful write. */
-    onSaved: (settings: {
-        prompt: string;
-        count: number;
-        days: number[];
-    }) => void;
+    onSaved: (settings: DailySettings) => void;
 }
 /**
  * Render the settings dialog.

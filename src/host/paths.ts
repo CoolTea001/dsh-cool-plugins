@@ -30,3 +30,8 @@ export function articlesDir(): string {
 export function settingsPath(): string {
   return join(dataRoot(), 'settings.json')
 }
+
+/** The read receipts: which articles the reader has already opened. */
+export function readsPath(): string {
+  return join(dataRoot(), 'read.json')
+}

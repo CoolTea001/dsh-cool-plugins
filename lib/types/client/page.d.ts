@@ -5,8 +5,8 @@
  * Markdown files the Host has written, filters them locally, and follows a
  * running generation by polling the state route while the Host reports one. It
  * never writes an article itself — the manual button only asks the Host to start
- * a batch, and the settings dialog only stores the prompt, batch size, and
- * repeat days the Host schedules from.
+ * a batch, and the settings dialog only stores the prompt, batch size, repeat
+ * days, and model the Host schedules from.
  */
 import * as React from 'react';
 import type { Translate } from './locales.js';

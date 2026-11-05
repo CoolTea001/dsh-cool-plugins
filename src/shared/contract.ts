@@ -21,11 +21,43 @@ export interface ArticleSummary {
   createdAt: string
   /** Plain-text opening of the body, for the list card. */
   excerpt: string
+  /** Content tags: from the file's front matter, or derived from its headings. */
+  tags: string[]
+  /** Whether the reader has already opened this article. */
+  read: boolean
 }
 
 /** One article with its Markdown body. */
 export interface ArticleDetail extends ArticleSummary {
   content: string
+}
+
+/** One provider/model route the generator may call. */
+export interface DailyModel {
+  /** Registered provider id, as the Host LLM service names it. */
+  provider: string
+  /** Provider-owned model id. */
+  model: string
+  /** The reasoning level this route pins, as the adapter spells it. */
+  reasoningEffort?: string
+}
+
+/** One model row inside a provider group. */
+export interface ModelOption {
+  /** Provider-owned id, the value a selection stores. */
+  id: string
+  /** Display name the adapter declares. */
+  name: string
+}
+
+/** One provider and the models it currently offers. */
+export interface ModelGroup {
+  /** Registered provider id. */
+  provider: string
+  /** Display name, falling back to the id. */
+  name: string
+  /** Models in catalog order. */
+  models: ModelOption[]
 }
 
 /** Everything the settings panel may change. */
@@ -36,6 +68,21 @@ export interface DailySettings {
   count: number
   /** Repeat days as `Date#getDay()` values, 0 = Sunday. Empty means manual only. */
   days: number[]
+  /** The route this plugin writes with; null follows DSH's current default. */
+  model: DailyModel | null
+}
+
+/** The reasoning levels one route offers, read from its adapter. */
+export type ModelEffortsPayload =
+  | { ok: true; efforts: string[] }
+  | { ok: false; error: string }
+
+/** The model catalog answer: what the picker may offer, and the current default. */
+export interface ModelsPayload {
+  ok: true
+  groups: ModelGroup[]
+  /** DSH's current default selection, shown when this plugin follows it. */
+  current: DailyModel | null
 }
 
 /** The state payload the page polls while a generation is running. */
@@ -59,6 +106,12 @@ export interface ArticlePayload {
   article: ArticleDetail
 }
 
+/** The answer to recording that one article was opened. */
+export interface ReadPayload {
+  ok: true
+  read: true
+}
+
 /** Every route below this prefix is owned by this plugin. */
 export const API_PREFIX = '/dsh-cool-daily/api'
 
@@ -68,6 +121,9 @@ export const API_PATHS = {
   settings: `${API_PREFIX}/settings`,
   generate: `${API_PREFIX}/generate`,
   article: `${API_PREFIX}/article`,
+  read: `${API_PREFIX}/read`,
+  models: `${API_PREFIX}/models`,
+  efforts: `${API_PREFIX}/efforts`,
 } as const
 
 /** Oldest hour of the local day at which automatic generation may run. */

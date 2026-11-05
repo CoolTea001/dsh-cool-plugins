@@ -11,10 +11,11 @@
  * racing on the same second cannot silently overwrite each other.
  */
 
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { ArticleDetail, ArticleSummary } from '../shared/contract.js'
 import { articlesDir } from './paths.js'
+import { isRead, readIds } from './reads.js'
 
 /** Generated ids; anything read back from a request must match this. */
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/
@@ -25,12 +26,22 @@ const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 /** Characters left in a list card's excerpt. */
 const EXCERPT_LENGTH = 150
 
+/** How many tags one article keeps. */
+const TAG_LIMIT = 5
+
+/** Longest single tag kept, in characters. */
+const TAG_LENGTH = 12
+
+/** Section headings used as tags when a file carries none of its own. */
+const HEADING = /^#{2,3}[ \t]+(.+)$/gmu
+
 /** The fields one article stores in its front matter. */
 interface ArticleFields {
   title: string
   date: string
   category: string
   createdAt: string
+  tags: string[]
 }
 
 /**
@@ -56,6 +67,7 @@ function frontMatter(fields: ArticleFields): string {
     `date: ${scalar(fields.date)}`,
     `category: ${scalar(fields.category)}`,
     `createdAt: ${scalar(fields.createdAt)}`,
+    `tags: ${JSON.stringify(fields.tags)}`,
     '---',
     '',
   ].join('\n')
@@ -76,6 +88,58 @@ function readScalar(raw: string): string {
   return value
 }
 
+/**
+ * Normalize a list of candidate tags: strip Markdown punctuation, drop blanks
+ * and duplicates, shorten each one, and keep at most {@link TAG_LIMIT}.
+ */
+export function cleanTags(values: readonly unknown[]): string[] {
+  const tags: string[] = []
+  for (const value of values) {
+    if (typeof value !== 'string') continue
+    const tag = value
+      .replace(/[#>*_`~\[\]"']/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, TAG_LENGTH)
+    if (tag === '' || tags.includes(tag)) continue
+    tags.push(tag)
+    if (tags.length === TAG_LIMIT) break
+  }
+  return tags
+}
+
+/** Read the stored tag list, accepting a JSON array or a plain comma list. */
+function parseTags(raw: string): string[] {
+  const value = raw.trim()
+  if (value.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      if (Array.isArray(parsed)) return cleanTags(parsed)
+    } catch {
+      // Fall through to the comma spelling.
+    }
+    return cleanTags(value.slice(1, -1).split(',').map(part => part.trim().replace(/^["']|["']$/g, '')))
+  }
+  return cleanTags(value.split(','))
+}
+
+/**
+ * Derive tags for a file written before tags existed, using its section
+ * headings: they name what the body actually covers, in the author's own words.
+ */
+function deriveTags(content: string): string[] {
+  const tags: string[] = []
+  for (const match of content.matchAll(HEADING)) {
+    const heading = match[1]
+      .replace(/^\d+[.、)]\s*/u, '')
+      .trim()
+    if (heading === '') continue
+    tags.push(heading)
+    if (tags.length === TAG_LIMIT) break
+  }
+  return cleanTags(tags)
+}
+
 /** Split one file into its stored fields and Markdown body. */
 function parseArticle(text: string): { fields: Partial<ArticleFields>; content: string } {
   const match = FRONT_MATTER.exec(text)
@@ -84,6 +148,10 @@ function parseArticle(text: string): { fields: Partial<ArticleFields>; content: 
   for (const line of match[1].split(/\r?\n/)) {
     const field = /^([A-Za-z][A-Za-z0-9]*):\s*(.*)$/.exec(line)
     if (field === null) continue
+    if (field[1] === 'tags') {
+      fields.tags = parseTags(field[2])
+      continue
+    }
     const value = readScalar(field[2])
     if (field[1] === 'title' || field[1] === 'date' || field[1] === 'category' || field[1] === 'createdAt') {
       fields[field[1]] = value
@@ -122,6 +190,8 @@ function summaryOf(id: string, text: string): ArticleSummary {
     category: fields.category?.trim() || '未分类',
     createdAt: fields.createdAt ?? '',
     excerpt: excerptOf(content),
+    tags: fields.tags !== undefined && fields.tags.length > 0 ? fields.tags : deriveTags(content),
+    read: false,
   }
 }
 
@@ -133,6 +203,7 @@ export async function listArticles(): Promise<ArticleSummary[]> {
   } catch {
     return []
   }
+  const reads = await readIds()
   const articles: ArticleSummary[] = []
   for (const name of names) {
     if (!name.endsWith('.md')) continue
@@ -140,7 +211,7 @@ export async function listArticles(): Promise<ArticleSummary[]> {
     if (!isArticleId(id)) continue
     try {
       const text = await readFile(join(articlesDir(), name), 'utf8')
-      articles.push(summaryOf(id, text))
+      articles.push({ ...summaryOf(id, text), read: reads.has(id) })
     } catch {
       // A file that vanished or cannot be read is simply not in the list.
     }
@@ -149,18 +220,91 @@ export async function listArticles(): Promise<ArticleSummary[]> {
     right.date.localeCompare(left.date) || right.createdAt.localeCompare(left.createdAt))
 }
 
-/** Read one article, or `undefined` when it does not exist or is unreadable. */
-export async function readArticle(id: string): Promise<ArticleDetail | undefined> {
+/** Resolve one article's file, refusing anything that could escape the directory. */
+function articleFile(id: string): string | undefined {
   if (!isArticleId(id)) return undefined
   const directory = resolve(articlesDir())
   const file = resolve(directory, `${id}.md`)
-  if (!file.startsWith(`${directory}/`)) return undefined
+  return file.startsWith(`${directory}/`) ? file : undefined
+}
+
+/** Read one article, or `undefined` when it does not exist or is unreadable. */
+export async function readArticle(id: string): Promise<ArticleDetail | undefined> {
+  const file = articleFile(id)
+  if (file === undefined) return undefined
   try {
     const text = await readFile(file, 'utf8')
     const summary = summaryOf(id, text)
-    return { ...summary, content: parseArticle(text).content }
+    return { ...summary, read: await isRead(id), content: parseArticle(text).content }
   } catch {
     return undefined
+  }
+}
+
+/**
+ * The tags one file stores in its front matter.
+ *
+ * `undefined` means the file predates tags — the caller may then derive tags
+ * from the body or ask the model for some, while an empty array is a real
+ * stored answer and is left alone.
+ */
+export async function readStoredTags(id: string): Promise<string[] | undefined> {
+  const file = articleFile(id)
+  if (file === undefined) return undefined
+  try {
+    return parseArticle(await readFile(file, 'utf8')).fields.tags
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Replace one file's tag list.
+ *
+ * Only the header line changes: every other front-matter line and the whole
+ * body are copied through, so a hand-edited field or a regenerated file keeps
+ * everything it had. The write is atomic, so a reader never sees half a header.
+ */
+export async function setArticleTags(id: string, tags: readonly string[]): Promise<void> {
+  const file = articleFile(id)
+  if (file === undefined) return
+  let text: string
+  try {
+    text = await readFile(file, 'utf8')
+  } catch {
+    return
+  }
+  const match = FRONT_MATTER.exec(text)
+  if (match === null) return
+  const lines = match[1]
+    .split(/\r?\n/)
+    .filter(line => !/^tags\s*:/.test(line))
+  lines.push(`tags: ${JSON.stringify(cleanTags(tags))}`)
+  const next = `---\n${lines.join('\n')}\n---\n${text.slice(match[0].length)}`
+  if (next === text) return
+  const temporary = `${file}.${process.pid}.tmp`
+  await writeFile(temporary, next, 'utf8')
+  await rename(temporary, file)
+}
+
+/**
+ * Delete one article's file.
+ *
+ * The file is the article, so removing it is the whole operation; a path that
+ * does not exist is reported as "nothing to delete" rather than as a failure,
+ * which keeps a double click from turning into an error banner.
+ *
+ * @param id - the article id the page named.
+ * @returns true when a file was removed.
+ */
+export async function deleteArticle(id: string): Promise<boolean> {
+  const file = articleFile(id)
+  if (file === undefined) return false
+  try {
+    await unlink(file)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -169,6 +313,8 @@ export interface GeneratedArticle {
   title: string
   category: string
   content: string
+  /** Content tags the model proposed; empty when it offered none. */
+  tags: string[]
 }
 
 /**
@@ -195,6 +341,7 @@ export async function saveArticle(
     date,
     category: article.category,
     createdAt: now.toISOString(),
+    tags: cleanTags(article.tags),
   })}${article.content.trim()}\n`
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const id = attempt === 0 ? base : `${base}-${attempt + 1}`

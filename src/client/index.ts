@@ -12,7 +12,7 @@
  */
 
 import { DailyPage } from './page.js'
-import { DocIcon } from './icons.js'
+import { DailyPanelIcon } from './panel-icon.js'
 import { en, NS, zh, type Translate } from './locales.js'
 import { insertStyles } from './styles.js'
 
@@ -77,7 +77,7 @@ export function apply(ctx: any): void {
         locale: NS,
         label: () => t('panel'),
       },
-      DocIcon,
+      DailyPanelIcon,
     ),
   )
 }

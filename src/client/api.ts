@@ -11,6 +11,9 @@ import {
   type ArticlePayload,
   type DailySettings,
   type DailyStatePayload,
+  type ModelEffortsPayload,
+  type ModelsPayload,
+  type ReadPayload,
   type SettingsPayload,
 } from '../shared/contract.js'
 
@@ -18,7 +21,7 @@ import {
 type Answer<T> = T | { ok: false; error: string }
 
 /** POST or PUT one JSON body and read a JSON answer. */
-async function sendJson<T>(url: string, method: 'POST' | 'PUT', body?: unknown): Promise<Answer<T>> {
+async function sendJson<T>(url: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<Answer<T>> {
   try {
     const response = await fetch(url, {
       method,
@@ -65,7 +68,28 @@ export function startGeneration(): Promise<Answer<{ ok: true; started: true }>> 
   return sendJson<{ ok: true; started: true }>(API_PATHS.generate, 'POST')
 }
 
+/** Ask the Host to delete one article file. */
+export function deleteArticle(id: string): Promise<Answer<{ ok: true }>> {
+  return sendJson<{ ok: true }>(`${API_PATHS.article}?id=${encodeURIComponent(id)}`, 'DELETE')
+}
+
 /** Read one article body by id. */
 export function fetchArticle(id: string): Promise<Answer<ArticlePayload>> {
   return getJson<ArticlePayload>(`${API_PATHS.article}?id=${encodeURIComponent(id)}`)
+}
+
+/** Read the model catalog the settings picker offers. */
+export function fetchModels(): Promise<Answer<ModelsPayload>> {
+  return getJson<ModelsPayload>(API_PATHS.models)
+}
+
+/** Read the reasoning levels one route offers. */
+export function fetchModelEfforts(provider: string, model: string): Promise<Answer<ModelEffortsPayload>> {
+  const query = `provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(model)}`
+  return getJson<ModelEffortsPayload>(`${API_PATHS.efforts}?${query}`)
+}
+
+/** Record that the reader opened one article. */
+export function markRead(id: string): Promise<Answer<ReadPayload>> {
+  return sendJson<ReadPayload>(API_PATHS.read, 'PUT', { id })
 }
