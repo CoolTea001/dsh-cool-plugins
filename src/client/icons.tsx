@@ -21,6 +21,7 @@ import arrowUpSource from './assets/arrow-up.svg'
 import backSource from './assets/back.svg'
 import checkSource from './assets/check.svg'
 import docSource from './assets/doc.svg'
+import loaderSource from './assets/loader.svg'
 import searchSource from './assets/search.svg'
 import settingsSource from './assets/settings.svg'
 import sparkleSource from './assets/sparkle.svg'
@@ -85,8 +86,15 @@ export const DocIcon = icon('DocIcon', 'doc.svg', docSource)
 /** The sliders glyph: the page's settings entry. */
 export const SettingsIcon = icon('SettingsIcon', 'settings.svg', settingsSource)
 
-/** The sparkle glyph: the manual generation action and its running state. */
+/** The sparkle glyph: the manual generation action while it is idle. */
 export const SparkleIcon = icon('SparkleIcon', 'sparkle.svg', sparkleSource)
+
+/**
+ * The open ring: the manual generation action while a batch is running. It is
+ * drawn as a three-quarter circle so the stylesheet's spin reads as motion
+ * rather than as a shape turning on itself.
+ */
+export const LoaderIcon = icon('LoaderIcon', 'loader.svg', loaderSource)
 
 /** The up arrow: the reading view's back-to-top control. */
 export const ArrowUpIcon = icon('ArrowUpIcon', 'arrow-up.svg', arrowUpSource)

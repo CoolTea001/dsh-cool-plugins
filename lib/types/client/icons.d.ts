@@ -24,8 +24,14 @@ export interface IconProps {
 export declare const DocIcon: React.FC<IconProps>;
 /** The sliders glyph: the page's settings entry. */
 export declare const SettingsIcon: React.FC<IconProps>;
-/** The sparkle glyph: the manual generation action and its running state. */
+/** The sparkle glyph: the manual generation action while it is idle. */
 export declare const SparkleIcon: React.FC<IconProps>;
+/**
+ * The open ring: the manual generation action while a batch is running. It is
+ * drawn as a three-quarter circle so the stylesheet's spin reads as motion
+ * rather than as a shape turning on itself.
+ */
+export declare const LoaderIcon: React.FC<IconProps>;
 /** The up arrow: the reading view's back-to-top control. */
 export declare const ArrowUpIcon: React.FC<IconProps>;
 /** The magnifier glyph: the article search field. */

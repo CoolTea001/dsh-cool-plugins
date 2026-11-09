@@ -15,7 +15,7 @@ import { Pill, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deleteArticle, fetchState, markRead, startGeneration } from './api.js'
 import { ArticleView } from './article.js'
 import { DeleteDialog } from './delete-dialog.js'
-import { ArrowUpIcon, DocIcon, SearchIcon, SettingsIcon, SparkleIcon } from './icons.js'
+import { ArrowUpIcon, DocIcon, LoaderIcon, SearchIcon, SettingsIcon, SparkleIcon } from './icons.js'
 import type { Translate } from './locales.js'
 import { SettingsDialog } from './settings.js'
 import { notifyUnreadChanged } from './unread.js'
@@ -337,7 +337,9 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
                 onClick={() => { void generate() }}
                 disabled={generating || busy || state === null}
               >
-                <SparkleIcon size={15} className={generating ? 'dsh-cd-spin' : undefined} />
+                {generating
+                  ? <LoaderIcon size={15} className="dsh-cd-spin" />
+                  : <SparkleIcon size={15} />}
                 {generating ? t('generate.running') : t('generate.action')}
               </button>
             </div>

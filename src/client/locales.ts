@@ -92,7 +92,7 @@ export const zh: typeof en = {
   'categories.unknown': '未分类',
 
   'generate.action': '再来一篇',
-  'generate.running': '正在生成…',
+  'generate.running': '正在生成',
 
   'settings.action': '设置',
   'settings.title': '每日贴设置',
@@ -107,8 +107,8 @@ export const zh: typeof en = {
   'settings.searchEmpty': '没有匹配的模型',
   'settings.prompt': '提示词',
   'settings.promptHint': '描述你想读的主题、角度或写作风格。',
-  'settings.count': '每次生成数量',
-  'settings.days': '重复生成的日期',
+  'settings.count': '生成数量',
+  'settings.days': '生成日期',
   'settings.cancel': '取消',
   'settings.close': '关闭',
   'settings.save': '保存',
