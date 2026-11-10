@@ -20,14 +20,6 @@
  * for the same reason.
  */
 
-import {
-  createElement,
-  useCallback,
-  useRef,
-  type PointerEvent as ReactPointerEvent,
-  type ReactElement,
-} from 'react'
-
 /** The localStorage entry holding the sidebar width, as one JSON object. */
 const LAYOUT_KEY = 'dsh-cool-terminal.layout.v1'
 
@@ -124,7 +116,7 @@ export function writeSideLayout(layout: SideLayout): void {
  * @returns the widest sidebar to draw.
  */
 function sideWidthCeiling(available: number): number {
-  return Math.max(SIDE_MIN, Math.min(SIDE_MAX, available - MAIN_MIN))
+  return Math.min(SIDE_MAX, Math.max(SIDE_MIN, available - MAIN_MIN))
 }
 
 /**
@@ -135,130 +127,4 @@ function sideWidthCeiling(available: number): number {
  */
 export function clampSideWidth(preferred: number, available: number): number {
   return Math.min(Math.max(preferred, SIDE_MIN), sideWidthCeiling(available))
-}
-
-/**
- * The sidebar's right edge, dragged with the pointer.
- *
- * The gesture is the platform's own width handle (client-ui-conversation's
- * `WidthHandle`): the press captures the pointer and records where it started
- * and the width the page was drawing, each move asks the caller to draw the
- * width the pointer now implies — at most once a frame, since a pointer reports
- * more often than a page paints — and the release records that one number. A
- * press that never moved records nothing, so a click on the boundary cannot
- * overwrite a saved width with the window-clamped width it happens to be drawn
- * at.
- *
- * The two terminal paths mean different things. `onCommit` is a new width to
- * record and draw; `onEnd` is a gesture that produced no width — a click, or a
- * pointer lost mid-drag — and the caller draws the recorded layout again, which
- * is what makes a cancelled drag leave the page exactly as it found it.
- *
- * The element sits on the boundary itself, which is a 1px line a pointer cannot
- * be asked to hold, so the stylesheet puts an invisible band around it and this
- * component owns the line in the middle.
- */
-export function ResizeHandle(props: {
-  /** The width the page is drawing as the gesture starts, in CSS pixels. */
-  readonly onStart: () => number
-  /** Draw the width the pointer now implies. Called at most once a frame. */
-  readonly onDrag: (width: number) => void
-  /** Record and draw the width the gesture settled on. */
-  readonly onCommit: (width: number) => void
-  /** The gesture is over without a width: draw the recorded layout again. */
-  readonly onEnd: () => void
-}): ReactElement {
-  /** Whether a gesture this component started is still running. */
-  const dragging = useRef(false)
-  /** The pointer's X where the gesture started. */
-  const origin = useRef(0)
-  /** The width the page was drawing where the gesture started. */
-  const start = useRef(0)
-  /** The pointer's latest X. */
-  const latest = useRef(0)
-  /** The frame awaiting the pointer's latest coordinate, if one is. */
-  const frame = useRef<number | null>(null)
-  // The handlers are installed once per gesture and outlive the render that
-  // started it, so what they call is read from here rather than closed over: a
-  // re-render during a drag (a console reconnecting, the page picking up a new
-  // layout) must not leave the gesture calling a stale callback.
-  const live = useRef(props)
-  live.current = props
-
-  /** The width the pointer's latest coordinate implies. */
-  const implied = (): number => start.current + (latest.current - origin.current)
-
-  const cancelFrame = (): void => {
-    if (frame.current !== null) {
-      cancelAnimationFrame(frame.current)
-      frame.current = null
-    }
-  }
-
-  /**
-   * End the gesture, and either record a width or re-state the layout.
-   * @param element - the handle the gesture was captured on.
-   * @param pointerId - the pointer to release.
-   * @param moved - whether this release holds a width the pointer chose.
-   */
-  const settle = (element: HTMLDivElement, pointerId: number, moved: boolean): void => {
-    dragging.current = false
-    element.toggleAttribute('data-dragging', false)
-    if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId)
-    cancelFrame()
-    if (moved && latest.current !== origin.current) live.current.onCommit(implied())
-    else live.current.onEnd()
-  }
-
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    // The primary button alone: a right-click on a boundary is a context menu,
-    // and a middle-click is a paste or an autoscroll, neither of them a resize.
-    if (event.button !== 0) return
-    // Before the capture, so the press neither starts a text selection nor hands
-    // the keyboard to whatever is under the pointer.
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    event.currentTarget.toggleAttribute('data-dragging', true)
-    origin.current = event.clientX
-    latest.current = origin.current
-    start.current = live.current.onStart()
-    dragging.current = true
-  }, [])
-
-  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    // Capture is what keeps the moves coming once the pointer leaves this 1px
-    // line — the whole point of the gesture — so a move without it belongs to
-    // another pointer, or to a capture that has already been lost.
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    latest.current = event.clientX
-    if (frame.current !== null) return
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null
-      live.current.onDrag(implied())
-    })
-  }, [])
-
-  const onPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    latest.current = event.clientX
-    settle(event.currentTarget, event.pointerId, true)
-  }, [])
-
-  // The end that is not a release: the pointer was cancelled, or the capture was
-  // taken away. Neither is a width the reader chose, so the page is put back.
-  const onPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    settle(event.currentTarget, event.pointerId, false)
-  }, [])
-
-  return createElement('div', {
-    className: 'dsh-ct-resize',
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onLostPointerCapture: onPointerCancel,
-  })
 }

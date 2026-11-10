@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { basename, join } from 'node:path'
+import { normalizeStartupCommand, StartupCommand } from './startup.js'
 
 export const name = 'dsh-cool-terminal'
 
@@ -45,30 +46,6 @@ const MIN_ROWS = 5
 const MAX_ROWS = 200
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
-
-/** Upper bound on a console's startup command, in UTF-16 code units. */
-const MAX_STARTUP_CHARS = 4_096
-
-/**
- * How long the shell's output must stay quiet before the startup command is
- * typed when the shell's line editor never announces itself.
- */
-const STARTUP_SETTLE_MS = 800
-
-/**
- * How long to wait after the line editor's ready marker before typing.
- *
- * zsh and bash print the bracketed-paste enable sequence as their line editor
- * takes over, then print the prompt; the short grace lets that prompt land so
- * the typed command starts on a line after it instead of above it.
- */
-const STARTUP_READY_SETTLE_MS = 120
-
-/** Fallback for a shell that prints nothing at all before waiting for input. */
-const STARTUP_DEADLINE_MS = 5_000
-
-/** Bracketed-paste-on, printed when zsh's zle or bash's readline starts. */
-const STARTUP_READY_MARKER = Buffer.from('\x1b[?2004h')
 
 /** Replay kept per console so a reload rejoins the same shell with context. */
 const MAX_REPLAY_BYTES = 256 * 1024
@@ -203,6 +180,8 @@ interface PtySession {
   fgBusySeen: boolean
   /** Index into {@link WATCH_BACKOFF_MS} of the next check. */
   fgStep: number
+  /** Pending command injection, cancelled as soon as this shell ends. */
+  startup?: StartupCommand
 }
 
 /** A terminal allocation: the session, or the refusal a route renders as JSON. */
@@ -319,21 +298,6 @@ function geometryOf(body: OpenBody): { cols: number; rows: number } {
 function hasGeometry(body: OpenBody): boolean {
   return typeof body.cols === 'number' && Number.isFinite(body.cols)
     && typeof body.rows === 'number' && Number.isFinite(body.rows)
-}
-
-/**
- * Read the startup command a request asks to run in a fresh shell.
- *
- * CRLF is normalized and the text trimmed because the Host appends the final
- * Enter itself; the length cap keeps one posted body from queueing an
- * unbounded amount of terminal input.
- *
- * @param body - the open request.
- * @returns the command, or an empty string when there is none.
- */
-function startupOf(body: OpenBody): string {
-  if (typeof body.startup !== 'string') return ''
-  return body.startup.replace(/\r\n?/g, '\n').trim().slice(0, MAX_STARTUP_CHARS)
 }
 
 /**
@@ -708,6 +672,8 @@ class PtyRegistry {
 
   /** Drop a session from both indexes and cancel its timers. */
   private forget(session: PtySession): void {
+    session.startup?.cancel()
+    session.startup = undefined
     this.sessions.delete(session.id)
     if (session.key !== '' && this.byKey.get(session.key) === session.id) this.byKey.delete(session.key)
     this.cancelReap(session)
@@ -983,77 +949,20 @@ class PtyRegistry {
     // into its prompt. See `runStartup` for why the write is deferred. Only a
     // fresh spawn reaches this path, which is what keeps a page reload or a
     // second window from running the command again.
-    const startup = startupOf(body)
+    const startup = normalizeStartupCommand(body.startup)
     if (startup !== '') this.runStartup(session, startup)
 
     return { session }
   }
 
-  /**
-   * Type one startup command once the shell is ready to read it.
-   *
-   * Writing immediately after `spawnTerminal` races the shell's own startup:
-   * zsh and bash install their line editor only after their startup files run,
-   * and input queued before that is echoed above the prompt or flushed. Their
-   * line editors announce themselves with the bracketed-paste-on sequence;
-   * once that arrives, a short quiet grace lets the prompt finish printing and
-   * the command lands after it. A shell whose editor never announces itself
-   * falls back to a longer silence after its output, and the deadline covers
-   * a shell that prints nothing at all.
-   *
-   * Both timers are unref'd: a shell that never starts must not keep the Host
-   * process alive, and the write itself is already guarded by `write`.
-   *
-   * @param session - the freshly spawned shell.
-   * @param command - already normalized by {@link startupOf}.
-   */
+  /** Schedule one command, keeping its listener and timers owned by the shell. */
   private runStartup(session: PtySession, command: string): void {
-    const output = session.handle.output
-    let quiet: NodeJS.Timeout | undefined
-    let deadline: NodeJS.Timeout | undefined
-    let onOutput: ((chunk: unknown) => void) | undefined
-    let fired = false
-    let ready = false
-    /** The last few bytes, so a marker split across two chunks still matches. */
-    let tail = Buffer.alloc(0)
-
-    const cleanup = (): void => {
-      if (quiet !== undefined) {
-        clearTimeout(quiet)
-        quiet = undefined
-      }
-      if (deadline !== undefined) {
-        clearTimeout(deadline)
-        deadline = undefined
-      }
-      if (onOutput !== undefined) output?.removeListener?.('data', onOutput)
-      onOutput = undefined
-    }
-    const fire = (): void => {
-      if (fired) return
-      fired = true
-      cleanup()
-      this.write(session, `${command}\r`)
-    }
-    const settle = (delay: number): void => {
-      if (quiet !== undefined) clearTimeout(quiet)
-      quiet = setTimeout(fire, delay)
-      quiet.unref?.()
-    }
-    onOutput = (chunk: unknown): void => {
-      if (fired) return
-      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array)
-      const joined = Buffer.concat([tail, bytes])
-      if (!ready && joined.includes(STARTUP_READY_MARKER)) ready = true
-      tail = joined.subarray(Math.max(0, joined.length - 16))
-      // With the line editor's marker in hand, a short grace after the prompt
-      // is enough; without it, wait for a longer silence before risking a
-      // write the shell's own initialization might still flush.
-      settle(ready ? STARTUP_READY_SETTLE_MS : STARTUP_SETTLE_MS)
-    }
-    output?.on?.('data', onOutput)
-    deadline = setTimeout(fire, STARTUP_DEADLINE_MS)
-    deadline.unref?.()
+    const startup = new StartupCommand(session.handle.output, `${command}\r`, (input) => {
+      session.startup = undefined
+      this.write(session, input)
+    })
+    session.startup = startup
+    startup.start()
   }
 
   /** Retain output for replay and push it to every attached browser. */
@@ -1174,6 +1083,8 @@ class PtyRegistry {
   ): void {
     if (session.exited !== null) return
     session.exited = reason === undefined ? exit : { ...exit, reason }
+    session.startup?.cancel()
+    session.startup = undefined
     this.stopKeepalive(session)
     this.stopForegroundWatch(session)
     for (const client of session.clients) {

@@ -165,6 +165,19 @@ export function removeTerminal(list: readonly TerminalDef[], id: string): Termin
 }
 
 /**
+ * The command a console should run in a fresh shell, if it has an enabled one.
+ *
+ * Missing `autoStart` means enabled for compatibility with consoles saved
+ * before the switch existed. Both callers — page-load autostart and the first
+ * manual open — use this same rule.
+ */
+export function startupCommand(terminal: TerminalDef): string | undefined {
+  if (terminal.autoStart === false) return undefined
+  const startup = terminal.startup?.trim()
+  return startup === undefined || startup === '' ? undefined : startup
+}
+
+/**
  * Replace one console's startup command and its auto-run switch.
  *
  * A blank command clears the setting instead of storing an empty string, so

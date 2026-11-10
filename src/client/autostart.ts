@@ -20,7 +20,7 @@
 
 import { openTerminal } from './api.js'
 import { readGeometry } from './geometry.js'
-import { loadAccount, SESSION_KEY } from './terminals.js'
+import { loadAccount, SESSION_KEY, startupCommand } from './terminals.js'
 
 /**
  * Start every console whose command autostart is enabled.
@@ -35,9 +35,8 @@ export function startAutostartConsoles(): void {
   for (const [groupKey, terminals] of Object.entries(account)) {
     if (groupKey === SESSION_KEY) continue
     for (const terminal of terminals) {
-      if (terminal.autoStart === false) continue
-      const command = terminal.startup?.trim() ?? ''
-      if (command === '') continue
+      const command = startupCommand(terminal)
+      if (command === undefined) continue
       const geometry = readGeometry(terminal.id)
       void openTerminal(undefined, groupKey, geometry.cols, geometry.rows, terminal.id, command)
     }

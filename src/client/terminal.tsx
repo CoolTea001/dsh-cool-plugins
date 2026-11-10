@@ -49,8 +49,8 @@ import { CommandsDialog } from './commands-dialog.js'
 import { StartupDialog } from './startup-dialog.js'
 import { loadCommands, saveCommands, type CommandDef } from './commands.js'
 import { writeGeometry } from './geometry.js'
+import { ResizeHandle } from './resize-handle.js'
 import {
-  ResizeHandle,
   clampSideWidth,
   readSideLayout,
   writeSideLayout,
@@ -82,6 +82,7 @@ import {
   saveExpanded,
   saveSelection,
   setTerminalStartup,
+  startupCommand,
   terminalsFor,
   withTerminalList,
   type TerminalAccount,
@@ -1176,7 +1177,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       const group = rows.find((row) => row.key === activeGroupKey)
       // The command belongs to the console, but the switch is what decides
       // whether it runs at all: an off switch keeps the text saved and inert.
-      const startup = active !== undefined && active.autoStart !== false ? active.startup : undefined
+      const startup = active === undefined ? undefined : startupCommand(active)
       if (group !== undefined) void ensureStarted(runtime, group, sessionId, startup)
       // `version` is what re-runs this after the "mark opened" effect above
       // bumps it: the runtime this effect needs does not exist until the next
