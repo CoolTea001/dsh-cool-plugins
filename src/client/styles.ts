@@ -196,6 +196,11 @@ export const TERMINAL_CSS = [
   '.dsh-ct-cmd-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
   '.dsh-ct-cmd-input{height:36px}',
 
+  // Destructive confirmation. The button stays an outline button, as in the
+  // shipped confirmations; only its text and outline take the error color, by
+  // re-pointing the outline variable the primitive already consumes.
+  '.dsh-ct-danger-outline.dsh-ct-danger-outline{color:var(--dsw-alias-state-error-primary);--dsh-button-outline-color:var(--dsw-alias-state-error-primary)}',
+
   // Console pane. There is no toolbar: the pane is the terminal, and the shell
   // prints its own prompt (which already carries the directory). No background
   // either: xterm draws the terminal and is configured to paint transparently

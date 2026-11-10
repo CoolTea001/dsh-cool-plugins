@@ -22,7 +22,9 @@ import * as React from 'react'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import {
+  Button,
   Menu,
+  Modal,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
@@ -862,6 +864,9 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     const [renameDraft, setRenameDraft] = React.useState('')
     /** Console whose row overflow menu is open, if any. */
     const [menuId, setMenuId] = React.useState<string | null>(null)
+    /** Console awaiting the user's confirmation before it is deleted. */
+    const [pendingRemove, setPendingRemove] = React.useState<{ key: string; id: string; title: string } | null>(null)
+    const removeOpen = pendingRemove !== null
     /** Trigger of the open menu; its rect anchors the portaled list. */
     const menuAnchor = React.useRef<HTMLButtonElement | null>(null)
     /** The console a native drag is carrying: its group key and id.
@@ -1058,17 +1063,18 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       runtime.term.options.theme = readTheme()
       // An open rename field owns the keyboard: a stream reconnect or a late
       // `ensureStarted` that bumps `version` must not steal focus from it.
-      // The commands dialog is the same story while it is up.
-      if (renamingRef.current === null && !commandsOpenRef.current) runtime.term.focus()
+      // The commands dialog and the delete confirmation are the same story
+      // while they are up.
+      if (renamingRef.current === null && !commandsOpenRef.current && !removeOpen) runtime.term.focus()
       const group = rows.find((row) => row.key === activeGroupKey)
       if (group !== undefined) void ensureStarted(runtime, group, sessionId)
       // `version` is what re-runs this after the "mark opened" effect above
       // bumps it: the runtime this effect needs does not exist until the next
       // commit, so the first pass returns early and this pass starts the shell.
-    }, [activeId, activeGroupKey, sessionId, version])
+    }, [activeId, activeGroupKey, sessionId, version, removeOpen])
 
     // A popup belongs to one console and one command list: switching either —
-    // or opening the dialog that edits the list — dismisses it, so a
+    // or opening a dialog that takes the keyboard — dismisses it, so a
     // suggestion the user can no longer see can never swallow `↑`/`↓`/Enter
     // in a console or against a list it no longer describes.
     React.useEffect(() => {
@@ -1076,7 +1082,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         if (runtime.completion.popup !== null) runtime.completion = { line: runtime.completion.line, popup: null }
       }
       publish(null)
-    }, [activeId, commands, commandsOpen, publish])
+    }, [activeId, commands, commandsOpen, removeOpen, publish])
 
     /**
      * Show each sidebar edge fade only where the list really hides content.
@@ -1295,7 +1301,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           onSelect: (id: string) => {
             setMenuId(null)
             if (id === 'rename') toggleRename(terminal)
-            else if (id === 'remove') removeConsole(row.key, terminal.id)
+            else if (id === 'remove') setPendingRemove({ key: row.key, id: terminal.id, title: terminal.title })
           },
           onClose: () => setMenuId(null),
           anchor: h('button', {
@@ -1564,13 +1570,43 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       insert: insertCommand,
     })
 
+    // Deleting a console asks first: the row menu's Delete is one click away
+    // from a running shell, and the confirmation names the console so a
+    // mis-aimed click cannot take the wrong one down. Confirming is the only
+    // path that reaches `removeConsole`.
+    const removeDialog = h(Modal, {
+      key: 'remove-dialog',
+      open: removeOpen,
+      onClose: () => setPendingRemove(null),
+      title: pendingRemove === null ? '' : t('terminal.removeTitle', { title: pendingRemove.title }),
+      closeLabel: t('terminal.cancel'),
+      description: t('terminal.removeWarning'),
+      footer: h(React.Fragment, null,
+        h(Button, {
+          key: 'cancel',
+          variant: 'outline',
+          onClick: () => setPendingRemove(null),
+        }, t('terminal.cancel')),
+        h(Button, {
+          key: 'remove',
+          variant: 'outline',
+          className: 'dsh-ct-danger-outline',
+          onClick: () => {
+            if (pendingRemove === null) return
+            removeConsole(pendingRemove.key, pendingRemove.id)
+            setPendingRemove(null)
+          },
+        }, t('terminal.remove')),
+      ),
+    })
+
     return h('div', {
       className: 'dsh-ct-root',
       // The shell's full-bleed opt-in, the same hook ui-trajectory renders:
       // it drops the transcript width handles and hands this View the whole
       // area instead of the transcript's content column.
       'data-conversation-composer-overlay': '',
-    }, sidebar, main, commandsDialog)
+    }, sidebar, main, commandsDialog, removeDialog)
   }
 
   return {

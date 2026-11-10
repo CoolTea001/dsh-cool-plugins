@@ -19,6 +19,9 @@ export declare const en: {
     readonly 'main.hint': "Click ＋ on a workspace on the left to open a terminal";
     readonly 'terminal.rename': "Rename";
     readonly 'terminal.remove': "Delete";
+    readonly 'terminal.removeTitle': "Delete {title}?";
+    readonly 'terminal.removeWarning': "Running commands will be interrupted, and deletion cannot be undone.";
+    readonly 'terminal.cancel': "Cancel";
     readonly 'terminal.more': "More actions";
     readonly 'terminal.ended': "Ended";
     readonly 'terminal.exitCode': "Exit code {code}";
