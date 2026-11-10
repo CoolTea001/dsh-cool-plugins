@@ -80,6 +80,14 @@ export declare function renameTerminal(list: readonly TerminalDef[], id: string,
  */
 export declare function removeTerminal(list: readonly TerminalDef[], id: string): TerminalDef[];
 /**
+ * The command a console should run in a fresh shell, if it has an enabled one.
+ *
+ * Missing `autoStart` means enabled for compatibility with consoles saved
+ * before the switch existed. Both callers — page-load autostart and the first
+ * manual open — use this same rule.
+ */
+export declare function startupCommand(terminal: TerminalDef): string | undefined;
+/**
  * Replace one console's startup command and its auto-run switch.
  *
  * A blank command clears the setting instead of storing an empty string, so

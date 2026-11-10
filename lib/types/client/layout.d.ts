@@ -19,7 +19,6 @@
  * happens to be drawing; DSH's own transcript width handle makes the same trade
  * for the same reason.
  */
-import { type ReactElement } from 'react';
 /** The sidebar's width until it is dragged; the column's historical width. */
 export declare const SIDE_DEFAULT = 256;
 /**
@@ -67,35 +66,4 @@ export declare function writeSideLayout(layout: SideLayout): void;
  * @returns the width to draw.
  */
 export declare function clampSideWidth(preferred: number, available: number): number;
-/**
- * The sidebar's right edge, dragged with the pointer.
- *
- * The gesture is the platform's own width handle (client-ui-conversation's
- * `WidthHandle`): the press captures the pointer and records where it started
- * and the width the page was drawing, each move asks the caller to draw the
- * width the pointer now implies — at most once a frame, since a pointer reports
- * more often than a page paints — and the release records that one number. A
- * press that never moved records nothing, so a click on the boundary cannot
- * overwrite a saved width with the window-clamped width it happens to be drawn
- * at.
- *
- * The two terminal paths mean different things. `onCommit` is a new width to
- * record and draw; `onEnd` is a gesture that produced no width — a click, or a
- * pointer lost mid-drag — and the caller draws the recorded layout again, which
- * is what makes a cancelled drag leave the page exactly as it found it.
- *
- * The element sits on the boundary itself, which is a 1px line a pointer cannot
- * be asked to hold, so the stylesheet puts an invisible band around it and this
- * component owns the line in the middle.
- */
-export declare function ResizeHandle(props: {
-    /** The width the page is drawing as the gesture starts, in CSS pixels. */
-    readonly onStart: () => number;
-    /** Draw the width the pointer now implies. Called at most once a frame. */
-    readonly onDrag: (width: number) => void;
-    /** Record and draw the width the gesture settled on. */
-    readonly onCommit: (width: number) => void;
-    /** The gesture is over without a width: draw the recorded layout again. */
-    readonly onEnd: () => void;
-}): ReactElement;
 //# sourceMappingURL=layout.d.ts.map

@@ -12,11 +12,10 @@ import { startAutostartConsoles } from './autostart.js'
 import { createWorkspaceBridge } from './terminals.js'
 import { insertTerminalStyles } from './styles.js'
 import {
+  DICTIONARIES,
   NS,
   browserTranslate,
-  en,
   serviceTranslate,
-  zh,
   type LocaleServiceLike,
   type Translate,
 } from './locales.js'
@@ -46,7 +45,7 @@ export function apply(ctx: any) {
   let translate: Translate = browserTranslate()
   const locale: LocaleServiceLike | undefined = ctx.get('locale')
   if (locale !== undefined) {
-    ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-cool-terminal: dictionaries')
+    ctx.effect(() => locale.register(NS, DICTIONARIES), 'dsh-cool-terminal: dictionaries')
     translate = serviceTranslate(locale)
   } else if (typeof ctx.inject === 'function') {
     // A host that seats the locale service after this plugin: the dictionaries
@@ -57,7 +56,7 @@ export function apply(ctx: any) {
     ctx.inject(['locale'], (localeCtx: any) => {
       const late: LocaleServiceLike | undefined = localeCtx.get('locale')
       if (late === undefined) return
-      localeCtx.effect(() => late.register(NS, { zh, en }), 'dsh-cool-terminal: dictionaries')
+      localeCtx.effect(() => late.register(NS, DICTIONARIES), 'dsh-cool-terminal: dictionaries')
       translate = serviceTranslate(late)
     })
   }

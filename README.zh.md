@@ -1,4 +1,4 @@
-![dsh-cool-terminal 封面](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.4.0.png)
+![dsh-cool-terminal 封面](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.5.0-zh.png)
 
 # dsh-cool-terminal
 
@@ -8,7 +8,7 @@
 
 ## 描述
 
-DeepSeek Harness 终端插件 — 真 shell、工作区同步、状态常驻、常用命令管理、命令补全。
+DeepSeek Harness 终端插件 — 真 shell、工作区同步、状态常驻、常用命令管理、命令补全、命令自启动。
 
 ## 功能介绍
 
@@ -17,6 +17,7 @@ DeepSeek Harness 终端插件 — 真 shell、工作区同步、状态常驻、�
 - **终端级独立命令历史** — 每个终端维护独立的历史记录，↑ 检索时互不干扰。
 - **常用命令管理** — 新增/修改/删除/使用你创建的常用命令。
 - **命令自动补全** — 在终端输入时，光标下方弹出匹配的常用命令；鼠标悬停或 `↑`/`↓` 选择、`回车` 填充到命令行。
+- **命令自启动** - 每个终端可以单独设置自启动命令，DSH 打开时，这些命令会自动启动。
 
 ## 安装教程
 
@@ -25,23 +26,6 @@ DeepSeek Harness 终端插件 — 真 shell、工作区同步、状态常驻、�
 ## 参与贡献
 
 欢迎提交 Issue 和 PR。
-
-```
-// 克隆项目
-git clone https://github.com/CoolTea001/dsh-cool-terminal.git
-
-// 安装依赖
-cd dsh-cool-terminal
-pnpm install
-
-// 启动本地开发
-pnpm run dev
-
-// 本地安装：使用 DSH 的新增插件功能，输入本地项目路径即可
-
-// 重启 DSH 服务
-dsh web
-```
 
 ## 开源协议
 

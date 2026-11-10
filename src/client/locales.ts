@@ -1,117 +1,40 @@
 /**
- * Bilingual copy for the terminal tab.
+ * Locale entry point for the terminal tab.
  *
- * Every user-visible string this package owns is declared here and resolved
- * through the Client `locale` service, so the tab follows the GUI's language
- * switch instead of freezing the language it was first rendered in. The two
- * dictionaries are one key set — the Chinese half is typed against the English
- * one, which makes a key added on one side and forgotten on the other a
- * compile error rather than a key name shown to the user.
+ * One file per language in `locales/`, this module only re-exports them and
+ * derives the namespace key union from the Chinese source of truth. Every
+ * user-visible string this package owns is declared there and resolved through
+ * the Client `locale` service, so the tab follows the GUI's language switch
+ * instead of freezing the language it was first rendered in.
+ *
+ * The ids are the shell's own (`zh`, `en`, `ja`, `es`, `fr`, `de`, `ru`, `pt`),
+ * so a language picked in Settings reaches this package without a mapping
+ * table. `zh` and `en` are the locale service's required baselines; the rest
+ * are optional ids, each still checked against this same key union — a key
+ * added to one dictionary fails every other one at compile time, which is the
+ * point: a missing translation is a build error, not a key name shown to the
+ * user.
  */
+
+import { zh } from './locales/zh.js'
+import { en } from './locales/en.js'
+import { ja } from './locales/ja.js'
+import { es } from './locales/es.js'
+import { fr } from './locales/fr.js'
+import { de } from './locales/de.js'
+import { ru } from './locales/ru.js'
+import { pt } from './locales/pt.js'
+
+export { zh, en, ja, es, fr, de, ru, pt }
 
 /** The namespace these dictionaries occupy in the Client locale registry. */
 export const NS = 'dsh-cool-terminal'
 
-/** English copy: the key set's source of truth. */
-export const en = {
-  'view.tab': 'Terminal',
-  'sidebar.session': 'Current session',
-  'sidebar.empty': 'No workspaces',
-  'sidebar.new': 'New terminal',
-  'main.hint': 'Click ＋ on a workspace on the left to open a terminal',
-  'terminal.rename': 'Rename',
-  'terminal.remove': 'Delete',
-  'terminal.removeTitle': 'Delete {title}?',
-  'terminal.removeWarning': 'Running commands will be interrupted, and deletion cannot be undone.',
-  'terminal.startup': 'Command autostart',
-  'terminal.startupDescription': 'When enabled, the command runs automatically after DSH starts.',
-  'terminal.startupCommand': 'Command',
-  'terminal.startupPlaceholder': 'e.g. pnpm dev',
-  'terminal.startupAutoRun': 'Run automatically',
-  'terminal.save': 'Save',
-  'terminal.close': 'Close',
-  'terminal.cancel': 'Cancel',
-  'terminal.more': 'More actions',
-  'terminal.ended': 'Ended',
-  'terminal.exitCode': 'Exit code {code}',
-  'terminal.signal': 'Signal {signal}',
-  'terminal.unknown': 'Unknown error',
-  'terminal.startFailed': 'Could not start the terminal: {detail}',
-  'terminal.endedBanner': '[Terminal ended: {detail}]',
-  'terminal.reason.outputFailed': 'the output stream failed',
-  'commands.title': 'Commands',
-  'commands.description': 'Click a command to type it into the active terminal, or use the inline actions to manage it.',
-  'commands.search': 'Search',
-  'commands.searchLabel': 'Search commands',
-  'commands.add': 'Add command',
-  'commands.bodyPlaceholder': 'Command, e.g. pnpm dev',
-  'commands.descriptionPlaceholder': 'Description (optional)',
-  'commands.noDescription': 'No description',
-  'commands.empty': 'No saved commands yet — click "Add command" to create one',
-  'commands.noMatch': 'No matching commands',
-  'commands.insertHint': 'Insert into the active terminal',
-  'commands.noActiveTerminal': 'No active terminal',
-  'commands.edit': 'Edit',
-  'commands.copy': 'Copy',
-  'commands.remove': 'Delete',
-  'commands.copied': 'Copied',
-  'commands.cancel': 'Cancel',
-  'commands.save': 'Save',
-  'commands.close': 'Close',
-  'completion.footer': '↑↓ select · Enter fill · Esc close',
-} as const
+/** One locale id the shell can switch to. */
+export type LocaleId = 'zh' | 'en' | 'ja' | 'es' | 'fr' | 'de' | 'ru' | 'pt'
 
-/** Simplified Chinese copy; must cover every English key. */
-export const zh: Record<keyof typeof en, string> = {
-  'view.tab': '终端',
-  'sidebar.session': '当前会话',
-  'sidebar.empty': '暂无工作区',
-  'sidebar.new': '新建终端',
-  'main.hint': '请在左侧工作区点击 ＋ 新建一个终端',
-  'terminal.rename': '重命名',
-  'terminal.remove': '删除',
-  'terminal.removeTitle': '删除 {title}？',
-  'terminal.removeWarning': '会中断正在运行命令，且删除后无法恢复。',
-  'terminal.startup': '命令自启',
-  'terminal.startupDescription': '开启后，DSH 启动后会自动运行设置的命令',
-  'terminal.startupCommand': '命令',
-  'terminal.startupPlaceholder': '如 pnpm dev',
-  'terminal.startupAutoRun': '自动运行',
-  'terminal.save': '保存',
-  'terminal.close': '关闭',
-  'terminal.cancel': '取消',
-  'terminal.more': '更多操作',
-  'terminal.ended': '已结束',
-  'terminal.exitCode': '退出码 {code}',
-  'terminal.signal': '信号 {signal}',
-  'terminal.unknown': '未知错误',
-  'terminal.startFailed': '无法启动终端：{detail}',
-  'terminal.endedBanner': '［终端结束：{detail}］',
-  'terminal.reason.outputFailed': '输出流已中断',
-  'commands.title': '常用命令',
-  'commands.description': '点击命令插入到当前终端，或使用行内操作管理。',
-  'commands.search': '搜索',
-  'commands.searchLabel': '搜索常用命令',
-  'commands.add': '添加命令',
-  'commands.bodyPlaceholder': '命令，如 pnpm dev',
-  'commands.descriptionPlaceholder': '描述（可选）',
-  'commands.noDescription': '暂无描述',
-  'commands.empty': '暂无常用命令，点击「添加命令」创建',
-  'commands.noMatch': '没有匹配的命令',
-  'commands.insertHint': '插入到当前终端',
-  'commands.noActiveTerminal': '当前没有激活的终端',
-  'commands.edit': '编辑',
-  'commands.copy': '复制',
-  'commands.remove': '删除',
-  'commands.copied': '已复制',
-  'commands.cancel': '取消',
-  'commands.save': '保存',
-  'commands.close': '关闭',
-  'completion.footer': '↑↓ 选择 · Enter 填充 · Esc 关闭',
-}
-
-/** One translatable key of this package. */
-export type LocaleKey = keyof typeof en
+/** The terminal tab's key union, derived from the Chinese dictionary. */
+export type TerminalKey = keyof typeof zh
 
 /** Values substituted into a template's `{name}` placeholders. */
 export type LocaleParams = Record<string, string | number>
@@ -123,7 +46,16 @@ export type LocaleParams = Record<string, string | number>
  * stream handler, the tab-label thunk) speaks whatever language is in force
  * when it runs.
  */
-export type Translate = (key: LocaleKey, params?: LocaleParams) => string
+export type Translate = (key: TerminalKey, params?: LocaleParams) => string
+
+/**
+ * A namespace's dictionaries: the two required baselines plus whichever
+ * optional locales are translated.
+ */
+export type LocaleDictionaries = {
+  zh: Record<string, string>
+  en: Record<string, string>
+} & Partial<Record<LocaleId, Record<string, string>>>
 
 /**
  * The slice of the Client `locale` service this package uses.
@@ -134,10 +66,13 @@ export type Translate = (key: LocaleKey, params?: LocaleParams) => string
  */
 export interface LocaleServiceLike {
   /** Register a namespace's built-in dictionaries; returns their disposer. */
-  register(ns: string, dicts: { zh: Record<string, string>; en: Record<string, string> }): () => void
+  register(ns: string, dicts: LocaleDictionaries): () => void
   /** Bind a namespace to a translator that reads the active locale per call. */
   bind(ns: string): (key: string, params?: LocaleParams) => string
 }
+
+/** Every dictionary, in the shape the locale service registers. */
+export const DICTIONARIES: LocaleDictionaries = { zh, en, ja, es, fr, de, ru, pt }
 
 /** Substitute `{name}` placeholders, with the Client locale service's semantics. */
 function fill(template: string, params?: LocaleParams): string {
@@ -146,20 +81,34 @@ function fill(template: string, params?: LocaleParams): string {
 }
 
 /** A translator backed by one dictionary, for a page with no locale service. */
-function fromDictionary(dict: Record<LocaleKey, string>): Translate {
+function fromDictionary(dict: Record<TerminalKey, string>): Translate {
   return (key, params) => fill(dict[key] ?? key, params)
+}
+
+/** The same set as a lookup table, for the browser-language fallback. */
+const BY_ID = DICTIONARIES as Record<string, Record<TerminalKey, string>>
+
+/** The dictionary for a shell locale id, or `undefined` when untranslated. */
+function dictionaryFor(id: string): Record<TerminalKey, string> | undefined {
+  return Object.hasOwn(BY_ID, id) ? BY_ID[id] : undefined
 }
 
 /**
  * The translator a composition without the locale service falls back to.
  *
- * It answers Chinese for a browser that asks for a `zh*` language and English
- * otherwise — the same two languages the service ships, resolved without it.
+ * It answers the first language the browser asks for that this package
+ * translates — Chinese for a `zh*` tag, Japanese for `ja*`, and so on — and
+ * English when none of them match.
  */
 export function browserTranslate(): Translate {
-  const languages = typeof navigator === 'undefined' ? [] : navigator.languages ?? []
-  const chinese = languages.some((tag) => tag.toLowerCase().split('-')[0] === 'zh')
-  return fromDictionary(chinese ? zh : en)
+  const languages = typeof navigator === 'undefined'
+    ? []
+    : navigator.languages ?? (navigator.language === undefined ? [] : [navigator.language])
+  for (const tag of languages) {
+    const dict = dictionaryFor(tag.toLowerCase().split('-')[0])
+    if (dict !== undefined) return fromDictionary(dict)
+  }
+  return fromDictionary(en)
 }
 
 /**

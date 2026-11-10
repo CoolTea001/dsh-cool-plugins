@@ -1,0 +1,56 @@
+/** French dictionary. */
+
+import type { TerminalKey } from '../locales.js'
+
+export const fr = {
+  'view.tab': 'Terminal',
+  'sidebar.session': 'Session actuelle',
+  'sidebar.empty': 'Aucun espace de travail',
+  'sidebar.new': 'Nouveau terminal',
+  'main.hint': 'Cliquez sur ＋ sur un espace de travail à gauche pour ouvrir un terminal',
+  'terminal.rename': 'Renommer',
+  'terminal.remove': 'Supprimer',
+  'terminal.removeTitle': 'Supprimer {title} ?',
+  'terminal.removeWarning':
+    'Les commandes en cours seront interrompues, et la suppression est irréversible.',
+  'terminal.startup': 'Démarrage automatique de commande',
+  'terminal.startupDescription':
+    'Une fois activé, la commande s’exécute automatiquement au démarrage de DSH',
+  'terminal.startupCommand': 'Commande',
+  'terminal.startupPlaceholder': 'ex. pnpm dev',
+  'terminal.startupAutoRun': 'Exécuter automatiquement',
+  'terminal.save': 'Enregistrer',
+  'terminal.close': 'Fermer',
+  'terminal.cancel': 'Annuler',
+  'terminal.more': 'Plus d’actions',
+  'terminal.input': 'Saisie du terminal',
+  'terminal.ended': 'Terminé',
+  'terminal.exitCode': 'Code de sortie {code}',
+  'terminal.signal': 'Signal {signal}',
+  'terminal.unknown': 'Erreur inconnue',
+  'terminal.startFailed': 'Impossible de démarrer le terminal : {detail}',
+  'terminal.endedBanner': '[Terminal terminé : {detail}]',
+  'terminal.reason.outputFailed': 'le flux de sortie a échoué',
+  'commands.title': 'Commandes',
+  'commands.description':
+    'Cliquez sur une commande pour la saisir dans le terminal actif, ou utilisez les actions de la ligne pour la gérer.',
+  'commands.search': 'Rechercher',
+  'commands.searchLabel': 'Rechercher des commandes',
+  'commands.add': 'Ajouter une commande',
+  'commands.bodyPlaceholder': 'Commande, ex. pnpm dev',
+  'commands.descriptionPlaceholder': 'Description (facultatif)',
+  'commands.noDescription': 'Aucune description',
+  'commands.empty':
+    'Aucune commande enregistrée — cliquez sur « Ajouter une commande » pour en créer une',
+  'commands.noMatch': 'Aucune commande correspondante',
+  'commands.insertHint': 'Insérer dans le terminal actif',
+  'commands.noActiveTerminal': 'Aucun terminal actif',
+  'commands.edit': 'Modifier',
+  'commands.copy': 'Copier',
+  'commands.remove': 'Supprimer',
+  'commands.copied': 'Copié',
+  'commands.cancel': 'Annuler',
+  'commands.save': 'Enregistrer',
+  'commands.close': 'Fermer',
+  'completion.footer': '↑↓ choisir · Entrée insérer · Échap fermer',
+} satisfies Record<TerminalKey, string>

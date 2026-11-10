@@ -1,0 +1,56 @@
+/** Russian dictionary. */
+
+import type { TerminalKey } from '../locales.js'
+
+export const ru = {
+  'view.tab': 'Терминал',
+  'sidebar.session': 'Текущий сеанс',
+  'sidebar.empty': 'Нет рабочих пространств',
+  'sidebar.new': 'Новый терминал',
+  'main.hint': 'Нажмите ＋ в рабочем пространстве слева, чтобы открыть терминал',
+  'terminal.rename': 'Переименовать',
+  'terminal.remove': 'Удалить',
+  'terminal.removeTitle': 'Удалить {title}?',
+  'terminal.removeWarning':
+    'Выполняемые команды будут прерваны, а удаление нельзя отменить.',
+  'terminal.startup': 'Автозапуск команды',
+  'terminal.startupDescription':
+    'Если включено, команда выполнится автоматически после запуска DSH',
+  'terminal.startupCommand': 'Команда',
+  'terminal.startupPlaceholder': 'например, pnpm dev',
+  'terminal.startupAutoRun': 'Запускать автоматически',
+  'terminal.save': 'Сохранить',
+  'terminal.close': 'Закрыть',
+  'terminal.cancel': 'Отмена',
+  'terminal.more': 'Другие действия',
+  'terminal.input': 'Ввод терминала',
+  'terminal.ended': 'Завершён',
+  'terminal.exitCode': 'Код выхода {code}',
+  'terminal.signal': 'Сигнал {signal}',
+  'terminal.unknown': 'Неизвестная ошибка',
+  'terminal.startFailed': 'Не удалось запустить терминал: {detail}',
+  'terminal.endedBanner': '[Терминал завершён: {detail}]',
+  'terminal.reason.outputFailed': 'поток вывода прерван',
+  'commands.title': 'Команды',
+  'commands.description':
+    'Нажмите на команду, чтобы ввести её в активный терминал, или используйте действия в строке для управления.',
+  'commands.search': 'Поиск',
+  'commands.searchLabel': 'Поиск команд',
+  'commands.add': 'Добавить команду',
+  'commands.bodyPlaceholder': 'Команда, например pnpm dev',
+  'commands.descriptionPlaceholder': 'Описание (необязательно)',
+  'commands.noDescription': 'Без описания',
+  'commands.empty':
+    'Сохранённых команд пока нет — нажмите «Добавить команду», чтобы создать',
+  'commands.noMatch': 'Подходящих команд нет',
+  'commands.insertHint': 'Вставить в активный терминал',
+  'commands.noActiveTerminal': 'Нет активного терминала',
+  'commands.edit': 'Изменить',
+  'commands.copy': 'Копировать',
+  'commands.remove': 'Удалить',
+  'commands.copied': 'Скопировано',
+  'commands.cancel': 'Отмена',
+  'commands.save': 'Сохранить',
+  'commands.close': 'Закрыть',
+  'completion.footer': '↑↓ выбрать · Enter вставить · Esc закрыть',
+} satisfies Record<TerminalKey, string>

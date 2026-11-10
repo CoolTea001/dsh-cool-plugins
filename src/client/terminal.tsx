@@ -1135,6 +1135,15 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     // Create each opened console's xterm exactly once, and re-home it when the
     // View mounts again after the conversation shell swapped it out.
     React.useEffect(() => {
+      // xterm's accessible name for its hidden input is one static string per
+      // class, not per instance, and it is read when `open()` builds the
+      // textarea. Naming it here — on every pass, so a language switch and a
+      // console created afterwards both agree — is what keeps that name in the
+      // GUI's language instead of xterm's built-in English. The textarea of a
+      // runtime that already exists keeps the name it was opened with, so it
+      // is restated below; the class default is what a later `open()` reads.
+      const inputLabel = t('terminal.input')
+      Terminal.strings.promptLabel = inputLabel
       for (const id of [...openIds]) {
         const element = screens.get(id)
         if (element === undefined) continue
@@ -1146,6 +1155,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           runtimes.set(id, created)
           continue
         }
+        if (runtime.term.textarea !== undefined) runtime.term.textarea.setAttribute('aria-label', inputLabel)
         if (runtime.element === element) continue
         const own = runtime.term.element
         if (own !== undefined && own !== null) element.appendChild(own)
