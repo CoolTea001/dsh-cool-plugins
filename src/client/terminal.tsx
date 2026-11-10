@@ -1430,7 +1430,9 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           open: menuId === terminal.id,
           items: menuItems,
           portal: true,
-          closeOnPointerLeave: true,
+          // Matches the rest of the shell: a menu closes on an outside click,
+          // Escape, or a window blur -- not merely because the pointer wandered
+          // off it, which made the list flicker away while aiming at a row.
           align: 'start',
           // Anchor the list at the trigger's bottom-RIGHT corner: the
           // zero-width rect makes `align: start` hang the card off that

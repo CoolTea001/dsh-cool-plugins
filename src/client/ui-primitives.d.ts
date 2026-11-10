@@ -55,8 +55,6 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
     side?: 'bottom' | 'top' | 'right'
     /** Render into `document.body` with fixed positioning, escaping ancestor clipping. */
     portal?: boolean
-    /** Close once the pointer has left both trigger and list for the pointer grace. */
-    closeOnPointerLeave?: boolean
     /**
      * Portal mode only: supply the anchor rect instead of measuring the
      * `Menu`'s own wrapper span. Called on open and on every scroll/resize;
