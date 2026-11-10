@@ -1,4 +1,4 @@
-![dsh-cool-terminal cover](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.4.0.png)
+![dsh-cool-terminal cover](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.5.0.png)
 
 # dsh-cool-terminal
 
@@ -8,7 +8,7 @@ English · [中文](./README.zh.md)
 
 ## Description
 
-DeepSeek Harness terminal plugin — a real shell, workspace sync, persistent state, common-command management, and command completion.
+DeepSeek Harness terminal plugin — a real shell, workspace sync, persistent state, common-command management, command completion, and command autostart.
 
 ## Features
 
@@ -17,6 +17,7 @@ DeepSeek Harness terminal plugin — a real shell, workspace sync, persistent st
 - **Per-console command history** — Each console keeps its own history; pressing `↑` never pulls in commands from other consoles.
 - **Common command management** — Add, edit, delete, and use the common commands you create.
 - **Inline command completion** — Typing in a console pops matching common commands up under the caret; hovering a row or pressing `↑`/`↓` selects one, and `Enter` fills it into the command line without running it.
+- **Command autostart** — Each console can have its own startup command, and DSH runs it automatically when it opens.
 
 ## Installation
 
@@ -25,23 +26,6 @@ Use DSH's add-plugin feature and enter the package name: `dsh-cool-terminal`.
 ## Contributing
 
 Contributions via Issues and PRs are welcome.
-
-```
-// Clone project
-git clone https://github.com/CoolTea001/dsh-cool-terminal.git
-
-// Install dependencies
-cd dsh-cool-terminal
-pnpm install
-
-// Start local development
-pnpm run dev
-
-// Local install: use DSH's add-plugin feature and enter the local project path
-
-// Restart DSH service
-dsh web
-```
 
 ## License
 
