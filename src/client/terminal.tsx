@@ -855,7 +855,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
   function TerminalView(props: any): React.ReactElement {
     const sessionId = typeof props?.sessionId === 'string' ? props.sessionId : undefined
     const snapshot = React.useSyncExternalStore(bridge.subscribe, bridge.getSnapshot, bridge.getSnapshot)
-    const [account, setAccount] = React.useState<TerminalAccount>(() => loadAccount(t('terminal.untitled')))
+    const [account, setAccount] = React.useState<TerminalAccount>(() => loadAccount())
     const [sessionCwd, setSessionCwd] = React.useState('')
     const [selection, setSelection] = React.useState<TerminalSelection | null>(() => loadSelection())
     const [renamingId, setRenamingId] = React.useState<string | null>(null)
@@ -1188,9 +1188,8 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     }
 
     const addConsole = (key: string): void => {
-      // The auto title is minted in the language on screen, and the numbering
-      // counts consoles named in either language (see `AUTO_TITLE`).
-      const list = addTerminal(terminalsFor(account, key), key, (n) => t('terminal.autoTitle', { n }))
+      // Auto names are always `Terminal N`, never translated (see `addTerminal`).
+      const list = addTerminal(terminalsFor(account, key), key)
       const created = list[list.length - 1]
       setAccount(withTerminalList(account, key, list))
       // The ＋ sits on the header, so it is reachable while collapsed: adding

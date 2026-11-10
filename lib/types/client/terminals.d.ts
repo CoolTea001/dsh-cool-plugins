@@ -41,14 +41,14 @@ export declare function withTerminalList(account: TerminalAccount, key: string, 
 /**
  * Append a console named with the next free number.
  *
- * The title is minted by the caller, which owns the language: this module has
- * no translator, and a console's name is user data once it has been written.
+ * The name is minted here rather than by the caller because it is deliberately
+ * not translated: `addTerminal` always produces `Terminal N`, so a group's
+ * numbering reads the same under every GUI language.
  * @param list - current group list.
  * @param key - group key.
- * @param titleOf - the name for one auto-numbered console.
  * @returns the next group list.
  */
-export declare function addTerminal(list: readonly TerminalDef[], key: string, titleOf?: (number: number) => string): TerminalDef[];
+export declare function addTerminal(list: readonly TerminalDef[], key: string): TerminalDef[];
 /**
  * Rename one console; blank input is ignored rather than stored.
  * @param list - current group list.
@@ -84,10 +84,9 @@ export declare function moveTerminal(list: readonly TerminalDef[], id: string, t
 /**
  * Read the persisted account, dropping anything that does not match the shape
  * (a hand-edited or older entry must not break the tab).
- * @param fallbackTitle - the name a console with no title is repaired to.
  * @returns the validated account, or an empty one.
  */
-export declare function loadAccount(fallbackTitle?: string): TerminalAccount;
+export declare function loadAccount(): TerminalAccount;
 /**
  * Persist the account. Storage failures (quota, blocked third-party storage)
  * are not worth surfacing: the consoles keep working for this page's lifetime.

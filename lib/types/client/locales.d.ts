@@ -17,8 +17,6 @@ export declare const en: {
     readonly 'sidebar.empty': "No workspaces";
     readonly 'sidebar.new': "New terminal";
     readonly 'main.hint': "Click ＋ on a workspace on the left to open a terminal";
-    readonly 'terminal.untitled': "Terminal";
-    readonly 'terminal.autoTitle': "Terminal {n}";
     readonly 'terminal.rename': "Rename";
     readonly 'terminal.remove': "Delete";
     readonly 'terminal.more': "More actions";

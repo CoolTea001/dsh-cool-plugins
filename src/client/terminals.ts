@@ -73,13 +73,17 @@ export function withTerminalList(
 }
 
 /**
- * The auto-generated title shape, with its slot number.
+ * The base name every auto-named console starts from.
  *
- * Both spellings count, because the language a console was created under is
- * not the language it lives under: switching to Chinese and adding a console
- * must not hand out a number an English-named console already holds.
+ * Console names are user data, not UI copy: a new console is always
+ * `Terminal 1`, `Terminal 2`, … whatever language the GUI is in. That keeps a
+ * name stable across a language switch and the numbering free of per-language
+ * spellings.
  */
-const AUTO_TITLE = /^(?:Terminal|终端) (\d+)$/
+const AUTO_NAME = 'Terminal'
+
+/** The auto-generated title shape, with its slot number. */
+const AUTO_TITLE = /^Terminal (\d+)$/
 
 /**
  * One past the highest number a group's auto-named consoles still hold.
@@ -104,21 +108,17 @@ function nextTerminalNumber(list: readonly TerminalDef[]): number {
 /**
  * Append a console named with the next free number.
  *
- * The title is minted by the caller, which owns the language: this module has
- * no translator, and a console's name is user data once it has been written.
+ * The name is minted here rather than by the caller because it is deliberately
+ * not translated: `addTerminal` always produces `Terminal N`, so a group's
+ * numbering reads the same under every GUI language.
  * @param list - current group list.
  * @param key - group key.
- * @param titleOf - the name for one auto-numbered console.
  * @returns the next group list.
  */
-export function addTerminal(
-  list: readonly TerminalDef[],
-  key: string,
-  titleOf: (number: number) => string = (number) => `Terminal ${number}`,
-): TerminalDef[] {
+export function addTerminal(list: readonly TerminalDef[], key: string): TerminalDef[] {
   sequence += 1
   const id = `${key}:t${Date.now().toString(36)}${sequence.toString(36)}`
-  return [...list, { id, title: titleOf(nextTerminalNumber(list)) }]
+  return [...list, { id, title: `${AUTO_NAME} ${nextTerminalNumber(list)}` }]
 }
 
 /**
@@ -183,24 +183,21 @@ export function moveTerminal(
 /**
  * Parse one persisted console entry, or undefined when it is malformed.
  * @param item - one persisted entry.
- * @param fallbackTitle - the name to repair a missing title with; the caller
- *   owns the language, because this module has no translator.
  */
-function parseTerminalDef(item: unknown, fallbackTitle: string): TerminalDef | undefined {
+function parseTerminalDef(item: unknown): TerminalDef | undefined {
   if (item === null || typeof item !== 'object') return undefined
   const record = item as Record<string, unknown>
   if (typeof record.id !== 'string' || record.id === '') return undefined
-  const title = typeof record.title === 'string' && record.title !== '' ? record.title : fallbackTitle
+  const title = typeof record.title === 'string' && record.title !== '' ? record.title : AUTO_NAME
   return { id: record.id, title }
 }
 
 /**
  * Read the persisted account, dropping anything that does not match the shape
  * (a hand-edited or older entry must not break the tab).
- * @param fallbackTitle - the name a console with no title is repaired to.
  * @returns the validated account, or an empty one.
  */
-export function loadAccount(fallbackTitle: string = 'Terminal'): TerminalAccount {
+export function loadAccount(): TerminalAccount {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (raw === null) return {}
@@ -211,7 +208,7 @@ export function loadAccount(fallbackTitle: string = 'Terminal'): TerminalAccount
       if (!Array.isArray(value)) continue
       const list: TerminalDef[] = []
       for (const item of value) {
-        const terminal = parseTerminalDef(item, fallbackTitle)
+        const terminal = parseTerminalDef(item)
         if (terminal !== undefined) list.push(terminal)
       }
       // An empty list is kept as-is: it records "this group holds none",
