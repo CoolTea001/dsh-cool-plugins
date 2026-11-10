@@ -8,9 +8,11 @@
  *
  * The terminal itself is a real PTY obtained from the `subprocess` seam
  * (`spawnTerminal`): this half only owns the registry, the bounded replay
- * buffer, and the SSE fan-out. Sizing is fixed at spawn time because the seam
- * exposes no resize verb — the browser measures its viewport before asking for
- * a terminal, so the initial size is the size the user sees.
+ * buffer, and the SSE fan-out. The browser measures its viewport before asking
+ * for a terminal, so a fresh shell starts at the size the user sees; a shell
+ * handed back to a reconnecting page is resized to the browser's current
+ * measurement, which also corrects a console that autostarted before the page
+ * could measure it.
  */
 
 import { createHash } from 'node:crypto'
@@ -43,6 +45,30 @@ const MIN_ROWS = 5
 const MAX_ROWS = 200
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
+
+/** Upper bound on a console's startup command, in UTF-16 code units. */
+const MAX_STARTUP_CHARS = 4_096
+
+/**
+ * How long the shell's output must stay quiet before the startup command is
+ * typed when the shell's line editor never announces itself.
+ */
+const STARTUP_SETTLE_MS = 800
+
+/**
+ * How long to wait after the line editor's ready marker before typing.
+ *
+ * zsh and bash print the bracketed-paste enable sequence as their line editor
+ * takes over, then print the prompt; the short grace lets that prompt land so
+ * the typed command starts on a line after it instead of above it.
+ */
+const STARTUP_READY_SETTLE_MS = 120
+
+/** Fallback for a shell that prints nothing at all before waiting for input. */
+const STARTUP_DEADLINE_MS = 5_000
+
+/** Bracketed-paste-on, printed when zsh's zle or bash's readline starts. */
+const STARTUP_READY_MARKER = Buffer.from('\x1b[?2004h')
 
 /** Replay kept per console so a reload rejoins the same shell with context. */
 const MAX_REPLAY_BYTES = 256 * 1024
@@ -124,6 +150,12 @@ interface OpenBody {
    * instead of a fresh shell.
    */
   readonly consoleId?: unknown
+  /**
+   * Shell text to type into a shell this request spawns, exactly once. It is
+   * ignored when an existing shell is reused, so reloads and reconnects never
+   * repeat it. The command is displayable user data, not copy.
+   */
+  readonly startup?: unknown
 }
 
 /** One live (or recently exited) PTY plus the browsers attached to it. */
@@ -135,6 +167,9 @@ interface PtySession {
   readonly cwd: string
   readonly shell: string
   readonly pid: number
+  /** Current PTY geometry, kept so a reattach only resizes on a real change. */
+  cols: number
+  rows: number
   /** Terminal output retained for replay, bounded by {@link MAX_REPLAY_BYTES}. */
   replay: Buffer[]
   replayBytes: number
@@ -258,6 +293,47 @@ function sameOrigin(req: any): boolean {
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, Math.trunc(value)))
+}
+
+/**
+ * The geometry requested by one open, clamped to what the PTY accepts.
+ * @param body - the open request.
+ * @returns column and row counts.
+ */
+function geometryOf(body: OpenBody): { cols: number; rows: number } {
+  return {
+    cols: clampInt(body.cols, MIN_COLS, MAX_COLS, DEFAULT_COLS),
+    rows: clampInt(body.rows, MIN_ROWS, MAX_ROWS, DEFAULT_ROWS),
+  }
+}
+
+/**
+ * Whether the request carried an explicit geometry.
+ *
+ * Only an explicit one may resize a shell the registry already owns: an open
+ * that omits it (a script, or a future caller that cannot measure) must leave
+ * the live shell at the size its own browser chose.
+ *
+ * @param body - the open request.
+ */
+function hasGeometry(body: OpenBody): boolean {
+  return typeof body.cols === 'number' && Number.isFinite(body.cols)
+    && typeof body.rows === 'number' && Number.isFinite(body.rows)
+}
+
+/**
+ * Read the startup command a request asks to run in a fresh shell.
+ *
+ * CRLF is normalized and the text trimmed because the Host appends the final
+ * Enter itself; the length cap keeps one posted body from queueing an
+ * unbounded amount of terminal input.
+ *
+ * @param body - the open request.
+ * @returns the command, or an empty string when there is none.
+ */
+function startupOf(body: OpenBody): string {
+  if (typeof body.startup !== 'string') return ''
+  return body.startup.replace(/\r\n?/g, '\n').trim().slice(0, MAX_STARTUP_CHARS)
 }
 
 /**
@@ -759,16 +835,32 @@ class PtyRegistry {
    * Allocate a terminal, register it, and start pumping its output.
    *
    * When the request names a console that already owns a live session, that
-   * session is handed back untouched. This is what makes a page reload rejoin
-   * the same shell: without it, the reload would orphan the running shell and
-   * silently start a second one, which is exactly the "terminal got reset"
-   * symptom.
+   * session is handed back instead of spawning a second shell; a request that
+   * carries geometry also resizes it to the browser's current measurement.
+   * This is what makes a page reload rejoin the same shell: without it, the
+   * reload would orphan the running shell and silently start a second one,
+   * which is exactly the "terminal got reset" symptom.
    */
   async open(body: OpenBody): Promise<OpenOutcome> {
     const key = this.keyOf(body)
     if (key !== '') {
       const existing = this.liveFor(key)
-      if (existing !== undefined) return { session: existing }
+      if (existing !== undefined) {
+        // A reattach carries the browser's current measurement. Adopting it
+        // here is what corrects a console that autostarted at a remembered
+        // size before its pane existed; a request without one leaves the
+        // shell alone.
+        if (hasGeometry(body)) {
+          const { cols, rows } = geometryOf(body)
+          if ((cols !== existing.cols || rows !== existing.rows)
+            && typeof existing.handle.resize === 'function') {
+            existing.cols = cols
+            existing.rows = rows
+            void existing.handle.resize(cols, rows).catch(() => undefined)
+          }
+        }
+        return { session: existing }
+      }
       // A remount, or a reload racing the previous page's stream teardown, can
       // issue two opens for one console; they must share one shell.
       const inflight = this.pending.get(key)
@@ -798,8 +890,7 @@ class PtyRegistry {
 
     const shell = resolveShell()
     const id = `t${Date.now().toString(36)}-${(this.sequence += 1).toString(36)}`
-    const cols = clampInt(body.cols, MIN_COLS, MAX_COLS, DEFAULT_COLS)
-    const rows = clampInt(body.rows, MIN_ROWS, MAX_ROWS, DEFAULT_ROWS)
+    const { cols, rows } = geometryOf(body)
 
     // A PTY child always reports TERM=dumb, no matter what TERM says below.
     // subprocess-local hands node-pty a fixed `name: 'dumb'`, and node-pty then
@@ -855,6 +946,8 @@ class PtyRegistry {
       cwd,
       shell,
       pid: typeof handle.pid === 'number' ? handle.pid : 0,
+      cols,
+      rows,
       replay: [],
       replayBytes: 0,
       clients: new Set(),
@@ -886,7 +979,81 @@ class PtyRegistry {
       (error: unknown) => this.finish(session, { exitCode: null, signal: null }, messageOf(error)),
     )
 
+    // A startup command is typed into this shell once, after it has settled
+    // into its prompt. See `runStartup` for why the write is deferred. Only a
+    // fresh spawn reaches this path, which is what keeps a page reload or a
+    // second window from running the command again.
+    const startup = startupOf(body)
+    if (startup !== '') this.runStartup(session, startup)
+
     return { session }
+  }
+
+  /**
+   * Type one startup command once the shell is ready to read it.
+   *
+   * Writing immediately after `spawnTerminal` races the shell's own startup:
+   * zsh and bash install their line editor only after their startup files run,
+   * and input queued before that is echoed above the prompt or flushed. Their
+   * line editors announce themselves with the bracketed-paste-on sequence;
+   * once that arrives, a short quiet grace lets the prompt finish printing and
+   * the command lands after it. A shell whose editor never announces itself
+   * falls back to a longer silence after its output, and the deadline covers
+   * a shell that prints nothing at all.
+   *
+   * Both timers are unref'd: a shell that never starts must not keep the Host
+   * process alive, and the write itself is already guarded by `write`.
+   *
+   * @param session - the freshly spawned shell.
+   * @param command - already normalized by {@link startupOf}.
+   */
+  private runStartup(session: PtySession, command: string): void {
+    const output = session.handle.output
+    let quiet: NodeJS.Timeout | undefined
+    let deadline: NodeJS.Timeout | undefined
+    let onOutput: ((chunk: unknown) => void) | undefined
+    let fired = false
+    let ready = false
+    /** The last few bytes, so a marker split across two chunks still matches. */
+    let tail = Buffer.alloc(0)
+
+    const cleanup = (): void => {
+      if (quiet !== undefined) {
+        clearTimeout(quiet)
+        quiet = undefined
+      }
+      if (deadline !== undefined) {
+        clearTimeout(deadline)
+        deadline = undefined
+      }
+      if (onOutput !== undefined) output?.removeListener?.('data', onOutput)
+      onOutput = undefined
+    }
+    const fire = (): void => {
+      if (fired) return
+      fired = true
+      cleanup()
+      this.write(session, `${command}\r`)
+    }
+    const settle = (delay: number): void => {
+      if (quiet !== undefined) clearTimeout(quiet)
+      quiet = setTimeout(fire, delay)
+      quiet.unref?.()
+    }
+    onOutput = (chunk: unknown): void => {
+      if (fired) return
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array)
+      const joined = Buffer.concat([tail, bytes])
+      if (!ready && joined.includes(STARTUP_READY_MARKER)) ready = true
+      tail = joined.subarray(Math.max(0, joined.length - 16))
+      // With the line editor's marker in hand, a short grace after the prompt
+      // is enough; without it, wait for a longer silence before risking a
+      // write the shell's own initialization might still flush.
+      settle(ready ? STARTUP_READY_SETTLE_MS : STARTUP_SETTLE_MS)
+    }
+    output?.on?.('data', onOutput)
+    deadline = setTimeout(fire, STARTUP_DEADLINE_MS)
+    deadline.unref?.()
   }
 
   /** Retain output for replay and push it to every attached browser. */

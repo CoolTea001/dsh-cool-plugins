@@ -28,6 +28,7 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
+  IconAutostart,
   IconEdit,
   IconFolderClosed,
   IconFolderOpened,
@@ -45,7 +46,9 @@ import {
   streamUrl,
 } from './api.js'
 import { CommandsDialog } from './commands-dialog.js'
+import { StartupDialog } from './startup-dialog.js'
 import { loadCommands, saveCommands, type CommandDef } from './commands.js'
+import { writeGeometry } from './geometry.js'
 import {
   ResizeHandle,
   clampSideWidth,
@@ -78,6 +81,7 @@ import {
   saveAccount,
   saveExpanded,
   saveSelection,
+  setTerminalStartup,
   terminalsFor,
   withTerminalList,
   type TerminalAccount,
@@ -93,6 +97,14 @@ interface GroupRow {
   readonly title: string
   readonly path: string
   readonly kind: 'workspace' | 'session'
+}
+
+/** The console a Command autostart dialog was opened for, plus its saved values. */
+interface StartupTarget {
+  readonly key: string
+  readonly id: string
+  readonly command: string
+  readonly autoRun: boolean
 }
 
 /**
@@ -817,8 +829,13 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
   /**
    * Size the screen and ask the Host for a PTY, exactly once per console.
    *
-   * The subprocess seam exposes no resize verb, so this measurement is the
-   * size the shell lives at for its whole lifetime.
+   * The measurement is also remembered by console id: a console that
+   * autostarts before the page has a pane to measure needs some geometry at
+   * spawn, and the last fitted size is the closest honest guess. The Host
+   * resizes the shell again when the View finally attaches and measures.
+   *
+   * `startup` is shell text the Host types into the shell only if it has to
+   * spawn one; handing back an existing shell runs nothing.
    *
    * Repaints go through {@link bumpView}: this runs in an effect, but the
    * `await` below can outlive the mount that called it, so the re-render must
@@ -828,6 +845,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     runtime: Runtime,
     group: GroupRow,
     sessionId: string | undefined,
+    startup: string | undefined,
   ): Promise<void> {
     if (runtime.terminalId !== undefined || runtime.opening) return
     runtime.opening = true
@@ -841,10 +859,18 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       } catch {
         /* measurement is best-effort */
       }
+      writeGeometry(runtime.id, runtime.term.cols, runtime.term.rows)
       const workspaceId = group.kind === 'workspace' ? group.key : undefined
       // `runtime.id` is the console id; the Host uses it to hand back a shell
       // this console already owns, which is what survives a page reload.
-      const result = await openTerminal(sessionId, workspaceId, runtime.term.cols, runtime.term.rows, runtime.id)
+      const result = await openTerminal(
+        sessionId,
+        workspaceId,
+        runtime.term.cols,
+        runtime.term.rows,
+        runtime.id,
+        startup,
+      )
       if (result.terminalId === undefined || result.terminalId === '') {
         const detail = result.error ?? t('terminal.unknown')
         setStatus(runtime, 'failed', detail)
@@ -874,6 +900,9 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     /** Console awaiting the user's confirmation before it is deleted. */
     const [pendingRemove, setPendingRemove] = React.useState<{ key: string; id: string; title: string } | null>(null)
     const removeOpen = pendingRemove !== null
+    /** Console whose Command autostart dialog is open, with the values it opened on. */
+    const [startupEdit, setStartupEdit] = React.useState<StartupTarget | null>(null)
+    const startupOpen = startupEdit !== null
     /** Trigger of the open menu; its rect anchors the portaled list. */
     const menuAnchor = React.useRef<HTMLButtonElement | null>(null)
     /** The console a native drag is carrying: its group key and id.
@@ -917,6 +946,10 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
      *  bumps `version` must not refocus the terminal out of its inputs. */
     const commandsOpenRef = React.useRef(false)
     commandsOpenRef.current = commandsOpen
+    /** Same live mirror for the autostart dialog: it holds the keyboard while
+     *  open, so a stream reconnect must not pull focus out of its input. */
+    const startupOpenRef = React.useRef(false)
+    startupOpenRef.current = startupOpen
     /** The completion popup being rendered, if any — published by the
      *  keystroke path (completion.ts) and diffed first, so typing that
      *  changes nothing costs no re-render at all. */
@@ -1135,11 +1168,16 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       runtime.term.options.theme = readTheme()
       // An open rename field owns the keyboard: a stream reconnect or a late
       // `ensureStarted` that bumps `version` must not steal focus from it.
-      // The commands dialog and the delete confirmation are the same story
-      // while they are up.
-      if (renamingRef.current === null && !commandsOpenRef.current && !removeOpen) runtime.term.focus()
+      // The commands dialog, the delete confirmation, and the autostart
+      // dialog are the same story while they are up.
+      if (renamingRef.current === null && !commandsOpenRef.current && !startupOpenRef.current && !removeOpen) {
+        runtime.term.focus()
+      }
       const group = rows.find((row) => row.key === activeGroupKey)
-      if (group !== undefined) void ensureStarted(runtime, group, sessionId)
+      // The command belongs to the console, but the switch is what decides
+      // whether it runs at all: an off switch keeps the text saved and inert.
+      const startup = active !== undefined && active.autoStart !== false ? active.startup : undefined
+      if (group !== undefined) void ensureStarted(runtime, group, sessionId, startup)
       // `version` is what re-runs this after the "mark opened" effect above
       // bumps it: the runtime this effect needs does not exist until the next
       // commit, so the first pass returns early and this pass starts the shell.
@@ -1154,7 +1192,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         if (runtime.completion.popup !== null) runtime.completion = { line: runtime.completion.line, popup: null }
       }
       publish(null)
-    }, [activeId, commands, commandsOpen, removeOpen, publish])
+    }, [activeId, commands, commandsOpen, removeOpen, startupOpen, publish])
 
     /**
      * Show each sidebar edge fade only where the list really hides content.
@@ -1300,6 +1338,24 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       setAccount(withTerminalList(account, key, renameTerminal(terminalsFor(account, key), id, renameDraft)))
     }
 
+    /**
+     * Persist the autostart pair the dialog reported.
+     *
+     * A blank command clears the setting entirely (see `setTerminalStartup`),
+     * which is also how the switch is turned back off for good: an off switch
+     * with no command has nothing to remember.
+     */
+    const saveStartup = (command: string, autoRun: boolean): void => {
+      if (startupEdit === null) return
+      const { key, id } = startupEdit
+      setAccount((current) => withTerminalList(
+        current,
+        key,
+        setTerminalStartup(terminalsFor(current, key), id, command, autoRun),
+      ))
+      setStartupEdit(null)
+    }
+
     const toggleExpanded = (key: string): void => {
       setMenuId(null)
       setExpanded((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
@@ -1346,6 +1402,10 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     const renderOverflowMenu = (row: GroupRow, terminal: TerminalDef): React.ReactElement => {
       const menuItems: MenuEntry[] = [
         { id: 'rename', label: t('terminal.rename'), icon: h(IconEdit, { key: 'icon' }) },
+        { id: 'startup', label: t('terminal.startup'), icon: h(IconAutostart, { key: 'icon' }) },
+        // Destructive row last, behind a hairline: the menu's only action that
+        // asks for confirmation is also the only one that cannot be undone.
+        { type: 'separator', id: 'before-remove' },
         {
           id: 'remove',
           label: t('terminal.remove'),
@@ -1373,7 +1433,14 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           onSelect: (id: string) => {
             setMenuId(null)
             if (id === 'rename') toggleRename(terminal)
-            else if (id === 'remove') setPendingRemove({ key: row.key, id: terminal.id, title: terminal.title })
+            else if (id === 'startup') {
+              setStartupEdit({
+                key: row.key,
+                id: terminal.id,
+                command: terminal.startup ?? '',
+                autoRun: terminal.autoStart ?? true,
+              })
+            } else if (id === 'remove') setPendingRemove({ key: row.key, id: terminal.id, title: terminal.title })
           },
           onClose: () => setMenuId(null),
           anchor: h('button', {
@@ -1680,6 +1747,18 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       ),
     })
 
+    // Command autostart edits one console's saved command and switch. The
+    // dialog is mounted only while open, so its draft cannot leak into the
+    // next console the menu is used on.
+    const startupDialog = startupEdit === null ? null : h(StartupDialog, {
+      key: startupEdit.id,
+      command: startupEdit.command,
+      autoRun: startupEdit.autoRun,
+      t,
+      onClose: () => setStartupEdit(null),
+      onSave: saveStartup,
+    })
+
     return h('div', {
       ref: pageRef,
       className: 'dsh-ct-root',
@@ -1692,7 +1771,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       // it drops the transcript width handles and hands this View the whole
       // area instead of the transcript's content column.
       'data-conversation-composer-overlay': '',
-    }, sidebar, main, commandsDialog, removeDialog)
+    }, sidebar, main, commandsDialog, removeDialog, startupDialog)
   }
 
   return {

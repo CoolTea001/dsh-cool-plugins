@@ -8,9 +8,11 @@
  *
  * The terminal itself is a real PTY obtained from the `subprocess` seam
  * (`spawnTerminal`): this half only owns the registry, the bounded replay
- * buffer, and the SSE fan-out. Sizing is fixed at spawn time because the seam
- * exposes no resize verb — the browser measures its viewport before asking for
- * a terminal, so the initial size is the size the user sees.
+ * buffer, and the SSE fan-out. The browser measures its viewport before asking
+ * for a terminal, so a fresh shell starts at the size the user sees; a shell
+ * handed back to a reconnecting page is resized to the browser's current
+ * measurement, which also corrects a console that autostarted before the page
+ * could measure it.
  */
 export declare const name = "dsh-cool-terminal";
 /** The web carrier is a hard dependency: without it there is no route to serve. */

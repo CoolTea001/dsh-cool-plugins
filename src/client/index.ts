@@ -8,6 +8,7 @@
  */
 
 import { createTerminalView } from './terminal.js'
+import { startAutostartConsoles } from './autostart.js'
 import { createWorkspaceBridge } from './terminals.js'
 import { insertTerminalStyles } from './styles.js'
 import {
@@ -99,6 +100,13 @@ export function apply(ctx: any) {
   // orphaning it.
   const { View, dispose } = createTerminalView(bridge, t)
   ctx.effect(() => () => dispose(), 'dsh-cool-terminal: terminal teardown')
+
+  // Command autostart: `apply` runs when the page boots, while the Terminal
+  // tab (and therefore any console's PTY) exists only after it is selected.
+  // Starting the enabled consoles here is what makes their commands run after
+  // DSH opens instead of waiting for the user to click into the tab. It is
+  // fire-and-forget; failures stay inside each console's own scrollback.
+  startAutostartConsoles()
 
   const entry: Record<string, unknown> = {
     name: 'conversation.view',

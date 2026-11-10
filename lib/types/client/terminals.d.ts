@@ -4,14 +4,28 @@
  * The Workspace list itself belongs to the Host and is read live from the
  * Client `workspaces` service (see {@link createWorkspaceBridge}); this module
  * owns only the part the Host does not know about: which named consoles each
- * Workspace group holds, their titles, and the tiny account persisted across
- * page reloads. Every list operation is pure so the React half can treat the
- * account as immutable state.
+ * Workspace group holds, their titles, their optional startup commands, and the
+ * tiny account persisted across page reloads. Every list operation is pure so
+ * the React half can treat the account as immutable state.
  */
 /** One named console inside a Workspace (or session) group. */
 export interface TerminalDef {
     readonly id: string;
     readonly title: string;
+    /**
+     * Shell command to run once whenever this console gets a fresh shell.
+     *
+     * It is stored as one line of shell text and typed into the PTY, so it sees
+     * the same aliases, functions, and history as a command the user typed.
+     * Absent or blank means the console has no startup command.
+     */
+    readonly startup?: string;
+    /**
+     * Whether {@link startup} also runs when DSH opens, without waiting for the
+     * console to be shown. Missing means `true`; `false` keeps the command saved
+     * but inert.
+     */
+    readonly autoStart?: boolean;
 }
 /** Console lists keyed by Workspace id, plus the session fallback key. */
 export type TerminalAccount = Readonly<Record<string, readonly TerminalDef[]>>;
@@ -65,6 +79,21 @@ export declare function renameTerminal(list: readonly TerminalDef[], id: string,
  * @returns the next group list.
  */
 export declare function removeTerminal(list: readonly TerminalDef[], id: string): TerminalDef[];
+/**
+ * Replace one console's startup command and its auto-run switch.
+ *
+ * A blank command clears the setting instead of storing an empty string, so
+ * "no command" has exactly one representation in the persisted account and in
+ * the autostart runner. Line endings are normalized and the text is trimmed:
+ * the Host appends the final Enter itself.
+ *
+ * @param list - current group list.
+ * @param id - console to update.
+ * @param command - the shell text to run, or blank to clear.
+ * @param autoStart - whether the command also runs when DSH opens.
+ * @returns the next group list.
+ */
+export declare function setTerminalStartup(list: readonly TerminalDef[], id: string, command: string, autoStart: boolean): TerminalDef[];
 /**
  * Move one console to another position inside its own group.
  *

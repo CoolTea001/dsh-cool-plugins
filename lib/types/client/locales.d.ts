@@ -21,6 +21,13 @@ export declare const en: {
     readonly 'terminal.remove': "Delete";
     readonly 'terminal.removeTitle': "Delete {title}?";
     readonly 'terminal.removeWarning': "Running commands will be interrupted, and deletion cannot be undone.";
+    readonly 'terminal.startup': "Command autostart";
+    readonly 'terminal.startupDescription': "When enabled, the command runs automatically after DSH starts.";
+    readonly 'terminal.startupCommand': "Command";
+    readonly 'terminal.startupPlaceholder': "e.g. pnpm dev";
+    readonly 'terminal.startupAutoRun': "Run automatically";
+    readonly 'terminal.save': "Save";
+    readonly 'terminal.close': "Close";
     readonly 'terminal.cancel': "Cancel";
     readonly 'terminal.more': "More actions";
     readonly 'terminal.ended': "Ended";

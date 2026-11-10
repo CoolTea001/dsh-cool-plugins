@@ -89,6 +89,22 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   /** Render a button. */
   export function Button(props: ButtonProps): ReactElement
 
+  /** Props of the two-state switch (mirrors the primitives' own component). */
+  export interface SwitchProps {
+    /** Current state; the control is fully controlled. */
+    checked: boolean
+    /** Called with the state the click asks for. */
+    onChange: (next: boolean) => void
+    /** Localized accessible name; required so a switch never ships unnamed. */
+    label: string
+    disabled?: boolean
+    title?: string | undefined
+    className?: string | undefined
+  }
+
+  /** Render a toggle switch. */
+  export function Switch(props: SwitchProps): ReactElement
+
   /**
    * Render a centered dialog over a masked page. Escape, the mask, and the
    * header close button all call `onClose`; focus is trapped and restored.

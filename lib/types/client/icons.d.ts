@@ -28,6 +28,8 @@ export declare const IconMore: ({ className }: DshCtIconProps) => React.ReactEle
 export declare const IconPlus: ({ className }: DshCtIconProps) => React.ReactElement;
 /** Rename a console (the menu's row glyph, assets/edit.svg). */
 export declare const IconEdit: ({ className }: DshCtIconProps) => React.ReactElement;
+/** Command autostart (the menu's row glyph, assets/autostart.svg). */
+export declare const IconAutostart: ({ className }: DshCtIconProps) => React.ReactElement;
 /** Delete a console (the menu's destructive row glyph, assets/trash.svg). */
 export declare const IconTrash: ({ className }: DshCtIconProps) => React.ReactElement;
 /** Common-commands entry (assets/list.svg). */

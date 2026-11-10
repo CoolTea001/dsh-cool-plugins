@@ -221,6 +221,25 @@ export const TERMINAL_CSS = [
   '.dsh-ct-cmd-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
   '.dsh-ct-cmd-input{height:36px}',
 
+  // Command autostart dialog. The chrome is the shipped Modal; only the two
+  // controls it wraps need dress. The width doubles its own class name for the
+  // same reason the commands dialog does: the primitive's card rule is a
+  // single class, and this dialog portals outside `.dsh-ct-root`.
+  '.dsh-ct-startup-dialog.dsh-ct-startup-dialog{width:min(420px,100%)}',
+  '.dsh-ct-startup-field{display:flex;flex-direction:column;gap:8px}',
+  // Both rows use the same label rank: "命令" names the field exactly the way
+  // "自动运行" names the switch below it.
+  '.dsh-ct-startup-label{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}',
+  // The Input primitive is an inline-flex wrapper; stretch it across the
+  // dialog's content column while keeping its 36px field height. `border-box`
+  // is what makes that width include the field's own padding and hairline:
+  // without it the wrapper is 17px wider than the column and pokes past the
+  // right edge the footer buttons align to.
+  '.dsh-ct-startup-input{display:flex;box-sizing:border-box;width:100%;height:36px}',
+  // The switch row: its label on the left, the control on the right. The
+  // switch itself comes from the primitives and carries the DSH tokens.
+  '.dsh-ct-startup-auto{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px}',
+
   // Destructive confirmation. The button stays an outline button, as in the
   // shipped confirmations; only its text and outline take the error color, by
   // re-pointing the outline variable the primitive already consumes.

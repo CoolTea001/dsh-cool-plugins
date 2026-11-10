@@ -73,6 +73,9 @@ export const IconPlus = svgIcon('plus')
 /** Rename a console (the menu's row glyph, assets/edit.svg). */
 export const IconEdit = svgIcon('edit')
 
+/** Command autostart (the menu's row glyph, assets/autostart.svg). */
+export const IconAutostart = svgIcon('autostart')
+
 /** Delete a console (the menu's destructive row glyph, assets/trash.svg). */
 export const IconTrash = svgIcon('trash')
 

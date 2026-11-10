@@ -59,9 +59,10 @@ export function fetchContext(sessionId?: string): Promise<ContextResult> {
 /**
  * Allocate a real PTY for one console.
  *
- * `cols`/`rows` are the browser's measurement of the visible terminal: the
- * subprocess seam exposes no resize verb, so the size chosen here is the size
- * the shell lives at for its whole lifetime.
+ * `cols`/`rows` are the browser's measurement of the visible terminal. The
+ * Host adopts them when it spawns a shell and, when it hands back an existing
+ * shell, resizes that shell to them — which is how a console that autostarted
+ * before the page could measure its pane gets corrected on reattach.
  *
  * `workspaceId` names the Workspace the terminal must start in; the Host
  * resolves its directory from its own registry. Omitting it uses the session's
@@ -71,6 +72,10 @@ export function fetchContext(sessionId?: string): Promise<ContextResult> {
  * sessions by it, so a reloaded page asking for the same console gets its
  * existing shell back (with the output it already printed) instead of a new
  * one.
+ *
+ * `startup` is shell text the Host types into a shell it just spawned, exactly
+ * once. It is ignored when an existing shell is reused, so a reload never runs
+ * the command a second time.
  */
 export function openTerminal(
   sessionId: string | undefined,
@@ -78,8 +83,9 @@ export function openTerminal(
   cols: number,
   rows: number,
   consoleId: string,
+  startup?: string,
 ): Promise<OpenResult> {
-  return postJson('/open', { sessionId, workspaceId, cols, rows, consoleId })
+  return postJson('/open', { sessionId, workspaceId, cols, rows, consoleId, startup })
 }
 
 /** Deliver keystrokes exactly as typed (no implicit newline conversion). */
