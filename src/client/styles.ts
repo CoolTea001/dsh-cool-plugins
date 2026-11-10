@@ -12,6 +12,8 @@
  * as a single JS file and would never fetch a sibling `.css` asset.
  */
 
+import { MAIN_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
+
 /**
  * xterm's stylesheet, substituted at build time. `typeof` keeps an unbundled
  * or misconfigured build from throwing at import time.
@@ -41,7 +43,30 @@ export const TERMINAL_CSS = [
   // (#151517), and presets can move either, so the column stops competing with
   // the background it is laid on. The hairline seam is what still separates the
   // two halves of the tab.
-  '.dsh-ct-side{flex:none;display:flex;flex-direction:column;min-height:0;width:256px;box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}',
+  // The sidebar's width is the drag's to set: one custom property the page
+  // publishes on its root (see `layout.ts`), with the default width as the
+  // rule's own fallback, so the first frame — before a saved layout has been
+  // read — is already a whole page. The floor and the cap restate the drag's
+  // bounds, which is what keeps a width saved in a wide window from squeezing
+  // the console in a narrow one.
+  `.dsh-ct-side{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;width:var(--dsh-ct-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${MAIN_MIN}px));box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
+  // The boundary itself. It covers the sidebar's existing half-pixel hairline,
+  // with an invisible band either side of that 1px line as the hit target: half
+  // a pixel is not something a pointer can be asked to hold. It takes no layout
+  // space — it is positioned on the sidebar's own edge — so adding it moves
+  // nothing on the page.
+  //
+  // `::before` is the indicator: the line brightens on hover and stays lit for
+  // the length of a drag, which is what makes a boundary read as draggable at
+  // rest.
+  '.dsh-ct-resize{position:absolute;z-index:2;top:0;right:-1px;bottom:0;width:1px;cursor:col-resize;touch-action:none}',
+  '.dsh-ct-resize::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-secondary) 50%,transparent) center / 1px 100% no-repeat;transition:opacity .12s ease-out}',
+  '.dsh-ct-resize::after{content:"";position:absolute;inset:0 -4px}',
+  '.dsh-ct-resize:hover::before,.dsh-ct-resize[data-dragging]::before{opacity:1}',
+  // While the boundary is dragged the whole page takes the axis's cursor and
+  // stops selecting text: the pointer leaves a 1px line at the first frame of a
+  // drag, and a crossed row would otherwise highlight under it.
+  '.dsh-ct-root[data-resizing=col],.dsh-ct-root[data-resizing=col] *{user-select:none;cursor:col-resize}',
   // Edge fades: rows dissolve at whichever end hides more list, so the eye can
   // tell there is something above/below the fold.
   //
