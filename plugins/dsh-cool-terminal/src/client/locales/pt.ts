@@ -1,0 +1,56 @@
+/** Brazilian Portuguese dictionary. Words follow pt-BR usage. */
+
+import type { TerminalKey } from '../locales.js'
+
+export const pt = {
+  'view.tab': 'Terminal',
+  'sidebar.session': 'Sessão atual',
+  'sidebar.empty': 'Nenhum espaço de trabalho',
+  'sidebar.new': 'Novo terminal',
+  'main.hint': 'Clique em ＋ em um espaço de trabalho à esquerda para abrir um terminal',
+  'terminal.rename': 'Renomear',
+  'terminal.remove': 'Excluir',
+  'terminal.removeTitle': 'Excluir {title}?',
+  'terminal.removeWarning':
+    'Os comandos em execução serão interrompidos, e a exclusão não pode ser desfeita.',
+  'terminal.startup': 'Início automático de comando',
+  'terminal.startupDescription':
+    'Quando ativado, o comando é executado automaticamente após o DSH iniciar',
+  'terminal.startupCommand': 'Comando',
+  'terminal.startupPlaceholder': 'ex.: pnpm dev',
+  'terminal.startupAutoRun': 'Executar automaticamente',
+  'terminal.save': 'Salvar',
+  'terminal.close': 'Fechar',
+  'terminal.cancel': 'Cancelar',
+  'terminal.more': 'Mais ações',
+  'terminal.input': 'Entrada do terminal',
+  'terminal.ended': 'Encerrado',
+  'terminal.exitCode': 'Código de saída {code}',
+  'terminal.signal': 'Sinal {signal}',
+  'terminal.unknown': 'Erro desconhecido',
+  'terminal.startFailed': 'Não foi possível iniciar o terminal: {detail}',
+  'terminal.endedBanner': '[Terminal encerrado: {detail}]',
+  'terminal.reason.outputFailed': 'o fluxo de saída falhou',
+  'commands.title': 'Comandos',
+  'commands.description':
+    'Clique em um comando para digitá-lo no terminal ativo, ou use as ações da linha para gerenciá-lo.',
+  'commands.search': 'Pesquisar',
+  'commands.searchLabel': 'Pesquisar comandos',
+  'commands.add': 'Adicionar comando',
+  'commands.bodyPlaceholder': 'Comando, ex.: pnpm dev',
+  'commands.descriptionPlaceholder': 'Descrição (opcional)',
+  'commands.noDescription': 'Sem descrição',
+  'commands.empty':
+    'Nenhum comando salvo ainda — clique em "Adicionar comando" para criar um',
+  'commands.noMatch': 'Nenhum comando correspondente',
+  'commands.insertHint': 'Inserir no terminal ativo',
+  'commands.noActiveTerminal': 'Nenhum terminal ativo',
+  'commands.edit': 'Editar',
+  'commands.copy': 'Copiar',
+  'commands.remove': 'Excluir',
+  'commands.copied': 'Copiado',
+  'commands.cancel': 'Cancelar',
+  'commands.save': 'Salvar',
+  'commands.close': 'Fechar',
+  'completion.footer': '↑↓ selecionar · Enter preencher · Esc fechar',
+} satisfies Record<TerminalKey, string>

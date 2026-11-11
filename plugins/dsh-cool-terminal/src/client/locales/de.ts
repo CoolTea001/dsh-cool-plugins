@@ -1,0 +1,56 @@
+/** German dictionary. */
+
+import type { TerminalKey } from '../locales.js'
+
+export const de = {
+  'view.tab': 'Terminal',
+  'sidebar.session': 'Aktuelle Sitzung',
+  'sidebar.empty': 'Keine Arbeitsbereiche',
+  'sidebar.new': 'Neues Terminal',
+  'main.hint': 'Klicke links in einem Arbeitsbereich auf ＋, um ein Terminal zu öffnen',
+  'terminal.rename': 'Umbenennen',
+  'terminal.remove': 'Löschen',
+  'terminal.removeTitle': '{title} löschen?',
+  'terminal.removeWarning':
+    'Laufende Befehle werden unterbrochen, und das Löschen lässt sich nicht rückgängig machen.',
+  'terminal.startup': 'Befehls-Autostart',
+  'terminal.startupDescription':
+    'Wenn aktiviert, wird der Befehl nach dem Start von DSH automatisch ausgeführt',
+  'terminal.startupCommand': 'Befehl',
+  'terminal.startupPlaceholder': 'z. B. pnpm dev',
+  'terminal.startupAutoRun': 'Automatisch ausführen',
+  'terminal.save': 'Speichern',
+  'terminal.close': 'Schließen',
+  'terminal.cancel': 'Abbrechen',
+  'terminal.more': 'Weitere Aktionen',
+  'terminal.input': 'Terminal-Eingabe',
+  'terminal.ended': 'Beendet',
+  'terminal.exitCode': 'Exit-Code {code}',
+  'terminal.signal': 'Signal {signal}',
+  'terminal.unknown': 'Unbekannter Fehler',
+  'terminal.startFailed': 'Terminal konnte nicht gestartet werden: {detail}',
+  'terminal.endedBanner': '[Terminal beendet: {detail}]',
+  'terminal.reason.outputFailed': 'der Ausgabestream ist fehlgeschlagen',
+  'commands.title': 'Befehle',
+  'commands.description':
+    'Klicke auf einen Befehl, um ihn in das aktive Terminal zu schreiben, oder verwalte ihn über die Aktionen in der Zeile.',
+  'commands.search': 'Suchen',
+  'commands.searchLabel': 'Befehle durchsuchen',
+  'commands.add': 'Befehl hinzufügen',
+  'commands.bodyPlaceholder': 'Befehl, z. B. pnpm dev',
+  'commands.descriptionPlaceholder': 'Beschreibung (optional)',
+  'commands.noDescription': 'Keine Beschreibung',
+  'commands.empty':
+    'Noch keine Befehle gespeichert – klicke auf „Befehl hinzufügen“, um einen anzulegen',
+  'commands.noMatch': 'Keine passenden Befehle',
+  'commands.insertHint': 'In das aktive Terminal einfügen',
+  'commands.noActiveTerminal': 'Kein aktives Terminal',
+  'commands.edit': 'Bearbeiten',
+  'commands.copy': 'Kopieren',
+  'commands.remove': 'Löschen',
+  'commands.copied': 'Kopiert',
+  'commands.cancel': 'Abbrechen',
+  'commands.save': 'Speichern',
+  'commands.close': 'Schließen',
+  'completion.footer': '↑↓ auswählen · Enter einsetzen · Esc schließen',
+} satisfies Record<TerminalKey, string>

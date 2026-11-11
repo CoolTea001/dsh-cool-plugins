@@ -1,0 +1,1804 @@
+/**
+ * The terminal tab: a Workspace sidebar on the left and the active console on
+ * the right.
+ *
+ * The sidebar mirrors the Host Workspace list through the Client `workspaces`
+ * service, so creating, renaming, reordering, or deleting a Workspace in DSH's
+ * own sidebar shows up here without a reload. Each group holds one or more
+ * named consoles; every console owns a real PTY on the Host and an xterm.js
+ * instance in the browser, so its scrollback, current directory, running
+ * command, and shell state all survive switching Views.
+ *
+ * Runtime objects live in this closure keyed by console id, not in React
+ * state, so unmounting the View keeps every shell alive; the closure belongs to
+ * the plugin instance and is disposed with the plugin's fiber. The converse is
+ * also true and just as important: those runtimes *outlive* the View that first
+ * showed them, so everything they call back into — the completion sink, the
+ * command list, the re-render — is looked up late through `ViewContext` rather
+ * than captured from whichever mount happened to create them.
+ */
+
+import * as React from 'react'
+import { Terminal, type ITheme } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import {
+  Button,
+  Menu,
+  Modal,
+  type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconAutostart,
+  IconEdit,
+  IconFolderClosed,
+  IconFolderOpened,
+  IconList,
+  IconMore,
+  IconPlus,
+  IconTerminal,
+  IconTrash,
+} from './icons.js'
+import {
+  closeTerminal,
+  fetchContext,
+  openTerminal,
+  sendInput,
+  streamUrl,
+} from './api.js'
+import { CommandsDialog } from './commands-dialog.js'
+import { StartupDialog } from './startup-dialog.js'
+import { loadCommands, saveCommands, type CommandDef } from './commands.js'
+import { writeGeometry } from './geometry.js'
+import { ResizeHandle } from './resize-handle.js'
+import {
+  clampSideWidth,
+  readSideLayout,
+  writeSideLayout,
+  type SideLayout,
+} from './layout.js'
+import {
+  anchorOf,
+  emptySession,
+  fillLine,
+  POPUP_MAX_PX,
+  POPUP_MAX_W,
+  sameCompletionView,
+  stepKey,
+  validateLine,
+  type CompletionSession,
+  type CompletionView,
+  type ScreenState,
+} from './completion.js'
+import {
+  SESSION_KEY,
+  addTerminal,
+  loadAccount,
+  loadExpanded,
+  loadSelection,
+  moveTerminal,
+  removeTerminal,
+  renameTerminal,
+  saveAccount,
+  saveExpanded,
+  saveSelection,
+  setTerminalStartup,
+  startupCommand,
+  terminalsFor,
+  withTerminalList,
+  type TerminalAccount,
+  type TerminalDef,
+  type TerminalSelection,
+  type WorkspaceBridge,
+} from './terminals.js'
+import type { Translate } from './locales.js'
+
+/** One entry of the left sidebar: a Workspace, or the session fallback. */
+interface GroupRow {
+  readonly key: string
+  readonly title: string
+  readonly path: string
+  readonly kind: 'workspace' | 'session'
+}
+
+/** The console a Command autostart dialog was opened for, plus its saved values. */
+interface StartupTarget {
+  readonly key: string
+  readonly id: string
+  readonly command: string
+  readonly autoRun: boolean
+}
+
+/**
+ * Lifecycle of one console's PTY.
+ *
+ * - `pending`  — the screen exists but the shell has not been asked for yet.
+ * - `starting` — `POST /open` is in flight.
+ * - `live`     — the SSE stream is attached.
+ * - `lost`     — the stream dropped and stopped reconnecting.
+ * - `exited`   — the shell reported its own exit.
+ * - `failed`   — the Host refused to allocate a terminal.
+ */
+type RuntimeStatus = 'pending' | 'starting' | 'live' | 'lost' | 'exited' | 'failed'
+
+/** Everything one console owns outside React's tree. */
+interface Runtime {
+  readonly id: string
+  readonly term: Terminal
+  readonly fit: FitAddon
+  /** Mounted screen element xterm currently lives in. */
+  element: HTMLDivElement | undefined
+  terminalId: string | undefined
+  source: EventSource | undefined
+  status: RuntimeStatus
+  detail: string
+  /** True while `POST /open` is outstanding, so it is requested exactly once. */
+  opening: boolean
+  /** Serializes keystrokes so they reach the PTY in the order they were typed. */
+  writes: Promise<void>
+  /** Consecutive SSE failures; a reconnecting EventSource resets it. */
+  errors: number
+  /** Shadow input line plus any open completion popup (see completion.ts). */
+  completion: CompletionSession
+  /**
+   * Whether the shell itself owns the terminal's foreground: true while a
+   * command line is being typed, false while a program the shell started (a
+   * `y/n` question, a password prompt, a REPL) is reading the terminal, null
+   * until the Host has said. Completion is only offered while this is not
+   * false — see `foreground` on the stream in `attachStream`.
+   */
+  foreground: boolean | null
+  /**
+   * True once this stream has delivered at least one `foreground` verdict, i.e.
+   * once the Host in this process speaks that protocol.
+   *
+   * The gate is closed optimistically the moment a line is submitted, because
+   * the program that line starts can ask its first question before the Host has
+   * finished looking. That gamble is only sound against a Host that answers:
+   * one that is too old to send verdicts (a page reloaded against a plugin
+   * whose Host half was never reloaded) would leave the gate shut for the rest
+   * of the session. Without a verdict seen, submitting does not close it and
+   * completion behaves exactly as it did before any of this existed.
+   */
+  foregroundKnown: boolean
+}
+
+/**
+ * What the currently mounted View offers the runtimes in this closure: the
+ * live command list to match against, the sink the completion popup publishes
+ * into, and the re-render a status change asks for.
+ *
+ * Runtimes outlive the View that first showed them — the conversation shell
+ * unmounts this tab when the user switches away and mounts it again on
+ * return, while every PTY and xterm instance lives on here — so none of this
+ * may be captured from the mount that *created* a runtime: that mount's
+ * `setState` is a no-op once it is gone, and a popup published into it never
+ * renders. The View therefore installs its context on mount, clears it on
+ * unmount, and every late callback reads whatever is installed *now*.
+ */
+interface ViewContext {
+  readonly commands: () => readonly CommandDef[]
+  readonly publish: (view: CompletionView | null) => void
+  readonly bump: () => void
+}
+
+/** Keep the scrollback bounded; this is a convenience view, not a log store. */
+const SCROLLBACK = 5000
+
+/** Stop retrying a severed stream after this many consecutive failures. */
+const MAX_STREAM_ERRORS = 3
+
+/**
+ * A payload bound for the PTY that submits a line.
+ *
+ * Enter (`\r`), a paste carrying line breaks, and a `fillLine` body that
+ * happens to contain one all match; every other keystroke can only be the
+ * shell editing the line it already has.
+ */
+const SUBMITTED = /[\r\n]/
+
+/**
+ * One sidebar row's vertical pitch: the 32px row box plus the 2px flex gap,
+ * mirroring `.dsh-ct-term` and `.dsh-ct-terms` in styles.ts. The drop line is
+ * positioned at whole pitches from the list top, which lands it exactly in
+ * the 2px gap before the row at the insertion index.
+ */
+const ROW_PITCH = 34
+
+const h = React.createElement
+
+/** Drop trailing line breaks and spaces from a message bound for the screen. */
+function trimTail(text: string): string {
+  return text.replace(/[\n\r ]+$/, '')
+}
+
+/**
+ * The insertion slot under the pointer inside a group's list: the gap nearest
+ * the pointer, as an index into the current list (`0..length`, where `length`
+ * is "after the last row").
+ *
+ * Rows are a fixed 32px tall with a 2px gap ({@link ROW_PITCH}), starting
+ * after the container's 2px top padding, so geometry alone answers it — no
+ * per-row hit testing. The pointer's upper half of a row rounds to the gap
+ * above it, its lower half to the gap below, matching "before/after the
+ * hovered row". `dragover` and `drop` both call this, so the line always
+ * shows exactly where the drop will land.
+ */
+function slotFor(event: React.DragEvent<HTMLElement>, length: number): number {
+  const top = event.currentTarget.getBoundingClientRect().top + 2
+  return Math.max(0, Math.min(length, Math.round((event.clientY - top) / ROW_PITCH)))
+}
+
+/**
+ * Snap a CSS-px length onto the device-pixel grid.
+ *
+ * Display scaling (Windows 125%/150%, browser zoom) maps one CSS pixel to a
+ * fractional number of device pixels; a 2px line whose offset then lands on
+ * a fraction rasterizes to a varying device-pixel count depending on where
+ * it sits, which reads as a drop line that changes thickness slot by slot.
+ * Rounding offsets and thickness to whole device pixels keeps every slot
+ * identical.
+ */
+function snapToDevicePx(value: number): number {
+  const dpr = window.devicePixelRatio
+  if (typeof dpr !== 'number' || !Number.isFinite(dpr) || dpr <= 0) return value
+  return Math.round(value * dpr) / dpr
+}
+
+/** Compare directory spellings that differ only by trailing separators. */
+function normalizePath(value: string): string {
+  if (value === '') return ''
+  const trimmed = value.replace(/[\\/]+$/, '')
+  return trimmed === '' ? value : trimmed
+}
+
+/** Decode one base64 SSE frame into bytes xterm can write directly. */
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
+}
+
+/**
+ * Read the caret's row out of xterm's buffer for completion (completion.ts).
+ *
+ * `cursorY` counts from `baseY`, so the caret's absolute row is
+ * `baseY + cursorY` and its row within the viewport is that minus
+ * `viewportY`; at the bottom of the scrollback — where a prompt sits — the
+ * two coincide. The row is translated cell-for-cell with no right trim, so
+ * string indexes line up with columns for the arithmetic in `validateLine`.
+ *
+ * @returns the snapshot, or null when the caret is not on a readable row.
+ */
+function readScreen(term: Terminal): ScreenState | null {
+  const buffer = term.buffer.active
+  const absolute = buffer.baseY + buffer.cursorY
+  const caretRow = absolute - buffer.viewportY
+  if (caretRow < 0 || caretRow >= term.rows) return null
+  const line = buffer.getLine(absolute)
+  if (line === undefined) return null
+  return {
+    cursorX: buffer.cursorX,
+    row: line.translateToString(false, 0, Math.min(term.cols, line.length)),
+    caretRow,
+    rows: term.rows,
+    cols: term.cols,
+    appCursorKeys: term.modes.applicationCursorKeysMode,
+  }
+}
+
+/**
+ * The React-facing snapshot of one console's completion state, or null when
+ * no popup should show (nothing matched, the model is untrusted, or the
+ * anchor could not be derived).
+ */
+function completionView(
+  consoleId: string,
+  session: CompletionSession,
+  screen: ScreenState,
+): CompletionView | null {
+  const popup = session.popup
+  if (popup === null) return null
+  const anchor = anchorOf(session.line, screen)
+  if (anchor === null) return null
+  return { consoleId, items: popup.items, selected: popup.selected, anchor }
+}
+
+/**
+ * True while the dark base palette is active.
+ *
+ * The theme presenter switches this attribute on `body` (ui-layout's
+ * ThemePresenter); it is the palette switch itself, not a guess derived from a
+ * resolved color, so it stays authoritative for every preset.
+ */
+function isDarkScheme(): boolean {
+  return document.body?.hasAttribute('data-ds-dark-theme') === true
+}
+
+/**
+ * ANSI colors the design system has no token for.
+ *
+ * The shipped HTML ANSI renderer (`ui-primitives/src/ansi.ts`) notes the same
+ * gap: magenta and cyan have no alias token, so they need scheme-aware
+ * literals to stay legible on either background.
+ *
+ * `black` is here for the opposite reason: ANSI black must stay a *dark* color,
+ * and no token tracks that. Both this theme and the shipped HTML renderer
+ * resolve ANSI black to `--dsw-alias-label-primary` so that text colored black
+ * stays readable on the surface. That is fine for a foreground on its own, but
+ * `\x1b[30m` is almost never emitted alone: the near-universal use is a
+ * dark-text-on-color badge — pnpm's `WARN`, Vite's `WARNING` and Rollup's
+ * warnings all emit `bg yellow` + `fg black`. Resolving black to the label
+ * makes the badge's text lighter than its own background: under this theme's
+ * Matrix preset (`amber` is the neon green `#76ff03`) that produced near-white
+ * `#deeade` on `#76ff02`, a contrast ratio of about 1.06:1 — a green block with
+ * unreadable text. ANSI 0 is also the `bg black` slot (SGR 40), where a light
+ * value is wrong for the same reason.
+ *
+ * Only `black` is corrected: `white` keeps resolving to the label, because
+ * `\x1b[37m` genuinely does appear as body text and would vanish against a
+ * light surface. Dark output that wants a visible black should use the default
+ * foreground (no SGR), which is untouched by this.
+ */
+const ANSI_LITERALS = {
+  light: {
+    black: '#1b1b1c',
+    magenta: '#9333ea',
+    brightMagenta: '#a855f7',
+    cyan: '#0e7490',
+    brightCyan: '#0891b2',
+  },
+  dark: {
+    black: '#000000',
+    magenta: '#c084fc',
+    brightMagenta: '#d8b4fe',
+    cyan: '#22d3ee',
+    brightCyan: '#67e8f9',
+  },
+} as const
+
+/**
+ * Re-state one translucent token at a stronger alpha.
+ *
+ * Text selection tokens are subtle surface washes; used verbatim as xterm's
+ * selection they are nearly invisible. Only `rgb()`/`rgba()`/hex inputs are
+ * rewritten — anything else (a `color-mix()`, say) is passed through untouched
+ * rather than guessed at.
+ */
+function tint(color: string, alpha: number): string {
+  const rgb = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(color)
+  if (rgb !== null) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color)
+  if (hex !== null) {
+    const body = hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1]
+    const value = Number.parseInt(body, 16)
+    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`
+  }
+  return color
+}
+
+/**
+ * The computed style of `body`, or undefined where that is unavailable.
+ *
+ * Every `--dsw-alias-*` token is declared on `body`, so this is the element both
+ * {@link readTheme} and {@link readCodeFont} read.
+ */
+function bodyStyle(): CSSStyleDeclaration | undefined {
+  try {
+    return getComputedStyle(document.body)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Build an xterm theme from the active appearance tokens.
+ *
+ * Every `--dsw-alias-*` token is declared on `body` (with the dark values on
+ * `body[data-ds-dark-theme]`), and the theme presenter writes a preset's
+ * overrides as inline variables on `body` too. Reading from `body` is
+ * therefore what picks up both the active scheme and any third-party theme
+ * preset; reading from `documentElement` would only ever see the base palette.
+ *
+ * The foreground/background pair maps onto the surface and label roles, and
+ * the ANSI colors reuse the product's state tokens — the same mapping the
+ * shipped HTML ANSI renderer applies — so themed output matches the rest of
+ * the UI instead of forcing a fixed terminal palette.
+ *
+ * The background itself is deliberately transparent. The tab paints no surface
+ * (see styles.ts), so the terminal has to be a window too: a themed
+ * `bg-base` fill here would put an opaque slab back over the wallpaper for the
+ * whole console, defeating the transparent root and main pane. Text, cursor,
+ * and ANSI fills are still painted by xterm; only the empty cells are clear,
+ * which is exactly what lets a background image run behind the shell. The
+ * transparent background keeps the surface's RGB values rather than plain
+ * black, because xterm resolves reverse-video text by making the background
+ * opaque: with a white surface its inverted glyphs come out white, with a dark
+ * one dark, and either stays readable against the foreground-filled cell. The
+ * cursor's accent keeps the surface color for the same reason — that color is
+ * what makes the glyph under a block cursor readable.
+ */
+function readTheme(): ITheme {
+  const style = bodyStyle()
+  if (style === undefined) return {}
+  const dark = isDarkScheme()
+  const literal = dark ? ANSI_LITERALS.dark : ANSI_LITERALS.light
+  const token = (name: string, fallback: string): string => {
+    const value = style.getPropertyValue(name).trim()
+    return value === '' ? fallback : value
+  }
+
+  const surface = token('--dsw-alias-bg-base', dark ? '#151517' : '#ffffff')
+  const foreground = token('--dsw-alias-label-primary', dark ? '#f9fafb' : '#1b1b1c')
+  const selection = token(
+    '--dsw-alias-interactive-bg-hover-accent',
+    dark ? 'rgba(255, 255, 255, 0.24)' : 'rgba(38, 49, 72, 0.14)',
+  )
+
+  return {
+    // Fully transparent: empty cells show the app canvas — or a theme's
+    // wallpaper layer when one is mounted. `allowTransparency` at construction
+    // is what makes xterm honour the alpha channel. The surface's RGB is kept
+    // (alpha zeroed) so xterm's reverse-video fallback, `opaque(background)`,
+    // still yields the surface colour instead of black.
+    background: tint(surface, 0),
+    foreground,
+    cursor: foreground,
+    cursorAccent: surface,
+    selectionBackground: tint(selection, 0.35),
+    // Keep ANSI black dark (see ANSI_LITERALS) so the dark-text-on-color badges
+    // every build tool emits stay readable; white still follows the label so
+    // `\x1b[37m` body text does not vanish on a light surface.
+    black: literal.black,
+    red: token('--dsw-alias-state-error-primary', '#ef4444'),
+    green: token('--dsw-alias-state-success-primary', '#22c55e'),
+    yellow: token('--dsw-alias-state-warn-primary', '#f59e0b'),
+    blue: token('--dsw-alias-state-business-primary', '#3b82f6'),
+    magenta: literal.magenta,
+    cyan: literal.cyan,
+    white: foreground,
+    brightBlack: token('--dsw-alias-label-tertiary', dark ? '#9ca3af' : '#6b7280'),
+    brightRed: token('--dsw-alias-state-error-secondary', '#f87171'),
+    brightGreen: token('--dsw-alias-state-success-secondary', '#4ade80'),
+    brightYellow: token('--dsw-alias-state-warn-secondary', '#fbbf24'),
+    brightBlue: token('--dsw-static-blue-400', '#60a5fa'),
+    brightMagenta: literal.brightMagenta,
+    brightCyan: literal.brightCyan,
+    brightWhite: foreground,
+  }
+}
+
+/** The fallback monospace stack, used when the theme exposes no code font. */
+const DEFAULT_CODE_FONT = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
+
+/**
+ * Resolve the code font the rest of the UI uses.
+ *
+ * Read once, when a console is created: the PTY's geometry is fixed at spawn
+ * (the platform's terminal primitive exposes no resize verb), so the font must
+ * not change afterwards or the shell's line wrapping would stop matching the
+ * screen.
+ */
+function readCodeFont(): string {
+  const family = bodyStyle()?.getPropertyValue('--ds-font-family-code').trim() ?? ''
+  return family === '' ? DEFAULT_CODE_FONT : `${family}, ${DEFAULT_CODE_FONT}`
+}
+
+/** The exit facts the Host reports for one console. */
+interface ExitPayload {
+  readonly exitCode?: number | null
+  readonly signal?: string | null
+  /** Why the Host itself ended the console; absent for a shell that just exited. */
+  readonly reason?: string | null
+}
+
+/** Human-readable summary of a terminal exit. */
+function describeExit(payload: ExitPayload, t: Translate): string {
+  if (typeof payload.signal === 'string' && payload.signal !== '') {
+    return t('terminal.signal', { signal: payload.signal })
+  }
+  if (typeof payload.exitCode === 'number') {
+    return payload.exitCode === 0 ? t('terminal.ended') : t('terminal.exitCode', { code: payload.exitCode })
+  }
+  return t('terminal.ended')
+}
+
+/**
+ * The Host's own reason for ending a console, as displayable text.
+ *
+ * The Host reports a code for the reasons it owns and passes anything else
+ * through verbatim: a process error message is already a message, and
+ * translating it would invent copy for text this package does not own.
+ */
+function describeReason(reason: string, t: Translate): string {
+  return reason === 'output-failed' ? t('terminal.reason.outputFailed') : reason
+}
+
+/**
+ * Queue one payload for a console's PTY on its own write chain, so payloads
+ * land in the order they were produced — keystrokes, dialog inserts, and
+ * popup fills all share this path. A console with no PTY yet drops the
+ * payload, and a failed write is not retried: the caller has no error path to
+ * surface it on, and a dead shell is reported by its own stream.
+ */
+function queueInput(runtime: Runtime, payload: string): void {
+  const terminalId = runtime.terminalId
+  if (terminalId === undefined) return
+  // A payload carrying a line break submits what precedes it, so from here
+  // until the Host reports the shell in front again, whatever that line
+  // started may be reading the terminal — a `y/n` question, a password, a
+  // REPL. Closing the gate on the spot, rather than waiting for the next
+  // verdict from the Host, is what keeps a popup from appearing over the very
+  // prompt the user is about to answer.
+  //
+  // Only against a Host that has answered at least once: a Host that never
+  // sends a verdict has nothing to reopen the gate with, and a session whose
+  // completion died with its first command would be far worse than one that
+  // never suppressed anything (see `Runtime.foregroundKnown`).
+  if (runtime.foregroundKnown && SUBMITTED.test(payload)) runtime.foreground = false
+  runtime.writes = runtime.writes
+    .then(() => sendInput(terminalId, payload))
+    .then(() => undefined)
+    .catch(() => undefined)
+}
+
+/** The result of {@link createTerminalView}. */
+export interface TerminalViewHandle {
+  /** The Conversation View component to register into `conversation.view`. */
+  readonly View: React.ComponentType<any>
+  /** Close every PTY and dispose every xterm instance. */
+  dispose(): void
+}
+
+/**
+ * Build the View component and its teardown.
+ * @param bridge - late-bound Workspace list source.
+ * @param t - translator for every string the tab renders, including the ones
+ *   written outside React (the failure banner, the exit status).
+ * @returns the Conversation View component plus a plugin-lifetime disposer.
+ */
+export function createTerminalView(bridge: WorkspaceBridge, t: Translate): TerminalViewHandle {
+  /** Live consoles; survives this View being unmounted. */
+  const runtimes = new Map<string, Runtime>()
+  /** Console ids whose screen element is mounted, in first-activation order. */
+  const openIds: string[] = []
+  /** Mounted screens, filled by ref callbacks. */
+  const screens = new Map<string, HTMLDivElement>()
+
+  /**
+   * The mounted View's context; undefined while no terminal tab is mounted.
+   *
+   * Installed by the View's first effect and cleared by its unmount
+   * (identity-checked, so a late cleanup from a previous mount cannot clear
+   * this one). The runtimes below outlive the View — the tab unmounts when
+   * the user switches away and remounts on return — so every callback held by
+   * a runtime reads this instead of a function captured at creation time (see
+   * {@link ViewContext}).
+   */
+  let viewContext: ViewContext | undefined
+
+  /**
+   * Re-render the mounted View, if one is mounted.
+   *
+   * A status change lands on a runtime that outlives the View, so the bump is
+   * read here, at call time: the bump captured by the mount that first
+   * started a stream is a no-op once that mount is gone, and the badge it
+   * repaints would stay stale after the user returns to the tab.
+   */
+  function bumpView(): void {
+    viewContext?.bump()
+  }
+
+  /**
+   * Dismiss one console's completion popup and repaint it away.
+   *
+   * Called when the terminal stops belonging to the shell: a submitted line
+   * may have started a program, or the Host reported one already running. The
+   * dismissal is published through the mounted View *now*, never through a
+   * mount captured earlier (see {@link ViewContext}).
+   */
+  function closeCompletion(runtime: Runtime): void {
+    if (runtime.completion.popup === null) return
+    runtime.completion = { line: runtime.completion.line, popup: null }
+    viewContext?.publish(null)
+  }
+
+  /** Repaint every live console with the tokens in force right now. */
+  function applyTheme(): void {
+    const theme = readTheme()
+    for (const runtime of runtimes.values()) runtime.term.options.theme = theme
+  }
+
+  // Every appearance change lands on `body`: the presenter toggles
+  // `data-ds-dark-theme` for the base palette and writes a preset's overrides
+  // as inline variables. Watching both keeps live consoles in step with a
+  // theme switch instead of waiting for the next activation. Only colors are
+  // reapplied — font metrics stay put, because the PTY cannot be resized.
+  let themeObserver: MutationObserver | undefined
+  function ensureThemeObserver(): void {
+    if (themeObserver !== undefined) return
+    // Installed when the first console is created, by which point the View is
+    // mounted, rather than at plugin-apply time where `body` may not exist yet.
+    if (typeof MutationObserver === 'undefined' || document.body === null) return
+    themeObserver = new MutationObserver(applyTheme)
+    themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme', 'style'] })
+  }
+
+  function setStatus(runtime: Runtime, status: RuntimeStatus, detail = ''): void {
+    runtime.status = status
+    runtime.detail = detail
+  }
+
+  function createRuntime(id: string): Runtime {
+    ensureThemeObserver()
+    const term = new Terminal({
+      // The theme's background is transparent so a wallpaper can run behind the
+      // shell; xterm only honours that alpha with this option enabled. It must
+      // be fixed here, before `open()` — changing it later needs a reopened
+      // terminal, which would cost this console its element and scrollback.
+      allowTransparency: true,
+      cursorBlink: true,
+      // The code font is fixed for this console's lifetime: the PTY's geometry
+      // is settled at spawn, so a later font change would desynchronize the
+      // shell's wrapping from the screen.
+      fontFamily: readCodeFont(),
+      fontSize: 12.5,
+      lineHeight: 1.3,
+      scrollback: SCROLLBACK,
+      macOptionIsMeta: true,
+      theme: readTheme(),
+    })
+    const fit = new FitAddon()
+    term.loadAddon(fit)
+    const runtime: Runtime = {
+      id,
+      term,
+      fit,
+      element: undefined,
+      terminalId: undefined,
+      source: undefined,
+      status: 'pending',
+      detail: '',
+      opening: false,
+      writes: Promise.resolve(),
+      errors: 0,
+      completion: emptySession(),
+      foreground: null,
+      foregroundKnown: false,
+    }
+    // Every keystroke, including control characters such as Ctrl+C, goes to the
+    // PTY verbatim; the shell echoes it, which is what puts the cursor inline
+    // after the prompt instead of in a separate input row. The one exception is
+    // an open completion popup, which claims `↑`/`↓`/`Escape`/`Enter` first —
+    // see completion.ts.
+    term.onData((data: string) => {
+      const terminalId = runtime.terminalId
+      if (terminalId === undefined) return
+      let out = data
+      // Completion only runs while there is something to suggest from: with
+      // an empty command list the keystroke path stays exactly as it was —
+      // no buffer reads, no validation, nothing to publish.
+      //
+      // The context is read here, on every keystroke, instead of captured
+      // when the runtime is created: the tab this xterm belongs to unmounts
+      // and remounts while the runtime lives on, and publishing into the
+      // mount that created this runtime would render nothing (see
+      // `ViewContext`). No mounted View means no popup to show, so the
+      // keystroke goes to the PTY exactly as it would with no commands.
+      //
+      // A console whose foreground a running program owns is skipped
+      // entirely: what is typed there is that program's answer — a `y/n`
+      // confirmation, a password, a REPL line — and a popup over it could
+      // fill a saved command into it. The Host reports that state (see
+      // `foreground` in `attachStream`); until it says otherwise, or when it
+      // cannot tell, completion behaves exactly as it always has.
+      const context = viewContext
+      const commands = context === undefined ? [] : context.commands()
+      if (context !== undefined && commands.length > 0 && runtime.foreground !== false) {
+        const screen = readScreen(term)
+        if (screen !== null) {
+          // Re-verify what was typed so far against the screen (completion.ts
+          // `validateLine`), then let an open popup claim `↑`/`↓`/`Escape`/
+          // `Enter` (`stepKey`). A consumed keystroke never reaches the PTY.
+          const stepped = stepKey(
+            { line: validateLine(runtime.completion.line, screen), popup: runtime.completion.popup },
+            data,
+            commands,
+          )
+          runtime.completion = stepped.session
+          context.publish(completionView(id, stepped.session, screen))
+          if (stepped.forward === null) return
+          out = stepped.forward
+        }
+      }
+      // A submitted line closes the completion gate; see `queueInput`.
+      queueInput(runtime, out)
+    })
+    return runtime
+  }
+
+  function writeBanner(runtime: Runtime, text: string): void {
+    runtime.term.write(`\r\n\x1b[2m${text}\x1b[0m\r\n`)
+  }
+
+  /** Drop this console's SSE stream, if it still has one. */
+  function detachStream(runtime: Runtime): void {
+    runtime.source?.close()
+    runtime.source = undefined
+  }
+
+  /** Close the PTY and dispose the xterm instance behind one console. */
+  function disposeRuntime(runtime: Runtime): void {
+    if (runtime.terminalId !== undefined) void closeTerminal(runtime.terminalId)
+    detachStream(runtime)
+    runtime.term.dispose()
+  }
+
+  /**
+   * Attach (or re-attach) the SSE stream that carries a console's output.
+   *
+   * The handlers outlive the mount that opened the stream — the tab is
+   * swapped out and back while the shell keeps running — so they repaint
+   * through {@link bumpView} (the mounted View *now*), never through a
+   * `bump` captured at attach time (see `ViewContext`).
+   */
+  function attachStream(runtime: Runtime): void {
+    const terminalId = runtime.terminalId
+    if (terminalId === undefined) return
+    detachStream(runtime)
+    const source = new EventSource(streamUrl(terminalId))
+    runtime.source = source
+    runtime.errors = 0
+
+    source.onmessage = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as { d?: unknown }
+        if (typeof payload.d === 'string') runtime.term.write(decodeBase64(payload.d))
+      } catch {
+        /* a malformed frame is not worth breaking the stream over */
+      }
+    }
+    source.onopen = () => {
+      runtime.errors = 0
+      // A fresh stream re-learns who owns the foreground: the frame below is
+      // what closes this gate again, and until it arrives completion stays
+      // available rather than staying off on a stale suppression. The Host
+      // sends its last verdict as the stream attaches, so this is a round trip,
+      // not a guess.
+      runtime.foreground = null
+      if (runtime.status === 'lost') {
+        setStatus(runtime, 'live')
+        bumpView()
+      }
+    }
+    // Who owns the terminal's foreground: the Host reports it when a line is
+    // submitted (something may have taken over) and whenever it changes back.
+    // `shell: false` means a program the shell started is reading the
+    // terminal, so completion must not offer to fill anything into it; any
+    // other frame — or none at all, on a Host that cannot tell — leaves
+    // completion available exactly as it was.
+    source.addEventListener('foreground', (event: Event) => {
+      let shell = true
+      try {
+        shell = (JSON.parse((event as MessageEvent).data) as { shell?: unknown }).shell !== false
+      } catch {
+        /* a malformed frame leaves completion available */
+      }
+      // This Host speaks the protocol, so the optimistic close on submit is
+      // safe from here on: it will answer with the way back (see
+      // `Runtime.foregroundKnown`).
+      runtime.foregroundKnown = true
+      runtime.foreground = shell
+      if (!shell) closeCompletion(runtime)
+    })
+    source.addEventListener('exit', (event: Event) => {
+      let payload: ExitPayload = {}
+      try {
+        payload = JSON.parse((event as MessageEvent).data) as ExitPayload
+      } catch {
+        /* a malformed frame keeps the neutral summary */
+      }
+      setStatus(runtime, 'exited', describeExit(payload, t))
+      // The Host ends a console itself only when something went wrong (a broken
+      // output pipe, a spawn failure); a shell the user exited prints its own
+      // goodbye and gets no note. The note is written here rather than by the
+      // Host so it lands in the language on screen now, not the one the Host
+      // was started under.
+      if (typeof payload.reason === 'string' && payload.reason !== '') {
+        writeBanner(runtime, t('terminal.endedBanner', { detail: describeReason(payload.reason, t) }))
+      }
+      detachStream(runtime)
+      bumpView()
+    })
+    source.onerror = () => {
+      // `EventSource` reconnects on its own. A console the Host has already
+      // forgotten answers 404 forever, so stop after a few consecutive misses.
+      runtime.errors += 1
+      if (runtime.errors >= MAX_STREAM_ERRORS) {
+        detachStream(runtime)
+        setStatus(runtime, 'lost')
+        bumpView()
+        return
+      }
+      if (runtime.status === 'live') {
+        setStatus(runtime, 'lost')
+        bumpView()
+      }
+    }
+  }
+
+  /**
+   * Size the screen and ask the Host for a PTY, exactly once per console.
+   *
+   * The measurement is also remembered by console id: a console that
+   * autostarts before the page has a pane to measure needs some geometry at
+   * spawn, and the last fitted size is the closest honest guess. The Host
+   * resizes the shell again when the View finally attaches and measures.
+   *
+   * `startup` is shell text the Host types into the shell only if it has to
+   * spawn one; handing back an existing shell runs nothing.
+   *
+   * Repaints go through {@link bumpView}: this runs in an effect, but the
+   * `await` below can outlive the mount that called it, so the re-render must
+   * find whichever View is mounted by then (see `ViewContext`).
+   */
+  async function ensureStarted(
+    runtime: Runtime,
+    group: GroupRow,
+    sessionId: string | undefined,
+    startup: string | undefined,
+  ): Promise<void> {
+    if (runtime.terminalId !== undefined || runtime.opening) return
+    runtime.opening = true
+    setStatus(runtime, 'starting')
+    bumpView()
+    try {
+      // A hidden or zero-sized screen cannot be measured; fit() then keeps the
+      // current geometry rather than collapsing the terminal.
+      try {
+        runtime.fit.fit()
+      } catch {
+        /* measurement is best-effort */
+      }
+      writeGeometry(runtime.id, runtime.term.cols, runtime.term.rows)
+      const workspaceId = group.kind === 'workspace' ? group.key : undefined
+      // `runtime.id` is the console id; the Host uses it to hand back a shell
+      // this console already owns, which is what survives a page reload.
+      const result = await openTerminal(
+        sessionId,
+        workspaceId,
+        runtime.term.cols,
+        runtime.term.rows,
+        runtime.id,
+        startup,
+      )
+      if (result.terminalId === undefined || result.terminalId === '') {
+        const detail = result.error ?? t('terminal.unknown')
+        setStatus(runtime, 'failed', detail)
+        writeBanner(runtime, t('terminal.startFailed', { detail: trimTail(detail) }))
+        bumpView()
+        return
+      }
+      runtime.terminalId = result.terminalId
+      setStatus(runtime, 'live')
+      attachStream(runtime)
+      bumpView()
+    } finally {
+      runtime.opening = false
+    }
+  }
+
+  function TerminalView(props: any): React.ReactElement {
+    const sessionId = typeof props?.sessionId === 'string' ? props.sessionId : undefined
+    const snapshot = React.useSyncExternalStore(bridge.subscribe, bridge.getSnapshot, bridge.getSnapshot)
+    const [account, setAccount] = React.useState<TerminalAccount>(() => loadAccount())
+    const [sessionCwd, setSessionCwd] = React.useState('')
+    const [selection, setSelection] = React.useState<TerminalSelection | null>(() => loadSelection())
+    const [renamingId, setRenamingId] = React.useState<string | null>(null)
+    const [renameDraft, setRenameDraft] = React.useState('')
+    /** Console whose row overflow menu is open, if any. */
+    const [menuId, setMenuId] = React.useState<string | null>(null)
+    /** Console awaiting the user's confirmation before it is deleted. */
+    const [pendingRemove, setPendingRemove] = React.useState<{ key: string; id: string; title: string } | null>(null)
+    const removeOpen = pendingRemove !== null
+    /** Console whose Command autostart dialog is open, with the values it opened on. */
+    const [startupEdit, setStartupEdit] = React.useState<StartupTarget | null>(null)
+    const startupOpen = startupEdit !== null
+    /** Trigger of the open menu; its rect anchors the portaled list. */
+    const menuAnchor = React.useRef<HTMLButtonElement | null>(null)
+    /** The console a native drag is carrying: its group key and id.
+     *  `dataTransfer` cannot be read during `dragover`, so the source is
+     *  mirrored in state — it is also what lets other groups reject the
+     *  drag (reordering stays inside one workspace group). */
+    const [drag, setDrag] = React.useState<{ key: string; id: string } | null>(null)
+    /** The insertion slot the drag currently hovers, inside `drag.key`'s
+     *  group; null once the pointer leaves that group's list. */
+    const [slot, setSlot] = React.useState<number | null>(null)
+    /** Groups the user expanded; anything absent is collapsed. */
+    const [expanded, setExpanded] = React.useState<readonly string[]>(() => loadExpanded())
+    const [version, setVersion] = React.useState(0)
+    const bump = React.useCallback((): void => setVersion((value) => value + 1), [])
+    /** Escape unmounts the rename input, and the unmount fires blur; this
+     *  keeps that blur from committing the abandoned draft. */
+    const skipBlurCommit = React.useRef(false)
+    /** Mirror of `renamingId` for effects that must not depend on it: reading
+     *  the state directly would re-run them — and so refocus the terminal — on
+     *  the very commit that closes the field. */
+    const renamingRef = React.useRef<string | null>(null)
+    renamingRef.current = renamingId
+    /** The scrollable console list, and the wrapper that carries the edge-fade
+     *  state (`data-fade-*`) and the scrollbar gutter the list's mask reads. */
+    const listScroll = React.useRef<HTMLDivElement | null>(null)
+    const listWrap = React.useRef<HTMLDivElement | null>(null)
+    /** The view root, which carries the dragged sidebar width, and the sidebar
+     *  itself, whose measured edge is where a resize takes hold. */
+    const pageRef = React.useRef<HTMLDivElement | null>(null)
+    const sideRef = React.useRef<HTMLElement | null>(null)
+    /** The sidebar width the page draws and saves, and whether its boundary is
+     *  being dragged. */
+    const [sideLayout, setSideLayout] = React.useState<SideLayout>(readSideLayout)
+    const [resizing, setResizing] = React.useState(false)
+    /** The common-commands dialog, and the commands it manages (persisted in
+     *  `commands.ts`; the dialog only renders and reports changes upward). */
+    const [commandsOpen, setCommandsOpen] = React.useState(false)
+    const [commands, setCommands] = React.useState<CommandDef[]>(() => loadCommands())
+    /** Mirror of `commandsOpen` for effects that must not depend on it: the
+     *  dialog owns the keyboard while it is up, so a stream reconnect that
+     *  bumps `version` must not refocus the terminal out of its inputs. */
+    const commandsOpenRef = React.useRef(false)
+    commandsOpenRef.current = commandsOpen
+    /** Same live mirror for the autostart dialog: it holds the keyboard while
+     *  open, so a stream reconnect must not pull focus out of its input. */
+    const startupOpenRef = React.useRef(false)
+    startupOpenRef.current = startupOpen
+    /** The completion popup being rendered, if any — published by the
+     *  keystroke path (completion.ts) and diffed first, so typing that
+     *  changes nothing costs no re-render at all. */
+    const [completion, setCompletion] = React.useState<CompletionView | null>(null)
+    /** The last published view, kept outside state for that diff. */
+    const completionRef = React.useRef<CompletionView | null>(null)
+    /** The keystroke path's sink; stable for the View's whole lifetime. */
+    const publish = React.useCallback((view: CompletionView | null): void => {
+      if (sameCompletionView(completionRef.current, view)) return
+      completionRef.current = view
+      setCompletion(view)
+    }, [])
+    /** Live mirror of `commands` for the keystroke path, which reads it on
+     *  every keystroke and must not re-render when the list's identity does. */
+    const commandsRef = React.useRef<readonly CommandDef[]>(commands)
+    commandsRef.current = commands
+
+    /** Draw one layout: the sidebar's width as a custom property on the root.
+     *
+     * The width lives on the root rather than in the sidebar's inline style for
+     * one reason: a drag can then move it from the pointer without rendering
+     * React, which keeps the frame rate independent of how many console rows
+     * the sidebar is drawing. */
+    const drawSideWidth = React.useCallback((next: SideLayout): void => {
+      pageRef.current?.style.setProperty('--dsh-ct-side-width', `${next.sideWidth}px`)
+    }, [])
+
+    // Before the first paint: the stylesheet's fallback is the default width,
+    // and a saved boundary must not be drawn at the default for one frame and
+    // then jump to where it was left.
+    React.useLayoutEffect(() => {
+      drawSideWidth(sideLayout)
+    }, [sideLayout, drawSideWidth])
+
+    /** The view's own width, which is the room the sidebar and console share. */
+    const availableWidth = React.useCallback(
+      (): number => pageRef.current?.getBoundingClientRect().width ?? 0,
+      [],
+    )
+
+    /** Record a width: what the page draws from, and what it saves, together. */
+    const recordSideWidth = React.useCallback((next: SideLayout): void => {
+      setSideLayout(next)
+      writeSideLayout(next)
+    }, [])
+
+    /** The sidebar's on-screen edge, measured as a drag starts. */
+    const startSideResize = React.useCallback((): number => {
+      setResizing(true)
+      return sideRef.current?.getBoundingClientRect().width ?? sideLayout.sideWidth
+    }, [sideLayout.sideWidth])
+
+    /** Draw the width the pointer implies, without a React commit. */
+    const dragSideResize = React.useCallback((width: number): void => {
+      const room = availableWidth()
+      if (room <= 0) return
+      pageRef.current?.style.setProperty('--dsh-ct-side-width', `${clampSideWidth(width, room)}px`)
+    }, [availableWidth])
+
+    /** Record and draw the width the gesture settled on. */
+    const commitSideResize = React.useCallback((width: number): void => {
+      setResizing(false)
+      const room = availableWidth()
+      if (room <= 0) return
+      recordSideWidth({ sideWidth: clampSideWidth(width, room) })
+    }, [availableWidth, recordSideWidth])
+
+    /** A gesture without a width — a click, or a lost pointer — restores the
+     *  recorded layout, so a cancelled drag cannot outlive its gesture. */
+    const endSideResize = React.useCallback((): void => {
+      setResizing(false)
+      drawSideWidth(sideLayout)
+    }, [sideLayout, drawSideWidth])
+
+    // Hand this mount's context to everything in the plugin closure that
+    // outlives it — the keystroke path and the SSE handlers (see
+    // `ViewContext`). Deliberately the first passive effect in the component:
+    // the effects below repaint through `bumpView()`, which only works once the
+    // context is installed. The identity check keeps a cleanup from a previous
+    // mount — which can land after this one installed — from clearing it.
+    React.useEffect(() => {
+      const context: ViewContext = { commands: () => commandsRef.current, publish, bump }
+      viewContext = context
+      return () => {
+        if (viewContext === context) viewContext = undefined
+      }
+    }, [publish, bump])
+
+    // The sidebar's workspaces are live; the session's own directory is only
+    // needed to decide whether it deserves a fallback group.
+    React.useEffect(() => {
+      let cancelled = false
+      void fetchContext(sessionId).then((result) => {
+        if (cancelled) return
+        if (result.ok && typeof result.workdir === 'string' && result.workdir !== '') setSessionCwd(result.workdir)
+      })
+      return () => {
+        cancelled = true
+      }
+    }, [sessionId])
+
+    const rows = React.useMemo<GroupRow[]>(() => {
+      const list: GroupRow[] = snapshot.items.map((workspace) => ({
+        key: workspace.workspaceId,
+        title: workspace.title,
+        path: workspace.path,
+        kind: 'workspace' as const,
+      }))
+      const cwd = normalizePath(sessionCwd)
+      if (cwd !== '' && !list.some((row) => normalizePath(row.path) === cwd)) {
+        list.unshift({ key: SESSION_KEY, title: t('sidebar.session'), path: cwd, kind: 'session' })
+      }
+      return list
+    }, [snapshot, sessionCwd, t])
+
+    const rowSignature = rows.map((row) => row.key).join('|')
+
+    React.useEffect(() => {
+      saveAccount(account)
+    }, [account])
+
+    React.useEffect(() => {
+      saveExpanded(expanded)
+    }, [expanded])
+
+    // Remember the active console: the next page load reopens this one rather
+    // than the first console of the first group.
+    React.useEffect(() => {
+      saveSelection(selection)
+    }, [selection])
+
+    React.useEffect(() => {
+      saveCommands(commands)
+    }, [commands])
+
+    // Keep a valid selection: prefer the restored console, then the Workspace
+    // the session lives in, and skip groups the user has emptied.
+    React.useEffect(() => {
+      const stillValid = selection !== null
+        && rows.some((row) => row.key === selection.key)
+        && terminalsFor(account, selection.key).some((terminal) => terminal.id === selection.terminalId)
+      if (stillValid) return
+      // An empty `rows` means the Workspace list has not attached yet, not that
+      // every group disappeared: clearing here would drop the restored
+      // selection before there is anything to fall back to.
+      if (rows.length === 0) return
+      const populated = rows.filter((row) => terminalsFor(account, row.key).length > 0)
+      if (populated.length === 0) {
+        if (selection !== null) setSelection(null)
+        return
+      }
+      const cwd = normalizePath(sessionCwd)
+      const target = populated.find((row) => row.kind === 'workspace' && normalizePath(row.path) === cwd) ?? populated[0]
+      setSelection({ key: target.key, terminalId: terminalsFor(account, target.key)[0].id })
+    }, [rowSignature, account, selection, sessionCwd, rows])
+
+    const activeGroup = selection === null ? undefined : rows.find((row) => row.key === selection.key)
+    const activeList = activeGroup === undefined ? [] : terminalsFor(account, activeGroup.key)
+    const active = selection === null
+      ? undefined
+      : activeList.find((terminal) => terminal.id === selection.terminalId)
+
+    // Mark a console as opened the first time it becomes active. Its screen
+    // then stays mounted even after the user switches away.
+    React.useEffect(() => {
+      if (active === undefined || openIds.includes(active.id)) return
+      openIds.push(active.id)
+      bump()
+    }, [active, bump])
+
+    // An active console must be visible, so reveal its group whenever the
+    // active group changes — including the one restored on load. Keyed on the
+    // group key rather than the row object so an unrelated workspace update
+    // does not reopen a group the user has just collapsed; collapsing the
+    // active group stays possible because this runs only on change.
+    const activeGroupKey = activeGroup?.key
+    React.useEffect(() => {
+      if (activeGroupKey === undefined) return
+      setExpanded((current) => current.includes(activeGroupKey) ? current : [...current, activeGroupKey])
+    }, [activeGroupKey])
+
+    // Create each opened console's xterm exactly once, and re-home it when the
+    // View mounts again after the conversation shell swapped it out.
+    React.useEffect(() => {
+      // xterm's accessible name for its hidden input is one static string per
+      // class, not per instance, and it is read when `open()` builds the
+      // textarea. Naming it here — on every pass, so a language switch and a
+      // console created afterwards both agree — is what keeps that name in the
+      // GUI's language instead of xterm's built-in English. The textarea of a
+      // runtime that already exists keeps the name it was opened with, so it
+      // is restated below; the class default is what a later `open()` reads.
+      const inputLabel = t('terminal.input')
+      Terminal.strings.promptLabel = inputLabel
+      for (const id of [...openIds]) {
+        const element = screens.get(id)
+        if (element === undefined) continue
+        const runtime = runtimes.get(id)
+        if (runtime === undefined) {
+          const created = createRuntime(id)
+          created.term.open(element)
+          created.element = element
+          runtimes.set(id, created)
+          continue
+        }
+        if (runtime.term.textarea !== undefined) runtime.term.textarea.setAttribute('aria-label', inputLabel)
+        if (runtime.element === element) continue
+        const own = runtime.term.element
+        if (own !== undefined && own !== null) element.appendChild(own)
+        runtime.element = element
+        runtime.term.refresh(0, Math.max(0, runtime.term.rows - 1))
+      }
+    })
+
+    // Wire the active console: refresh its theme, size it, and start its shell
+    // the first time it is shown.
+    //
+    // Keyed on the console id and group key, never on the row objects: renaming
+    // produces a fresh `TerminalDef`, and an object dependency would re-run this
+    // for that unrelated change — yanking focus out of the rename field mid-edit
+    // so the rest of the keystroke (Enter included) reached the PTY instead.
+    const activeId = active?.id
+    React.useEffect(() => {
+      if (activeId === undefined || activeGroupKey === undefined) return
+      const runtime = runtimes.get(activeId)
+      if (runtime === undefined || runtime.element === undefined) return
+      runtime.term.options.theme = readTheme()
+      // An open rename field owns the keyboard: a stream reconnect or a late
+      // `ensureStarted` that bumps `version` must not steal focus from it.
+      // The commands dialog, the delete confirmation, and the autostart
+      // dialog are the same story while they are up.
+      if (renamingRef.current === null && !commandsOpenRef.current && !startupOpenRef.current && !removeOpen) {
+        runtime.term.focus()
+      }
+      const group = rows.find((row) => row.key === activeGroupKey)
+      // The command belongs to the console, but the switch is what decides
+      // whether it runs at all: an off switch keeps the text saved and inert.
+      const startup = active === undefined ? undefined : startupCommand(active)
+      if (group !== undefined) void ensureStarted(runtime, group, sessionId, startup)
+      // `version` is what re-runs this after the "mark opened" effect above
+      // bumps it: the runtime this effect needs does not exist until the next
+      // commit, so the first pass returns early and this pass starts the shell.
+    }, [activeId, activeGroupKey, sessionId, version, removeOpen])
+
+    // A popup belongs to one console and one command list: switching either —
+    // or opening a dialog that takes the keyboard — dismisses it, so a
+    // suggestion the user can no longer see can never swallow `↑`/`↓`/Enter
+    // in a console or against a list it no longer describes.
+    React.useEffect(() => {
+      for (const runtime of runtimes.values()) {
+        if (runtime.completion.popup !== null) runtime.completion = { line: runtime.completion.line, popup: null }
+      }
+      publish(null)
+    }, [activeId, commands, commandsOpen, removeOpen, startupOpen, publish])
+
+    /**
+     * Show each sidebar edge fade only where the list really hides content.
+     *
+     * Scrolling fires far too often to push two booleans through `setVersion`,
+     * so the answer is written straight onto the wrapper as `data-fade-top` /
+     * `data-fade-bottom` — no re-render, and nothing re-renders the rows; the
+     * rules in styles.ts turn those attributes into the list's mask. The
+     * effect deliberately has no dependency list: every content change (a
+     * group expanded, a console added, the Workspace list attaching) arrives
+     * as a commit, and re-running it is what re-reads the new heights;
+     * `scroll` covers the offset in between, `ResizeObserver` covers the box
+     * itself (window resize, the sidebar's first layout).
+     *
+     * The same pass records the scrollbar gutter in `--dsh-ct-fade-right`, so
+     * the mask covers the content column and leaves a classic scrollbar
+     * untouched.
+     */
+    React.useEffect(() => {
+      const scroll = listScroll.current
+      const wrap = listWrap.current
+      if (scroll === null || wrap === null) return
+      const update = (): void => {
+        const overflow = scroll.scrollHeight - scroll.clientHeight > 1
+        wrap.toggleAttribute('data-fade-top', overflow && scroll.scrollTop > 1)
+        wrap.toggleAttribute(
+          'data-fade-bottom',
+          overflow && scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1,
+        )
+        // The gutter only changes with the scrollbar, and re-setting it on
+        // every scroll frame would invalidate style for nothing.
+        const gutter = `${scroll.offsetWidth - scroll.clientWidth}px`
+        if (wrap.style.getPropertyValue('--dsh-ct-fade-right') !== gutter) {
+          wrap.style.setProperty('--dsh-ct-fade-right', gutter)
+        }
+      }
+      update()
+      scroll.addEventListener('scroll', update, { passive: true })
+      // A box change needs no commit of its own, so it is not something a
+      // re-render would pick up — hence the observer, not just `update()`.
+      const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update)
+      observer?.observe(scroll)
+      return () => {
+        scroll.removeEventListener('scroll', update)
+        observer?.disconnect()
+      }
+    })
+
+    const select = (key: string, terminalId: string): void => setSelection({ key, terminalId })
+
+    /**
+     * Insert one common command into the active console's input: the body
+     * only, no newline, so it lands at the prompt for the user to review
+     * before pressing Enter. Serialized through the runtime's own write chain
+     * (same as keystrokes) so it lands in PTY order.
+     * @returns false when no live console can take the command.
+     */
+    const insertCommand = (body: string): boolean => {
+      if (activeId === undefined) return false
+      const runtime = runtimes.get(activeId)
+      if (runtime === undefined || runtime.terminalId === undefined) return false
+      queueInput(runtime, body)
+      // The dialog closing restores focus to its opener (the footer button);
+      // the deferred focus lands after that pass, back on the console that
+      // just received the command.
+      window.setTimeout(() => runtime.term.focus(), 0)
+      return true
+    }
+
+    /**
+     * Fill one popup row into its console — exactly what `Enter` would send
+     * through the keystroke path (completion.ts `fillLine`): Ctrl+E, one
+     * backspace per modeled character, then the body. No newline, so the
+     * filled command waits at the prompt for review.
+     * @returns false when the console is gone or has no PTY.
+     */
+    const acceptCompletion = (consoleId: string, body: string): boolean => {
+      const runtime = runtimes.get(consoleId)
+      if (runtime === undefined || runtime.terminalId === undefined) return false
+      const filled = fillLine(runtime.completion.line, body)
+      runtime.completion = { line: filled.line, popup: null }
+      queueInput(runtime, filled.forward)
+      publish(null)
+      runtime.term.focus()
+      return true
+    }
+
+    /**
+     * Move the popup's selection to the row the pointer is over.
+     *
+     * The pointer drives the *same* index the arrow keys drive (completion.ts
+     * `PopupState.selected`), and that index is the only thing the popup ever
+     * paints, so exactly one row can be active at a time: whichever input
+     * moved last owns the highlight, and `Enter` fills what is lit. A row that
+     * is already selected costs no publish.
+     */
+    const hoverCompletion = (consoleId: string, index: number): void => {
+      const runtime = runtimes.get(consoleId)
+      const popup = runtime?.completion.popup ?? null
+      if (runtime === undefined || popup === null || popup.selected === index) return
+      const screen = readScreen(runtime.term)
+      if (screen === null) return
+      const session: CompletionSession = {
+        line: runtime.completion.line,
+        popup: { items: popup.items, selected: index },
+      }
+      runtime.completion = session
+      publish(completionView(consoleId, session, screen))
+    }
+
+    const addConsole = (key: string): void => {
+      // Auto names are always `Terminal N`, never translated (see `addTerminal`).
+      const list = addTerminal(terminalsFor(account, key), key)
+      const created = list[list.length - 1]
+      setAccount(withTerminalList(account, key, list))
+      // The ＋ sits on the header, so it is reachable while collapsed: adding
+      // must reveal what it created.
+      setExpanded((current) => current.includes(key) ? current : [...current, key])
+      if (created !== undefined) select(key, created.id)
+    }
+
+    const removeConsole = (key: string, id: string): void => {
+      const current = terminalsFor(account, key)
+      const next = removeTerminal(current, id)
+      if (next.length === current.length) return
+      setAccount(withTerminalList(account, key, next))
+
+      const runtime = runtimes.get(id)
+      if (runtime !== undefined) {
+        disposeRuntime(runtime)
+        runtimes.delete(id)
+      }
+      screens.delete(id)
+      const openIndex = openIds.indexOf(id)
+      if (openIndex >= 0) openIds.splice(openIndex, 1)
+      // A group may end up with none; the selection effect picks the next
+      // populated group (or clears the selection when there is none).
+      if (selection?.terminalId === id) setSelection(null)
+    }
+
+    const commitRename = (key: string, id: string): void => {
+      setRenamingId(null)
+      setAccount(withTerminalList(account, key, renameTerminal(terminalsFor(account, key), id, renameDraft)))
+    }
+
+    /**
+     * Persist the autostart pair the dialog reported.
+     *
+     * A blank command clears the setting entirely (see `setTerminalStartup`),
+     * which is also how the switch is turned back off for good: an off switch
+     * with no command has nothing to remember.
+     */
+    const saveStartup = (command: string, autoRun: boolean): void => {
+      if (startupEdit === null) return
+      const { key, id } = startupEdit
+      setAccount((current) => withTerminalList(
+        current,
+        key,
+        setTerminalStartup(terminalsFor(current, key), id, command, autoRun),
+      ))
+      setStartupEdit(null)
+    }
+
+    const toggleExpanded = (key: string): void => {
+      setMenuId(null)
+      setExpanded((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
+    }
+
+    const toggleRename = (terminal: TerminalDef): void => {
+      skipBlurCommit.current = false
+      setRenameDraft(terminal.title)
+      setRenamingId(terminal.id)
+    }
+
+    /** The in-place rename field that replaces a console row's title. */
+    const renderRenameInput = (row: GroupRow, terminal: TerminalDef): React.ReactElement => h('input', {
+      key: 'rename',
+      className: 'dsh-ct-rename',
+      value: renameDraft,
+      autoFocus: true,
+      spellCheck: false,
+      onClick: (event: React.MouseEvent) => { event.stopPropagation() },
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => setRenameDraft(event.target.value),
+      onKeyDown: (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter') {
+          skipBlurCommit.current = true
+          commitRename(row.key, terminal.id)
+        } else if (event.key === 'Escape') {
+          skipBlurCommit.current = true
+          setRenamingId(null)
+        }
+      },
+      onBlur: () => {
+        if (skipBlurCommit.current) {
+          skipBlurCommit.current = false
+          return
+        }
+        commitRename(row.key, terminal.id)
+      },
+    })
+
+    /**
+     * One console row's overflow menu, driven by the shipped Menu primitive: it
+     * portals out of the sidebar's scroll clip and owns outside-click, Escape,
+     * and repositioning.
+     */
+    const renderOverflowMenu = (row: GroupRow, terminal: TerminalDef): React.ReactElement => {
+      const menuItems: MenuEntry[] = [
+        { id: 'rename', label: t('terminal.rename'), icon: h(IconEdit, { key: 'icon' }) },
+        { id: 'startup', label: t('terminal.startup'), icon: h(IconAutostart, { key: 'icon' }) },
+        // Destructive row last, behind a hairline: the menu's only action that
+        // asks for confirmation is also the only one that cannot be undone.
+        { type: 'separator', id: 'before-remove' },
+        {
+          id: 'remove',
+          label: t('terminal.remove'),
+          icon: h(IconTrash, { key: 'icon' }),
+          danger: true,
+        },
+      ]
+      return h('span', { key: 'actions', className: 'dsh-ct-term-actions' },
+        h(Menu, {
+          key: 'menu',
+          open: menuId === terminal.id,
+          items: menuItems,
+          portal: true,
+          // Matches the rest of the shell: a menu closes on an outside click,
+          // Escape, or a window blur -- not merely because the pointer wandered
+          // off it, which made the list flicker away while aiming at a row.
+          align: 'start',
+          // Anchor the list at the trigger's bottom-RIGHT corner: the
+          // zero-width rect makes `align: start` hang the card off that
+          // corner instead of the button's left edge.
+          getAnchorRect: (): DOMRect | null => {
+            const element = menuAnchor.current
+            if (element === null) return null
+            const rect = element.getBoundingClientRect()
+            return new DOMRect(rect.right, rect.top, 0, rect.height)
+          },
+          onSelect: (id: string) => {
+            setMenuId(null)
+            if (id === 'rename') toggleRename(terminal)
+            else if (id === 'startup') {
+              setStartupEdit({
+                key: row.key,
+                id: terminal.id,
+                command: terminal.startup ?? '',
+                autoRun: terminal.autoStart ?? true,
+              })
+            } else if (id === 'remove') setPendingRemove({ key: row.key, id: terminal.id, title: terminal.title })
+          },
+          onClose: () => setMenuId(null),
+          anchor: h('button', {
+            type: 'button',
+            className: 'dsh-ct-icon',
+            title: t('terminal.more'),
+            'aria-label': t('terminal.more'),
+            onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
+              event.stopPropagation()
+              menuAnchor.current = event.currentTarget
+              setMenuId((current) => (current === terminal.id ? null : terminal.id))
+            },
+          }, h(IconMore)),
+        }),
+      )
+    }
+
+    // A row only arms the drag; every other drag event is handled once per
+    // group on the container (see `renderGroup`).
+    const renderConsole = (row: GroupRow, terminal: TerminalDef): React.ReactElement => {
+      const isActive = selection?.terminalId === terminal.id
+      const isRenaming = renamingId === terminal.id
+      const runtime = runtimes.get(terminal.id)
+      const live = runtime?.status === 'live'
+      const children: React.ReactNode[] = [
+        h('span', { key: 'icon', className: 'dsh-ct-term-icon' }, h(IconTerminal)),
+      ]
+      if (isRenaming) {
+        children.push(renderRenameInput(row, terminal))
+      } else {
+        children.push(h('span', { key: 'title', className: 'dsh-ct-term-title' }, terminal.title))
+        children.push(renderOverflowMenu(row, terminal))
+      }
+      const menuOpen = menuId === terminal.id
+      return h('div', {
+        key: terminal.id,
+        className: `dsh-ct-term${isActive ? ' dsh-ct-term-active' : ''}${menuOpen ? ' dsh-ct-term-menu-open' : ''}${live ? ' dsh-ct-term-live' : ''}${drag?.id === terminal.id ? ' dsh-ct-term-dragging' : ''}`,
+        title: row.path,
+        // An open rename field must not turn a click on the text into a row
+        // drag, so dragging is armed only on settled rows.
+        draggable: !isRenaming,
+        onDragStart: (event: React.DragEvent<HTMLDivElement>) => {
+          setDrag({ key: row.key, id: terminal.id })
+          event.dataTransfer.effectAllowed = 'move'
+          // Firefox only starts a native drag when some data type is set.
+          event.dataTransfer.setData('text/plain', terminal.title)
+        },
+        onClick: () => {
+          if (isRenaming) return
+          select(row.key, terminal.id)
+        },
+      }, children)
+    }
+
+    const renderGroup = (row: GroupRow): React.ReactElement => {
+      const list = terminalsFor(account, row.key)
+      const isCollapsed = !expanded.includes(row.key)
+      const head = h('div', {
+        key: 'head',
+        className: 'dsh-ct-ws-head',
+        title: row.path,
+        onClick: () => toggleExpanded(row.key),
+      },
+      // The shipped sidebar swaps its folder for a hover arrow; here the
+      // folder alone carries the state (open vs closed), so it is stable.
+      h('span', { key: 'folder', className: 'dsh-ct-folder' }, h(isCollapsed ? IconFolderClosed : IconFolderOpened)),
+      h('span', { key: 'title', className: 'dsh-ct-ws-title' }, row.title),
+      h('button', {
+        key: 'add',
+        type: 'button',
+        className: 'dsh-ct-icon dsh-ct-ws-add',
+        title: t('sidebar.new'),
+        onClick: (event: React.MouseEvent) => {
+          event.stopPropagation()
+          addConsole(row.key)
+        },
+      }, h(IconPlus)),
+      )
+      const children: React.ReactNode[] = [head]
+      if (!isCollapsed && list.length > 0) {
+        children.push(h('div', {
+          key: 'terms',
+          className: 'dsh-ct-terms',
+          // The whole drag protocol lives here, once per group, instead of on
+          // every row. `dragover` and `drop` share {@link slotFor}, so the
+          // line always shows exactly where the drop will land.
+          onDragOver: (event: React.DragEvent<HTMLDivElement>) => {
+            // A console belongs to exactly one workspace: a drag from another
+            // group is rejected by not calling `preventDefault`, which keeps
+            // the browser's not-allowed cursor and never fires `drop`.
+            if (drag === null || drag.key !== row.key) return
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+            setSlot(slotFor(event, list.length))
+          },
+          onDrop: (event: React.DragEvent<HTMLDivElement>) => {
+            event.preventDefault()
+            const source = drag
+            setDrag(null)
+            setSlot(null)
+            if (source === null || source.key !== row.key) return
+            // A self-slot is a no-op inside `moveTerminal`; reordering never
+            // disturbs the active selection.
+            const next = moveTerminal(terminalsFor(account, row.key), source.id, slotFor(event, list.length))
+            setAccount(withTerminalList(account, row.key, next))
+          },
+          // `dragend` bubbles from the source row: fires whether or not the
+          // drop landed, so this alone cleans every drag artifact up.
+          onDragEnd: () => {
+            setDrag(null)
+            setSlot(null)
+          },
+          // Leaving the group (its padding included) hides the line; moving
+          // between rows does not, and the next `dragover` re-answers it.
+          onDragLeave: (event: React.DragEvent<HTMLDivElement>) => {
+            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+            setSlot(null)
+          },
+        },
+          list.map((terminal) => renderConsole(row, terminal)),
+          // One line per group, a child of the container — never of a row —
+          // at whole row pitches, so it fills exactly the 2px gap of the
+          // target slot and looks identical everywhere, including next to the
+          // dragged row (which a row-anchored mark would fade along with).
+          // Offset and thickness are snapped to device pixels: under
+          // fractional display scaling an unsnapped 2px line rasterizes to 2
+          // device pixels in some gaps and 3 in others.
+          drag?.key === row.key && slot !== null ? h('span', {
+            key: 'drop-line',
+            className: 'dsh-ct-drop-line',
+            style: {
+              top: `${snapToDevicePx(ROW_PITCH * slot)}px`,
+              height: `${snapToDevicePx(2)}px`,
+            },
+          }) : null,
+        ))
+      }
+      return h('div', { key: row.key, className: 'dsh-ct-ws' }, children)
+    }
+
+    const sidebar = h('aside', { key: 'side', className: 'dsh-ct-side', ref: sideRef },
+      h('div', { key: 'list', className: 'dsh-ct-side-list-wrap', ref: listWrap },
+        h('div', { key: 'scroll', className: 'dsh-ct-side-list', ref: listScroll },
+          rows.length === 0
+            ? h('div', { key: 'empty', className: 'dsh-ct-empty' }, t('sidebar.empty'))
+            : rows.map((row) => renderGroup(row))),
+        // No fade elements: the edge fades are a mask on the scroller itself
+        // (styles.ts), so the rows dissolve into whatever is behind the View
+        // instead of into a painted band. The wrapper still carries the
+        // overflow state and the scrollbar gutter those rules read.
+      ),
+      // Footer seam: the sidebar splits into the scrolling workspace list on
+      // top and a fixed quick-action bar below, so the list scrolls in place
+      // while the action stays pinned to the column's bottom edge.
+      h('footer', { key: 'footer', className: 'dsh-ct-side-footer' },
+        h('button', {
+          key: 'commands',
+          type: 'button',
+          className: 'dsh-ct-ghost-btn',
+          title: t('commands.title'),
+          'aria-label': t('commands.title'),
+          onClick: () => setCommandsOpen(true),
+        },
+        h(IconList, { key: 'icon' }),
+        h('span', { key: 'label' }, t('commands.title'))),
+      ),
+      // The sidebar's own right edge: the boundary its width is dragged by.
+      h(ResizeHandle, {
+        key: 'resize',
+        onStart: startSideResize,
+        onDrag: dragSideResize,
+        onCommit: commitSideResize,
+        onEnd: endSideResize,
+      }),
+    )
+
+    /**
+     * The completion popup, positioned against the caret inside its console's
+     * screen wrapper.
+     *
+     * The cell size comes from xterm's own screen element (its inline box is
+     * exactly cols × rows cells); the wrapper is the positioning parent, so
+     * the host's offset from it is the origin. The popup hangs below the caret
+     * row and flips above when the space below cannot hold its tallest state
+     * (every row plus the footer — POPUP_MAX_PX); past the right edge it is
+     * right-aligned to the screen instead of clipped by it.
+     */
+    const renderCompletion = (view: CompletionView): React.ReactNode => {
+      if (view.consoleId !== activeId) return null
+      const wrapper = screens.get(view.consoleId)
+      const term = runtimes.get(view.consoleId)?.term
+      if (wrapper === undefined || term === undefined) return null
+      const box = wrapper.getBoundingClientRect()
+      const host = term.element?.getBoundingClientRect() ?? box
+      const originX = host.left - box.left
+      const originY = host.top - box.top
+      const cellW = term.cols > 0 ? host.width / term.cols : 0
+      const cellH = term.rows > 0 ? host.height / term.rows : 0
+      const left = originX + view.anchor.col * cellW
+      const belowTop = originY + (view.anchor.row + 1) * cellH
+      const aboveBottom = box.height - (originY + view.anchor.row * cellH)
+      const spaceBelow = host.height - (view.anchor.row + 1) * cellH
+      const spaceAbove = originY + view.anchor.row * cellH
+      const above = spaceBelow < POPUP_MAX_PX && spaceAbove > spaceBelow
+      const style: React.CSSProperties = above ? { bottom: aboveBottom } : { top: belowTop }
+      if (left + POPUP_MAX_W > box.width - 4) style.right = 4
+      else style.left = left
+      const entries = view.items.map((command, index) => h('div', {
+        key: command.id,
+        className: `dsh-ct-ac-row${index === view.selected ? ' dsh-ct-ac-on' : ''}`,
+        role: 'option',
+        'aria-selected': index === view.selected,
+        // The pointer joins the selection instead of styling itself: there is
+        // no CSS `:hover` fill, so this is what moves the lit row (see
+        // `hoverCompletion`). One mechanism owns the highlight, so the two
+        // inputs can never light two rows at once.
+        //
+        // `move`, not `enter`: a pointer already inside a row must take the
+        // highlight back the moment it moves after the arrow keys walked away
+        // from it (enter has already fired by then), while a popup that opens
+        // under a resting cursor fires nothing — it does not steal a selection
+        // from a hand that is not moving.
+        onMouseMove: () => { hoverCompletion(view.consoleId, index) },
+        // Keep focus in xterm: letting the mousedown blur its hidden textarea
+        // would move the keystroke stream away from the shell mid-accept.
+        onMouseDown: (event: React.MouseEvent) => { event.preventDefault() },
+        onClick: () => { acceptCompletion(view.consoleId, command.body) },
+      },
+        h('span', { key: 'body', className: 'dsh-ct-ac-body' }, command.body),
+        command.description === ''
+          ? null
+          : h('span', { key: 'desc', className: 'dsh-ct-ac-desc' }, command.description),
+      ))
+      return h('div', { className: 'dsh-ct-ac', role: 'listbox', style },
+        entries,
+        h('div', { key: 'foot', className: 'dsh-ct-ac-foot' }, t('completion.footer')))
+    }
+
+    // Every opened console keeps its screen mounted; only the active one is
+    // visible, so switching consoles never tears down a live shell. The active
+    // console's screen also carries its completion popup, while one is open.
+    const screenNodes = openIds.map((id) => h('div', {
+      key: id,
+      className: `dsh-ct-screen${active !== undefined && active.id === id ? ' dsh-ct-screen-active' : ''}`,
+      ref: (element: HTMLDivElement | null): void => {
+        if (element === null) screens.delete(id)
+        else screens.set(id, element)
+      },
+    }, completion !== null && completion.consoleId === id ? renderCompletion(completion) : null))
+
+    // No toolbar: the shell prints its own prompt (which already carries the
+    // directory) and Ctrl+C interrupts the foreground command, exactly as in a
+    // system terminal. A console that fails to start reports it in its own
+    // scrollback, so there is no chrome to keep the error visible.
+    const main = h('section', { key: 'main', className: 'dsh-ct-main' },
+      h('div', { key: 'out', className: 'dsh-ct-out' },
+        screenNodes,
+        openIds.length === 0
+          ? h('div', { key: 'hint', className: 'dsh-ct-hint' }, t('main.hint'))
+          : null),
+    )
+
+    // The common-commands dialog: modal chrome and stacking belong to the
+    // shipped primitives; the list state, the insertion target, and the copy's
+    // language live here.
+    const commandsDialog = h(CommandsDialog, {
+      key: 'commands-dialog',
+      open: commandsOpen,
+      commands,
+      t,
+      insertable: activeId !== undefined && runtimes.get(activeId)?.terminalId !== undefined,
+      onChange: setCommands,
+      onClose: () => setCommandsOpen(false),
+      insert: insertCommand,
+    })
+
+    // Deleting a console asks first: the row menu's Delete is one click away
+    // from a running shell, and the confirmation names the console so a
+    // mis-aimed click cannot take the wrong one down. Confirming is the only
+    // path that reaches `removeConsole`.
+    const removeDialog = h(Modal, {
+      key: 'remove-dialog',
+      open: removeOpen,
+      onClose: () => setPendingRemove(null),
+      title: pendingRemove === null ? '' : t('terminal.removeTitle', { title: pendingRemove.title }),
+      closeLabel: t('terminal.cancel'),
+      description: t('terminal.removeWarning'),
+      footer: h(React.Fragment, null,
+        h(Button, {
+          key: 'cancel',
+          variant: 'outline',
+          onClick: () => setPendingRemove(null),
+        }, t('terminal.cancel')),
+        h(Button, {
+          key: 'remove',
+          variant: 'outline',
+          className: 'dsh-ct-danger-outline',
+          onClick: () => {
+            if (pendingRemove === null) return
+            removeConsole(pendingRemove.key, pendingRemove.id)
+            setPendingRemove(null)
+          },
+        }, t('terminal.remove')),
+      ),
+    })
+
+    // Command autostart edits one console's saved command and switch. The
+    // dialog is mounted only while open, so its draft cannot leak into the
+    // next console the menu is used on.
+    const startupDialog = startupEdit === null ? null : h(StartupDialog, {
+      key: startupEdit.id,
+      command: startupEdit.command,
+      autoRun: startupEdit.autoRun,
+      t,
+      onClose: () => setStartupEdit(null),
+      onSave: saveStartup,
+    })
+
+    return h('div', {
+      ref: pageRef,
+      className: 'dsh-ct-root',
+      // One attribute for "the boundary is being dragged", which is how the
+      // whole page keeps the drag's cursor and stops selecting text under the
+      // pointer. Absent at rest, so the rules it turns on cost nothing the rest
+      // of the time.
+      'data-resizing': resizing ? 'col' : undefined,
+      // The shell's full-bleed opt-in, the same hook ui-trajectory renders:
+      // it drops the transcript width handles and hands this View the whole
+      // area instead of the transcript's content column.
+      'data-conversation-composer-overlay': '',
+    }, sidebar, main, commandsDialog, removeDialog, startupDialog)
+  }
+
+  return {
+    View: TerminalView,
+    dispose(): void {
+      themeObserver?.disconnect()
+      themeObserver = undefined
+      // Drop the View's context first: from here on the keystroke path and
+      // the stream handlers have nothing mounted to reach (see `ViewContext`).
+      viewContext = undefined
+      for (const runtime of runtimes.values()) disposeRuntime(runtime)
+      runtimes.clear()
+      screens.clear()
+      openIds.length = 0
+    },
+  }
+}
