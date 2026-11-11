@@ -1,11 +1,13 @@
 /**
  * The native Session menu's delete row and its confirmation overlay.
  *
- * The row is contributed to `sidebar.workspaces.session.menu.item`, after the
- * shipped Copy Session ID row (450). Menus unmount as soon as they close, so the
- * row only records a request; the frame-wide `shell.overlay` entry owns the
- * dialog's state and the Host call. That split is also what lets the dialog
- * survive the menu's portal disappearing on click.
+ * The row is contributed to `sidebar.workspaces.session.menu.item` by builds
+ * that have no `contextMenus` service; the client entry registers a plain-data
+ * action instead wherever that service exists, because the shipped Archive row
+ * is a footer action and only a footer action can follow it. Menus unmount as
+ * soon as they close, so either row only records a request; the frame-wide
+ * `shell.overlay` entry owns the dialog's state and the Host call. That split is
+ * also what lets the dialog survive the menu's portal disappearing on click.
  *
  * Deletion is permanent, so the confirmation is the only path: it asks before
  * the Host stops running work and removes the artifacts, and disables itself
@@ -58,6 +60,20 @@ export function clearDeleteRequest(): void {
   emitDelete()
 }
 
+/** Whether the menu service has taken over the Delete row. */
+let serviceOwnsRow = false
+
+/**
+ * Stop drawing the legacy Slot row.
+ *
+ * The client entry installs that row when `apply` runs before `contextMenus` is
+ * mounted; the service then contributes Delete as a footer action so it can
+ * follow Archive. This flag keeps the two paths from drawing the row twice.
+ */
+export function retireLegacyDeleteRow(): void {
+  serviceOwnsRow = true
+}
+
 /** The menu row's owner share and the slot's menu-open hook. */
 interface DeleteMenuItemProps {
   readonly sessionId: string
@@ -66,18 +82,22 @@ interface DeleteMenuItemProps {
 }
 
 /**
- * The delete row, placed after Copy Session ID and separated from the shipped
- * group. Selecting it closes the menu and raises the confirmation overlay.
+ * The legacy delete row for builds without `contextMenus`, placed after Copy
+ * Session ID and separated from the shipped group. Selecting it closes the menu
+ * and raises the confirmation overlay.
  *
  * @param props - the row identity, menu hook, and locale seat.
- * @returns the menu row.
+ * @returns the menu row, or null once the menu service owns it.
  */
 export function SessionDeleteMenuItem({
   sessionId,
   useMenuOpenState,
   t,
-}: DeleteMenuItemProps): ReactElement {
+}: DeleteMenuItemProps): ReactElement | null {
+  // The hook runs first unconditionally: the flag can flip between renders, and
+  // React requires the same hook order on every one of them.
   const [, setMenuOpen] = useMenuOpenState()
+  if (serviceOwnsRow) return null
   return (
     <MenuItemButton
       separatorBefore

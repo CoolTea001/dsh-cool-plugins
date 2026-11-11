@@ -1,6 +1,6 @@
 import { lstat, realpath, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-//#region src/host/refusal.ts
+// src/host/refusal.ts
 /**
 * One coded refusal, shaped as a payload carries it.
 *
@@ -14,8 +14,7 @@ function coded(code, params) {
 		params
 	} };
 }
-//#endregion
-//#region src/host/deletion.ts
+// src/host/deletion.ts
 /**
 * On-disk Session deletion, including the subagent Sessions beneath one root.
 *
@@ -481,8 +480,7 @@ async function deleteSession(ctx, sessionId) {
 		};
 	}
 }
-//#endregion
-//#region src/host/routes.ts
+// src/host/routes.ts
 /**
 * The Host half's HTTP surface.
 *
@@ -669,8 +667,7 @@ function registerRoutes(ctx) {
 		for (const dispose of disposers) dispose();
 	};
 }
-//#endregion
-//#region src/host/index.ts
+// src/host/index.ts
 /**
 * Host entry for dsh-cool-session.
 *
@@ -690,5 +687,4 @@ const inject = ["webServer"];
 function apply(ctx) {
 	ctx.effect(() => registerRoutes(ctx), "dsh-cool-session: session routes");
 }
-//#endregion
 export { ROUTES, apply, inject, name };

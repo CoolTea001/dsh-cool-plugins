@@ -7,11 +7,12 @@
   "author": "CoolTea",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CoolTea001/dsh-cool-session.git"
+    "url": "git+https://github.com/CoolTea001/dsh-cool-plugins.git",
+    "directory": "plugins/dsh-cool-session"
   },
-  "homepage": "https://github.com/CoolTea001/dsh-cool-session#readme",
+  "homepage": "https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-session#readme",
   "bugs": {
-    "url": "https://github.com/CoolTea001/dsh-cool-session/issues"
+    "url": "https://github.com/CoolTea001/dsh-cool-plugins/issues"
   },
   "keywords": [
     "dsh",
@@ -37,8 +38,7 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
-    "README.zh.md",
-    "LICENSE"
+    "README.zh.md"
   ],
   "scripts": {
     "build": "tsdown && tsc -p tsconfig.json --emitDeclarationOnly",
@@ -64,12 +64,8 @@
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
-  "packageManager": "pnpm@11.7.0",
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/react": "~18.3.1",
-    "tsdown": "^0.22.2",
-    "typescript": "^6.0.3"
+    "@dsh-cool/tsdown-config": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0"

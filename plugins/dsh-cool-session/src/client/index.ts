@@ -13,7 +13,8 @@
  * the client face does not expose — needs this package's own Host route.
  */
 
-import { SessionDeleteDialog, SessionDeleteMenuItem } from './session-menu.js'
+import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { requestDeleteSession, retireLegacyDeleteRow, SessionDeleteDialog, SessionDeleteMenuItem } from './session-menu.js'
 import { SessionsSection } from './settings-section.js'
 import { setSessionArchived } from './archive.js'
 import { installSessionNavIcon } from './nav-icon.js'
@@ -99,10 +100,17 @@ export function apply(ctx: any): void {
   // generic gear. Replace it with `assets/archive.svg` whenever the nav mounts.
   ctx.effect(() => installSessionNavIcon(t), 'dsh-cool-session: settings nav icon')
 
-  // The native sidebar menu is a list slot owned by ui-workspace. This row is
-  // ordered after the shipped Copy Session ID row (450) and opens the frame-wide
-  // confirmation through a `shell.overlay` entry. Both registrations disappear
-  // with their owner declaration, exactly like the shipped menu rows.
+  // The native sidebar menu has two extension paths. Builds that ship
+  // `ui-context-menu` render plain-data actions in order, and the shipped
+  // Archive row lives in the menu's footer group (`afterContent`, order 600):
+  // a legacy Slot row always renders *above* that footer, so the Slot this
+  // plugin used to fill can never sit below Archive. The menu service is what
+  // lets Delete be the last row, so Delete becomes its footer action as soon as
+  // the service is mounted.
+  //
+  // The Slot row stays registered for older builds, which have no menu service
+  // and where Archive is an ordinary order-400 row that a 500 row already
+  // follows. `retireLegacyDeleteRow` keeps the two paths from drawing twice.
   slots.inject('sidebar.workspaces.session.menu.item', () =>
     slots.register({
       name: 'sidebar.workspaces.session.menu.item',
@@ -110,6 +118,43 @@ export function apply(ctx: any): void {
       order: 500,
       locale: NS,
     }, SessionDeleteMenuItem))
+
+  // `ctx.inject` waits for the optional service instead of gating on module
+  // activation order, and ties the registrations below to the service's
+  // lifetime. A profile without `ui-context-menu` never enters this callback.
+  ctx.effect(() => ctx.inject(['contextMenus'], (menuCtx: any) => {
+    retireLegacyDeleteRow()
+
+    // Footer rows draw their glyph through this keyed Slot, so the trash icon is
+    // contributed next to the action that names it. The component receives the
+    // action's `icon` metadata, as the shipped footer rows do.
+    menuCtx.slots.inject('contextMenu.icon', () =>
+      menuCtx.slots.register(
+        { name: 'contextMenu.icon', key: 'dsh-cool-session.delete' },
+        IconTrashOutlineRegular,
+      ))
+
+    // Order 700 places Delete after Archive (600) inside the footer group, and
+    // `separatorBefore` opens the destructive group under it. `danger` carries
+    // the same red treatment the Slot row used to paint with its own CSS.
+    menuCtx.effect(() => menuCtx.contextMenus.register({
+      id: 'dsh-cool-session.delete',
+      target: 'session',
+      order: 700,
+      // Re-resolve on a language switch so the label follows the active locale,
+      // and drop the contribution with the service like the menu's own rows.
+      observe: () => [locale],
+      resolve: ({ sessionId }: { sessionId: string }) => [{
+        id: 'delete',
+        label: t('action.delete'),
+        icon: { key: 'dsh-cool-session.delete' },
+        afterContent: true,
+        separatorBefore: true,
+        danger: true,
+        run: () => requestDeleteSession(sessionId),
+      }],
+    }), 'dsh-cool-session: session menu action')
+  }).dispose, 'dsh-cool-session: session menu service')
 
   slots.inject('shell.overlay', () =>
     slots.register({

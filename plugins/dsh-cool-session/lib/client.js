@@ -4,10 +4,10 @@ window.__ModuleLoader__.load({
 		var module = { exports: {} };
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		let react = require("react");
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region src/client/api.ts
+		// src/client/api.ts
 		const BASE = "/dsh-cool-session/api";
 		/**
 		* POST one JSON body and read a JSON answer.
@@ -102,8 +102,7 @@ window.__ModuleLoader__.load({
 				results
 			};
 		}
-		//#endregion
-		//#region src/client/reason.ts
+		// src/client/reason.ts
 		/**
 		* Word one refused answer.
 		*
@@ -121,16 +120,17 @@ window.__ModuleLoader__.load({
 			if (payload.error === "HTTP 405") return t("error.host-stale");
 			return typeof payload.error === "string" && payload.error !== "" ? payload.error : t(fallback);
 		}
-		//#endregion
-		//#region src/client/session-menu.tsx
+		// src/client/session-menu.tsx
 		/**
 		* The native Session menu's delete row and its confirmation overlay.
 		*
-		* The row is contributed to `sidebar.workspaces.session.menu.item`, after the
-		* shipped Copy Session ID row (450). Menus unmount as soon as they close, so the
-		* row only records a request; the frame-wide `shell.overlay` entry owns the
-		* dialog's state and the Host call. That split is also what lets the dialog
-		* survive the menu's portal disappearing on click.
+		* The row is contributed to `sidebar.workspaces.session.menu.item` by builds
+		* that have no `contextMenus` service; the client entry registers a plain-data
+		* action instead wherever that service exists, because the shipped Archive row
+		* is a footer action and only a footer action can follow it. Menus unmount as
+		* soon as they close, so either row only records a request; the frame-wide
+		* `shell.overlay` entry owns the dialog's state and the Host call. That split is
+		* also what lets the dialog survive the menu's portal disappearing on click.
 		*
 		* Deletion is permanent, so the confirmation is the only path: it asks before
 		* the Host stops running work and removes the artifacts, and disables itself
@@ -165,15 +165,29 @@ window.__ModuleLoader__.load({
 			pendingDelete = null;
 			emitDelete();
 		}
+		/** Whether the menu service has taken over the Delete row. */
+		let serviceOwnsRow = false;
 		/**
-		* The delete row, placed after Copy Session ID and separated from the shipped
-		* group. Selecting it closes the menu and raises the confirmation overlay.
+		* Stop drawing the legacy Slot row.
+		*
+		* The client entry installs that row when `apply` runs before `contextMenus` is
+		* mounted; the service then contributes Delete as a footer action so it can
+		* follow Archive. This flag keeps the two paths from drawing the row twice.
+		*/
+		function retireLegacyDeleteRow() {
+			serviceOwnsRow = true;
+		}
+		/**
+		* The legacy delete row for builds without `contextMenus`, placed after Copy
+		* Session ID and separated from the shipped group. Selecting it closes the menu
+		* and raises the confirmation overlay.
 		*
 		* @param props - the row identity, menu hook, and locale seat.
-		* @returns the menu row.
+		* @returns the menu row, or null once the menu service owns it.
 		*/
 		function SessionDeleteMenuItem({ sessionId, useMenuOpenState, t }) {
 			const [, setMenuOpen] = useMenuOpenState();
+			if (serviceOwnsRow) return null;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuItemButton, {
 				separatorBefore: true,
 				icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
@@ -253,8 +267,7 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		//#endregion
-		//#region src/client/icons.ts
+		// src/client/icons.ts
 		/**
 		* Parse one asset's raw SVG into the artwork the nav patch inserts.
 		*
@@ -300,8 +313,7 @@ window.__ModuleLoader__.load({
 		* color reaches it; the fixed 12px keeps it clear of the control's 13px text.
 		*/
 		const ARROW_DOWN_MARKUP = iconMarkup("arrow-down", CARET_SIZE);
-		//#endregion
-		//#region src/client/locales.ts
+		// src/client/locales.ts
 		/** The dictionary namespace this page owns. */
 		const NS = "coolSession";
 		/**
@@ -458,8 +470,7 @@ window.__ModuleLoader__.load({
 			"error.session-live": "会话仍处于活动状态，无法释放",
 			"error.delete-partial": "已删除 {deleted} 个会话，但还有 {remaining} 个未能删除；请重试剩余项"
 		};
-		//#endregion
-		//#region src/client/settings-section.tsx
+		// src/client/settings-section.tsx
 		/**
 		* The Sessions page of the Settings panel: list, search, filter, selection,
 		* archive, and deletion.
@@ -1219,8 +1230,7 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		//#endregion
-		//#region src/client/archive.ts
+		// src/client/archive.ts
 		/** Read the activity families out of a `workspace/session-active` refusal. */
 		function activityOf(details) {
 			const entries = details?.activity;
@@ -1280,8 +1290,7 @@ window.__ModuleLoader__.load({
 				};
 			}
 		}
-		//#endregion
-		//#region src/client/nav-icon.ts
+		// src/client/nav-icon.ts
 		/**
 		* The archive glyph on the Settings panel's Sessions entry.
 		*
@@ -1399,8 +1408,7 @@ window.__ModuleLoader__.load({
 				}
 			};
 		}
-		//#endregion
-		//#region src/client/styles.ts
+		// src/client/styles.ts
 		/** CSS rules, one selector per line. */
 		const PLUGIN_CSS = [
 			".dsh-cs-menu-delete-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-state-error-primary)}",
@@ -1483,8 +1491,7 @@ window.__ModuleLoader__.load({
 				element.remove();
 			};
 		}
-		//#endregion
-		//#region src/client/index.ts
+		// src/client/index.ts
 		/**
 		* Client entry for dsh-cool-session.
 		*
@@ -1558,6 +1565,28 @@ window.__ModuleLoader__.load({
 				order: 500,
 				locale: NS
 			}, SessionDeleteMenuItem));
+			ctx.effect(() => ctx.inject(["contextMenus"], (menuCtx) => {
+				retireLegacyDeleteRow();
+				menuCtx.slots.inject("contextMenu.icon", () => menuCtx.slots.register({
+					name: "contextMenu.icon",
+					key: "dsh-cool-session.delete"
+				}, _deepseek_ai_dsh_client_ui_primitives.IconTrashOutlineRegular));
+				menuCtx.effect(() => menuCtx.contextMenus.register({
+					id: "dsh-cool-session.delete",
+					target: "session",
+					order: 700,
+					observe: () => [locale],
+					resolve: ({ sessionId }) => [{
+						id: "delete",
+						label: t("action.delete"),
+						icon: { key: "dsh-cool-session.delete" },
+						afterContent: true,
+						separatorBefore: true,
+						danger: true,
+						run: () => requestDeleteSession(sessionId)
+					}]
+				}), "dsh-cool-session: session menu action");
+			}).dispose, "dsh-cool-session: session menu service");
 			slots.inject("shell.overlay", () => slots.register({
 				name: "shell.overlay",
 				id: "dsh-cool-session.delete-dialog",
@@ -1565,7 +1594,6 @@ window.__ModuleLoader__.load({
 				inject: () => ({ onDeleted: afterDelete })
 			}, SessionDeleteDialog));
 		}
-		//#endregion
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;
