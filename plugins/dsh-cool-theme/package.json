@@ -7,11 +7,12 @@
   "author": "CoolTea",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CoolTea001/dsh-cool-theme.git"
+    "url": "git+https://github.com/CoolTea001/dsh-cool-plugins.git",
+    "directory": "plugins/dsh-cool-theme"
   },
-  "homepage": "https://github.com/CoolTea001/dsh-cool-theme#readme",
+  "homepage": "https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-theme#readme",
   "bugs": {
-    "url": "https://github.com/CoolTea001/dsh-cool-theme/issues"
+    "url": "https://github.com/CoolTea001/dsh-cool-plugins/issues"
   },
   "keywords": [
     "dsh",
@@ -42,8 +43,7 @@
     "lib",
     "cordis.patch.yml",
     "README.md",
-    "README.zh.md",
-    "LICENSE"
+    "README.zh.md"
   ],
   "scripts": {
     "build": "tsdown && tsc -p tsconfig.json --emitDeclarationOnly",
@@ -69,8 +69,8 @@
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
-  "packageManager": "pnpm@11.21.0",
   "devDependencies": {
+    "@dsh-cool/tsdown-config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^19.2.4",

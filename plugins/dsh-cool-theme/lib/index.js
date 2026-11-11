@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
-//#region src/contract.ts
+// src/contract.ts
 /** A plain JSON object: not null, not an array, and not a primitive. */
 function isRecord(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -304,7 +304,7 @@ const THEME_ARCHIVE_EXTENSION = ".zip";
 const THEME_ARCHIVE_MAX_BYTES = 100663296;
 /** Cap on one uncompressed entry, so a zip bomb cannot expand without bound. */
 const THEME_ARCHIVE_MAX_ENTRY_BYTES = THEME_VIDEO_MAX_BYTES;
-const THEME_API_PATH_IMPORT = `${THEME_API_PATH_THEMES}/import`;
+`${THEME_API_PATH_THEMES}`;
 /**
 * Name the Host suggests for a downloaded archive. The archive keeps the
 * theme's name so a user can tell two exports apart, with the characters a
@@ -331,8 +331,7 @@ function freeThemeName(base, taken) {
 		if (!used.has(candidate)) return candidate;
 	}
 }
-//#endregion
-//#region src/presets-ids.ts
+// src/presets-ids.ts
 /**
 * The preset ids, in one place both halves can read.
 *
@@ -384,8 +383,7 @@ const PRESET_IDS = [
 function isKnownBase(value) {
 	return value === "native" || PRESET_IDS.includes(value);
 }
-//#endregion
-//#region src/host/paths.ts
+// src/host/paths.ts
 /**
 * Where a theme lives on disk.
 *
@@ -433,8 +431,7 @@ function assetsDir(id) {
 function cssPath(id) {
 	return join(themeDir(id), THEME_CSS_NAME);
 }
-//#endregion
-//#region src/host/assets.ts
+// src/host/assets.ts
 /**
 * Media stored beside a theme document.
 *
@@ -625,8 +622,7 @@ async function pruneAssets(id, keep) {
 		} catch {}
 	}
 }
-//#endregion
-//#region src/host/theme-files.ts
+// src/host/theme-files.ts
 /**
 * Theme files owned by the Host.
 *
@@ -846,8 +842,7 @@ async function deleteTheme(id) {
 		force: true
 	});
 }
-//#endregion
-//#region src/host/zip.ts
+// src/host/zip.ts
 /**
 * The little of ZIP that sharing a theme needs.
 *
@@ -1018,8 +1013,7 @@ function readZip(input, options = {}) {
 	}
 	return entries;
 }
-//#endregion
-//#region src/host/theme-share.ts
+// src/host/theme-share.ts
 /**
 * Theme sharing: packing one stored theme into an archive and reading one back.
 *
@@ -1164,8 +1158,7 @@ function unpackTheme(archive) {
 		css
 	};
 }
-//#endregion
-//#region src/host/open-native.ts
+// src/host/open-native.ts
 /**
 * Open one stylesheet in the user's native text editor.
 *
@@ -1262,8 +1255,7 @@ async function openNativeTextFile(file) {
 		});
 	});
 }
-//#endregion
-//#region src/host/index.ts
+// src/host/index.ts
 const name = "dsh-cool-theme";
 const inject = ["webServer"];
 /** Cap on one JSON request body; a theme document is small by construction. */
@@ -1744,16 +1736,16 @@ function apply(ctx) {
 		const dispose = route(async (req, res) => {
 			const pathname = new URL(req.url ?? "/", "http://dsh.invalid").pathname;
 			try {
-				if (pathname === THEME_API_PATH_THEMES) {
+				if (pathname === "/cool-theme/api/themes") {
 					if (!methodAllowed(req, res, ["GET", "POST"])) return;
 					if (req.method === "GET") return await handleList(res);
 					return await handlePut(req, res);
 				}
-				if (pathname === THEME_API_PATH_IMPORT) {
+				if (pathname === "/cool-theme/api/themes/import") {
 					if (!methodAllowed(req, res, ["POST"])) return;
 					return await handleImport(req, res);
 				}
-				const rest = pathname.startsWith(`${THEME_API_PATH_THEMES}/`) ? pathname.slice(THEME_API_PATH_THEMES.length + 1) : null;
+				const rest = pathname.startsWith(`/cool-theme/api/themes/`) ? pathname.slice(THEME_API_PATH_THEMES.length + 1) : null;
 				const parts = rest === null ? [] : rest.split("/");
 				const id = parts.length > 0 ? decodeSegment(parts[0]) : null;
 				if (id !== null && isThemeId(id)) {
@@ -1810,5 +1802,4 @@ function apply(ctx) {
 		};
 	}, "dsh-cool-theme: theme-file routes");
 }
-//#endregion
 export { apply, inject, name };

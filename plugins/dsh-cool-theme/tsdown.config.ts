@@ -1,38 +1,13 @@
-import { defineConfig } from 'tsdown'
+import { dshPlugin } from '@dsh-cool/tsdown-config'
 
 const PACKAGE_ID = 'dsh-cool-theme'
 
-export default defineConfig([
-  {
-    name: PACKAGE_ID,
-    entry: { index: 'src/host/index.ts' },
-    outDir: 'lib',
-    format: 'esm',
-    platform: 'node',
-    target: 'es2024',
-    fixedExtension: false,
-    dts: false,
-  },
-  {
-    name: `${PACKAGE_ID}/client`,
-    entry: { client: 'src/client/index.ts' },
-    outDir: 'lib',
-    format: 'cjs',
-    platform: 'browser',
-    target: 'es2022',
-    dts: false,
-    // Icons are read as their own source text (see src/client/icons.tsx), which
-    // keeps the published package JavaScript-only: `files` ships `lib`, and the
-    // artwork is already inside it by the time the bundle is written.
-    loader: { '.svg': 'text' },
-    deps: {
-      neverBundle: ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
-    },
-    outputOptions: {
-      entryFileNames: 'client.js',
-      banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(PACKAGE_ID)}, factory: (require) => {`,
-      footer: 'return module.exports; } });',
-      intro: 'var module = { exports: {} }; var exports = module.exports;',
-    },
-  },
-])
+/**
+ * Icons are read as their own source text through tsdown's `.svg` loader, which
+ * keeps the published package JavaScript-only: `files` ships `lib`, and the
+ * artwork is already inside it by the time the bundle is written.
+ */
+export default dshPlugin({
+  packageId: PACKAGE_ID,
+  clientLoader: { '.svg': 'text' },
+})

@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
 		var module = { exports: {} };
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		//#region \0rolldown/runtime.js
+		// \0rolldown/runtime.js
 		var __create = Object.create;
 		var __defProp = Object.defineProperty;
 		var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -25,11 +25,10 @@ window.__ModuleLoader__.load({
 			value: mod,
 			enumerable: true
 		}) : target, mod));
-		//#endregion
 		let react = require("react");
 		react = __toESM(react, 1);
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region src/contract.ts
+		// src/contract.ts
 		/**
 		* Shared contract for dsh-cool-theme.
 		*/
@@ -310,8 +309,7 @@ window.__ModuleLoader__.load({
 		/** Route segments below {@link THEME_API_PATH_THEMES}: `/<id>/export`, `/import`. */
 		const THEME_API_SEGMENT_EXPORT = "export";
 		const THEME_API_PATH_IMPORT = `${THEME_API_PATH_THEMES}/import`;
-		//#endregion
-		//#region src/presets-ids.ts
+		// src/presets-ids.ts
 		/**
 		* The preset ids, in one place both halves can read.
 		*
@@ -356,8 +354,7 @@ window.__ModuleLoader__.load({
 			"vesper",
 			"zenburn"
 		];
-		//#endregion
-		//#region src/client/presets/_helpers.ts
+		// src/client/presets/_helpers.ts
 		/**
 		* Helpers for preset color scale generation.
 		*
@@ -613,8 +610,7 @@ window.__ModuleLoader__.load({
 				"--dsw-static-deepseek-700-delete": mix$1("#000000", opts.deepseek, .7)
 			};
 		}
-		//#endregion
-		//#region src/client/presets/aura.ts
+		// src/client/presets/aura.ts
 		const bluish$33 = buildScale("--dsw-static-neutral-bluish", "#EDE9FE", "#15141B", BLUISH_STEPS);
 		const neutral$33 = buildScale("--dsw-static-neutral", "#EDE9FE", "#15141B", NEUTRAL_STEPS);
 		const lightSemantic$32 = buildSemanticScales({
@@ -662,8 +658,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#A277FF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/ayu.ts
+		// src/client/presets/ayu.ts
 		const bluish$32 = buildScale("--dsw-static-neutral-bluish", "#FAFAFA", "#0D1017", BLUISH_STEPS);
 		const neutral$32 = buildScale("--dsw-static-neutral", "#FAFAFA", "#0F1419", NEUTRAL_STEPS);
 		const lightSemantic$31 = buildSemanticScales({
@@ -711,8 +706,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#39BAE6"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/catppuccin.ts
+		// src/client/presets/catppuccin.ts
 		const bluish$31 = buildScale("--dsw-static-neutral-bluish", "#eff1f5", "#1e1e2e", BLUISH_STEPS);
 		const neutral$31 = buildScale("--dsw-static-neutral", "#eff1f5", "#1e1e2e", NEUTRAL_STEPS);
 		const lightSemantic$30 = buildSemanticScales({
@@ -760,8 +754,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#89DCEB"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/catppuccin-frappe.ts
+		// src/client/presets/catppuccin-frappe.ts
 		const bluish$30 = buildScale("--dsw-static-neutral-bluish", "#EFF1F5", "#303446", BLUISH_STEPS);
 		const neutral$30 = buildScale("--dsw-static-neutral", "#EFF1F5", "#303446", NEUTRAL_STEPS);
 		const lightSemantic$29 = buildSemanticScales({
@@ -809,8 +802,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#99D1DB"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/catppuccin-macchiato.ts
+		// src/client/presets/catppuccin-macchiato.ts
 		const bluish$29 = buildScale("--dsw-static-neutral-bluish", "#EFF1F5", "#24273A", BLUISH_STEPS);
 		const neutral$29 = buildScale("--dsw-static-neutral", "#EFF1F5", "#24273A", NEUTRAL_STEPS);
 		const lightSemantic$28 = buildSemanticScales({
@@ -858,8 +850,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#91D7E3"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/cobalt2.ts
+		// src/client/presets/cobalt2.ts
 		const bluish$28 = buildScale("--dsw-static-neutral-bluish", "#EAF2FF", "#193549", BLUISH_STEPS);
 		const neutral$28 = buildScale("--dsw-static-neutral", "#EAF2FF", "#193549", NEUTRAL_STEPS);
 		const lightSemantic$27 = buildSemanticScales({
@@ -907,8 +898,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#0088FF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/cursor.ts
+		// src/client/presets/cursor.ts
 		const bluish$27 = buildScale("--dsw-static-neutral-bluish", "#F2F2F3", "#0E0E10", BLUISH_STEPS);
 		const neutral$27 = buildScale("--dsw-static-neutral", "#FAFAFA", "#0E0E10", NEUTRAL_STEPS);
 		const lightSemantic$26 = buildSemanticScales({
@@ -956,8 +946,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#5E6AD2"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/dracula.ts
+		// src/client/presets/dracula.ts
 		const bluish$26 = buildScale("--dsw-static-neutral-bluish", "#FAFAFA", "#282a36", BLUISH_STEPS);
 		const neutral$26 = buildScale("--dsw-static-neutral", "#FAFAFA", "#282a36", NEUTRAL_STEPS);
 		const lightSemantic$25 = buildSemanticScales({
@@ -1005,8 +994,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#BD93F9"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/dsh.ts
+		// src/client/presets/dsh.ts
 		const bluish$25 = buildScale("--dsw-static-neutral-bluish", "#FFFFFF", "#0F1115", BLUISH_STEPS);
 		const neutral$25 = buildScale("--dsw-static-neutral", "#FFFFFF", "#000000", NEUTRAL_STEPS);
 		const semantic = buildSemanticScales({
@@ -1029,8 +1017,7 @@ window.__ModuleLoader__.load({
 				...semantic
 			}
 		};
-		//#endregion
-		//#region src/client/presets/everforest.ts
+		// src/client/presets/everforest.ts
 		const bluish$24 = buildScale("--dsw-static-neutral-bluish", "#FDF6E3", "#2D353B", BLUISH_STEPS);
 		const neutral$24 = buildScale("--dsw-static-neutral", "#FDF6E3", "#2D353B", NEUTRAL_STEPS);
 		const lightSemantic$24 = buildSemanticScales({
@@ -1078,8 +1065,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#83C092"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/flexoki.ts
+		// src/client/presets/flexoki.ts
 		const bluish$23 = buildScale("--dsw-static-neutral-bluish", "#FFFCF0", "#100F0F", BLUISH_STEPS);
 		const neutral$23 = buildScale("--dsw-static-neutral", "#FFFCF0", "#100F0F", NEUTRAL_STEPS);
 		const lightSemantic$23 = buildSemanticScales({
@@ -1127,8 +1113,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#4385BE"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/github.ts
+		// src/client/presets/github.ts
 		const bluish$22 = buildScale("--dsw-static-neutral-bluish", "#ffffff", "#0d1117", BLUISH_STEPS);
 		const neutral$22 = buildScale("--dsw-static-neutral", "#ffffff", "#0d1117", NEUTRAL_STEPS);
 		const lightSemantic$22 = buildSemanticScales({
@@ -1176,8 +1161,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#58A6FF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/gruvbox.ts
+		// src/client/presets/gruvbox.ts
 		const bluish$21 = buildScale("--dsw-static-neutral-bluish", "#fbf1c7", "#282828", BLUISH_STEPS);
 		const neutral$21 = buildScale("--dsw-static-neutral", "#fbf1c7", "#282828", NEUTRAL_STEPS);
 		const lightSemantic$21 = buildSemanticScales({
@@ -1225,8 +1209,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#83A598"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/kanagawa.ts
+		// src/client/presets/kanagawa.ts
 		const bluish$20 = buildScale("--dsw-static-neutral-bluish", "#F2ECBC", "#1F1F28", BLUISH_STEPS);
 		const neutral$20 = buildScale("--dsw-static-neutral", "#F2ECBC", "#1F1F28", NEUTRAL_STEPS);
 		const lightSemantic$20 = buildSemanticScales({
@@ -1274,8 +1257,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#7FB4CA"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/lucent-orng.ts
+		// src/client/presets/lucent-orng.ts
 		const bluish$19 = buildScale("--dsw-static-neutral-bluish", "#FFF7ED", "#1C130E", BLUISH_STEPS);
 		const neutral$19 = buildScale("--dsw-static-neutral", "#FFF7ED", "#1C130E", NEUTRAL_STEPS);
 		const lightSemantic$19 = buildSemanticScales({
@@ -1323,8 +1305,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#FF8904"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/material.ts
+		// src/client/presets/material.ts
 		const bluish$18 = buildScale("--dsw-static-neutral-bluish", "#FAFAFA", "#0F111A", BLUISH_STEPS);
 		const neutral$18 = buildScale("--dsw-static-neutral", "#FAFAFA", "#0F111A", NEUTRAL_STEPS);
 		const lightSemantic$18 = buildSemanticScales({
@@ -1372,8 +1353,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#82AAFF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/matrix.ts
+		// src/client/presets/matrix.ts
 		const bluish$17 = buildScale("--dsw-static-neutral-bluish", "#E8F5E9", "#0D1A0D", BLUISH_STEPS);
 		const neutral$17 = buildScale("--dsw-static-neutral", "#E8F5E9", "#001100", NEUTRAL_STEPS);
 		const lightSemantic$17 = buildSemanticScales({
@@ -1421,8 +1401,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#00FF41"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/mercury.ts
+		// src/client/presets/mercury.ts
 		const bluish$16 = buildScale("--dsw-static-neutral-bluish", "#F8FAFC", "#0F172A", BLUISH_STEPS);
 		const neutral$16 = buildScale("--dsw-static-neutral", "#F8FAFC", "#0F172A", NEUTRAL_STEPS);
 		const lightSemantic$16 = buildSemanticScales({
@@ -1470,8 +1449,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#38BDF8"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/monokai.ts
+		// src/client/presets/monokai.ts
 		const bluish$15 = buildScale("--dsw-static-neutral-bluish", "#fcfcfa", "#2d2a2e", BLUISH_STEPS);
 		const neutral$15 = buildScale("--dsw-static-neutral", "#fcfcfa", "#2d2a2e", NEUTRAL_STEPS);
 		const lightSemantic$15 = buildSemanticScales({
@@ -1519,8 +1497,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#AB9DF2"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/nightowl.ts
+		// src/client/presets/nightowl.ts
 		const bluish$14 = buildScale("--dsw-static-neutral-bluish", "#F7F9FF", "#011627", BLUISH_STEPS);
 		const neutral$14 = buildScale("--dsw-static-neutral", "#F7F9FF", "#011627", NEUTRAL_STEPS);
 		const lightSemantic$14 = buildSemanticScales({
@@ -1568,8 +1545,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#7FDBCA"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/nord.ts
+		// src/client/presets/nord.ts
 		const bluish$13 = buildScale("--dsw-static-neutral-bluish", "#D8DEE9", "#2E3440", BLUISH_STEPS);
 		const neutral$13 = buildScale("--dsw-static-neutral", "#D8DEE9", "#2E3440", NEUTRAL_STEPS);
 		const lightSemantic$13 = buildSemanticScales({
@@ -1617,8 +1593,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#88C0D0"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/onedark.ts
+		// src/client/presets/onedark.ts
 		const bluish$12 = buildScale("--dsw-static-neutral-bluish", "#FAFAFA", "#383A42", BLUISH_STEPS);
 		const neutral$12 = buildScale("--dsw-static-neutral", "#FAFAFA", "#383A42", NEUTRAL_STEPS);
 		const lightSemantic$12 = buildSemanticScales({
@@ -1666,8 +1641,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#61AFEF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/opencode.ts
+		// src/client/presets/opencode.ts
 		const bluish$11 = buildScale("--dsw-static-neutral-bluish", "#F5F5F5", "#0A0A0A", BLUISH_STEPS);
 		const neutral$11 = buildScale("--dsw-static-neutral", "#F5F5F5", "#0A0A0A", NEUTRAL_STEPS);
 		const lightSemantic$11 = buildSemanticScales({
@@ -1715,8 +1689,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#5E6AD2"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/orng.ts
+		// src/client/presets/orng.ts
 		const bluish$10 = buildScale("--dsw-static-neutral-bluish", "#FFF4E6", "#1A0F00", BLUISH_STEPS);
 		const neutral$10 = buildScale("--dsw-static-neutral", "#FFF4E6", "#1A0F00", NEUTRAL_STEPS);
 		const lightSemantic$10 = buildSemanticScales({
@@ -1764,8 +1737,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#FF6B00"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/osaka-jade.ts
+		// src/client/presets/osaka-jade.ts
 		const bluish$9 = buildScale("--dsw-static-neutral-bluish", "#F0FAF5", "#0F2A1F", BLUISH_STEPS);
 		const neutral$9 = buildScale("--dsw-static-neutral", "#F0FAF5", "#0F2A1F", NEUTRAL_STEPS);
 		const lightSemantic$9 = buildSemanticScales({
@@ -1813,8 +1785,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#7FB4CA"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/palenight.ts
+		// src/client/presets/palenight.ts
 		const bluish$8 = buildScale("--dsw-static-neutral-bluish", "#FAFAFA", "#292D3E", BLUISH_STEPS);
 		const neutral$8 = buildScale("--dsw-static-neutral", "#FAFAFA", "#292D3E", NEUTRAL_STEPS);
 		const lightSemantic$8 = buildSemanticScales({
@@ -1862,8 +1833,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#82AAFF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/rosepine.ts
+		// src/client/presets/rosepine.ts
 		const bluish$7 = buildScale("--dsw-static-neutral-bluish", "#faf4ed", "#191724", BLUISH_STEPS);
 		const neutral$7 = buildScale("--dsw-static-neutral", "#faf4ed", "#191724", NEUTRAL_STEPS);
 		const lightSemantic$7 = buildSemanticScales({
@@ -1911,8 +1881,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#C4A7E7"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/solarized.ts
+		// src/client/presets/solarized.ts
 		const bluish$6 = buildScale("--dsw-static-neutral-bluish", "#fdf6e3", "#002b36", BLUISH_STEPS);
 		const neutral$6 = buildScale("--dsw-static-neutral", "#fdf6e3", "#002b36", NEUTRAL_STEPS);
 		const lightSemantic$6 = buildSemanticScales({
@@ -1960,8 +1929,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#63ABDF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/synthwave84.ts
+		// src/client/presets/synthwave84.ts
 		const bluish$5 = buildScale("--dsw-static-neutral-bluish", "#F5F0FF", "#262335", BLUISH_STEPS);
 		const neutral$5 = buildScale("--dsw-static-neutral", "#F5F0FF", "#262335", NEUTRAL_STEPS);
 		const lightSemantic$5 = buildSemanticScales({
@@ -2009,8 +1977,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#36F9F6"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/system.ts
+		// src/client/presets/system.ts
 		const bluish$4 = buildScale("--dsw-static-neutral-bluish", "#F5F5F7", "#1C1C1E", BLUISH_STEPS);
 		const neutral$4 = buildScale("--dsw-static-neutral", "#F5F5F7", "#1C1C1E", NEUTRAL_STEPS);
 		const lightSemantic$4 = buildSemanticScales({
@@ -2058,8 +2025,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#0A84FF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/tokyonight.ts
+		// src/client/presets/tokyonight.ts
 		const bluish$3 = buildScale("--dsw-static-neutral-bluish", "#e6e7ed", "#1a1b26", BLUISH_STEPS);
 		const neutral$3 = buildScale("--dsw-static-neutral", "#e6e7ed", "#1a1b26", NEUTRAL_STEPS);
 		const lightSemantic$3 = buildSemanticScales({
@@ -2107,8 +2073,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#7AA2F7"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/vercel.ts
+		// src/client/presets/vercel.ts
 		const bluish$2 = buildScale("--dsw-static-neutral-bluish", "#FFFFFF", "#000000", BLUISH_STEPS);
 		const neutral$2 = buildScale("--dsw-static-neutral", "#FFFFFF", "#000000", NEUTRAL_STEPS);
 		const lightSemantic$2 = buildSemanticScales({
@@ -2156,8 +2121,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#3291FF"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/vesper.ts
+		// src/client/presets/vesper.ts
 		const bluish$1 = buildScale("--dsw-static-neutral-bluish", "#FDFCFB", "#0A0A0B", BLUISH_STEPS);
 		const neutral$1 = buildScale("--dsw-static-neutral", "#FDFCFB", "#0A0A0B", NEUTRAL_STEPS);
 		const lightSemantic$1 = buildSemanticScales({
@@ -2205,8 +2169,7 @@ window.__ModuleLoader__.load({
 				"--shiki-token-link": "#E8E8E8"
 			}
 		};
-		//#endregion
-		//#region src/client/presets/zenburn.ts
+		// src/client/presets/zenburn.ts
 		const bluish = buildScale("--dsw-static-neutral-bluish", "#FFFFEF", "#3f3f3f", BLUISH_STEPS);
 		const neutral = buildScale("--dsw-static-neutral", "#FFFFEF", "#3f3f3f", NEUTRAL_STEPS);
 		const lightSemantic = buildSemanticScales({
@@ -2223,8 +2186,7 @@ window.__ModuleLoader__.load({
 			amber: "#D0BF8F",
 			red: "#CC9393"
 		});
-		//#endregion
-		//#region src/client/presets.ts
+		// src/client/presets.ts
 		/**
 		* Every shipped preset, one entry per {@link PRESET_IDS} name. The mapped type
 		* makes the two lists agree at compile time: a preset without a colour map, or a
@@ -2317,8 +2279,7 @@ window.__ModuleLoader__.load({
 			value: id,
 			label: PRESETS[id].label
 		}))];
-		//#endregion
-		//#region src/client/css/primitives.ts
+		// src/client/css/primitives.ts
 		const PRIMITIVES_LIGHT = {
 			"--dsw-static-amber-100": "rgb(254, 245, 231)",
 			"--dsw-static-amber-400": "rgb(247, 173, 49)",
@@ -2445,8 +2406,7 @@ window.__ModuleLoader__.load({
 			};
 			return out;
 		}
-		//#endregion
-		//#region src/client/css/accents.ts
+		// src/client/css/accents.ts
 		/**
 		* Accent candidates, most specific first. Light takes `deepseek-500` and dark
 		* takes `deepseek-400` — the exact steps DSH picks for `state-business-primary`
@@ -2665,8 +2625,7 @@ window.__ModuleLoader__.load({
 			const block = (selector, mode) => `${selector} {\n${names.map((name) => `  ${name}: ${overrides[name][mode]};`).join("\n")}\n}`;
 			return `${block(":root, body", "light")}\n\n${block("html[data-ds-dark-theme] body, body[data-ds-dark-theme]", "dark")}`;
 		}
-		//#endregion
-		//#region src/client/css/bubble.ts
+		// src/client/css/bubble.ts
 		/** The shell's own token for the bubble surface. */
 		const BUBBLE_TOKEN = "--dsw-specific-bubble";
 		/** What this plugin points it at. */
@@ -2698,8 +2657,7 @@ window.__ModuleLoader__.load({
 		function buildBubbleCss() {
 			return `html body, html body[data-ds-dark-theme] {\n  ${BUBBLE_TOKEN}: ${BUBBLE_BACKGROUND};\n}`;
 		}
-		//#endregion
-		//#region src/client/css/shiki.ts
+		// src/client/css/shiki.ts
 		/**
 		* Shiki token palette: values behind --shiki-* custom properties emitted by
 		* ui-primitives CodeBlock. Light values on :root, dark overrides on
@@ -2736,8 +2694,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
   --shiki-token-link: #74c0fc;
 }
 `;
-		//#endregion
-		//#region src/client/tokens.ts
+		// src/client/tokens.ts
 		function buildBaseCss() {
 			return `${buildPrimitivesCss()}\n\n${SHIKI_CSS}`;
 		}
@@ -2786,8 +2743,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			if (!resolved) return "";
 			return `${buildPrimitivesCss(resolved.light, resolved.dark)}\n\n${buildAccentCss(resolved.light, resolved.dark)}\n\n${buildBubbleCss()}`;
 		}
-		//#endregion
-		//#region src/client/css/panel.ts
+		// src/client/css/panel.ts
 		/**
 		* The settings panel's own stylesheet.
 		*
@@ -2883,8 +2839,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			".ct-range:focus-visible{outline:none;}",
 			".ct-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--dsw-alias-border-l3);}"
 		].join("\n");
-		//#endregion
-		//#region src/client/style-injector.ts
+		// src/client/style-injector.ts
 		/** Hand one sheet to DSH's style service when it is present; null otherwise. */
 		function insertViaPlatform(css) {
 			try {
@@ -2924,8 +2879,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				disposeAll
 			};
 		}
-		//#endregion
-		//#region src/client/custom.ts
+		// src/client/custom.ts
 		/** The nine `--shiki-token-*` slots, in stylesheet order. */
 		const SHIKI_KEYS = [
 			"constant",
@@ -3359,8 +3313,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				if (!used.has(candidate)) return candidate;
 			}
 		}
-		//#endregion
-		//#region src/client/theme-files.ts
+		// src/client/theme-files.ts
 		/**
 		* Browser half of the theme-file transport.
 		*
@@ -3592,8 +3545,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			const known = new Set(hostThemes.map((entry) => entry.id));
 			return legacy.filter((entry) => !known.has(entry.id));
 		}
-		//#endregion
-		//#region src/client/background.ts
+		// src/client/background.ts
 		/**
 		* The wallpaper layer behind the app: one image or video per appearance.
 		*
@@ -4106,8 +4058,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				bitmap.close();
 			}
 		}
-		//#endregion
-		//#region src/client/color-picker.ts
+		// src/client/color-picker.ts
 		/**
 		* The alpha checkerboard behind a translucent swatch. Both squares are the same
 		* grey at different alphas, so the pattern reads on a light and a dark panel
@@ -4139,8 +4090,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				alpha: hex.length >= 8 ? byteToOpacity(hex.slice(6, 8)) : 100
 			};
 		}
-		//#endregion
-		//#region node_modules/.pnpm/react-colorful@5.8.1_react-dom@19.3.0_react@18.3.1__react@18.3.1/node_modules/react-colorful/dist/index.mjs
+		// ../../node_modules/.pnpm/react-colorful@5.8.1_react-dom@19.3.1_react@18.3.1__react@18.3.1/node_modules/react-colorful/dist/index.mjs
 		function l() {
 			return (l = Object.assign || function(e) {
 				for (var r = 1; r < arguments.length; r++) {
@@ -4263,7 +4213,6 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 		var b = function(e, r, n) {
 			return void 0 === r && (r = 0), void 0 === n && (n = Math.pow(10, r)), Math.round(n * e) / n;
 		};
-		360 / (2 * Math.PI);
 		var E = function(e) {
 			return L(C(e));
 		};
@@ -4630,8 +4579,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				validate: i
 			}));
 		};
-		//#endregion
-		//#region src/client/custom-editor.tsx
+		// src/client/custom-editor.tsx
 		/**
 		* Presentational pieces of the custom-theme editor.
 		*
@@ -4859,26 +4807,19 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				onChange: onToggle
 			}) : null)));
 		}
-		//#endregion
-		//#region src/client/assets/delete.svg
+		// src/client/assets/delete.svg
 		var delete_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />\n</svg>\n";
-		//#endregion
-		//#region src/client/assets/edit.svg
+		// src/client/assets/edit.svg
 		var edit_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7\" />\n		<path d=\"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z\" />\n	</g>\n</svg>\n";
-		//#endregion
-		//#region src/client/assets/export.svg
+		// src/client/assets/export.svg
 		var export_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n</svg>\n";
-		//#endregion
-		//#region src/client/assets/import.svg
+		// src/client/assets/import.svg
 		var import_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 15V3m9 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n		<path d=\"m7 10l5 5l5-5\" />\n	</g>\n</svg>\n";
-		//#endregion
-		//#region src/client/assets/plus.svg
+		// src/client/assets/plus.svg
 		var plus_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 12h14m-7-7v14\" />\n</svg>\n";
-		//#endregion
-		//#region src/client/assets/theme.svg
+		// src/client/assets/theme.svg
 		var theme_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 22a1 1 0 0 1 0-20a10 9 0 0 1 10 9a5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z\" />\n		<circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\" />\n	</g>\n</svg>\n";
-		//#endregion
-		//#region src/client/icons.tsx
+		// src/client/icons.tsx
 		/**
 		* The plugin's own icon set.
 		*
@@ -4949,8 +4890,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 		* resolve against whatever font the nav happens to carry.
 		*/
 		const THEME_NAV_MARKUP = `<svg xmlns="http://www.w3.org/2000/svg" width="${THEME_NAV_ICON_SIZE}" height="${THEME_NAV_ICON_SIZE}" viewBox="${THEME_ASSET.viewBox}" aria-hidden="true">${THEME_ASSET.inner}</svg>`;
-		//#endregion
-		//#region src/client/components.tsx
+		// src/client/components.tsx
 		/**
 		* Theme settings UI: scheme selector, preset picker, and the custom colour editor.
 		*/
@@ -6337,8 +6277,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				paddingBottom: 8
 			} }, ...children);
 		}
-		//#endregion
-		//#region src/client/locales/zh.ts
+		// src/client/locales/zh.ts
 		/**
 		* Simplified Chinese dictionary — the key-set source of truth.
 		*
@@ -6454,8 +6393,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "标点",
 			"shiki.link": "链接"
 		};
-		//#endregion
-		//#region src/client/locales/en.ts
+		// src/client/locales/en.ts
 		const en = {
 			nav: "Theme",
 			"appearance.title": "Appearance",
@@ -6563,8 +6501,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Punctuation",
 			"shiki.link": "Link"
 		};
-		//#endregion
-		//#region src/client/locales/ja.ts
+		// src/client/locales/ja.ts
 		const ja = {
 			nav: "テーマ",
 			"appearance.title": "外観",
@@ -6672,8 +6609,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "句読点",
 			"shiki.link": "リンク"
 		};
-		//#endregion
-		//#region src/client/locales/es.ts
+		// src/client/locales/es.ts
 		const es = {
 			nav: "Tema",
 			"appearance.title": "Apariencia",
@@ -6781,8 +6717,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Puntuación",
 			"shiki.link": "Enlace"
 		};
-		//#endregion
-		//#region src/client/locales/fr.ts
+		// src/client/locales/fr.ts
 		const fr = {
 			nav: "Thème",
 			"appearance.title": "Apparence",
@@ -6890,8 +6825,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Ponctuation",
 			"shiki.link": "Lien"
 		};
-		//#endregion
-		//#region src/client/locales/de.ts
+		// src/client/locales/de.ts
 		const de = {
 			nav: "Design",
 			"appearance.title": "Aussehen",
@@ -6999,8 +6933,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Interpunktion",
 			"shiki.link": "Link"
 		};
-		//#endregion
-		//#region src/client/locales/ru.ts
+		// src/client/locales/ru.ts
 		const ru = {
 			nav: "Тема",
 			"appearance.title": "Внешний вид",
@@ -7108,8 +7041,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Пунктуация",
 			"shiki.link": "Ссылка"
 		};
-		//#endregion
-		//#region src/client/locales/pt.ts
+		// src/client/locales/pt.ts
 		const pt = {
 			nav: "Tema",
 			"appearance.title": "Aparência",
@@ -7217,8 +7149,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			"shiki.punctuation": "Pontuação",
 			"shiki.link": "Link"
 		};
-		//#endregion
-		//#region src/client/theme.tsx
+		// src/client/theme.tsx
 		function isValidSelection(v) {
 			return !!v && (v === CUSTOM_SELECTION || NOOP_PRESET_IDS.has(v) || isBuiltinPresetId(v));
 		}
@@ -7947,8 +7878,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				};
 			});
 		}
-		//#endregion
-		//#region src/client/index.ts
+		// src/client/index.ts
 		/**
 		* Client entry for dsh-cool-theme.
 		*/
@@ -7961,7 +7891,6 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 		function apply(ctx) {
 			registerTheme(ctx);
 		}
-		//#endregion
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;
