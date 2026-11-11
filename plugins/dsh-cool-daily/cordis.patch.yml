@@ -1,0 +1,7 @@
+# dsh-cool-daily bundle patch: mount the host half.
+#
+# The browser half is declared by this package's `dsh.client` manifest. It is an
+# empty shell until the plugin grows a UI.
+- insert:
+    - id: dsh-cool-daily
+      name: dsh-cool-daily
