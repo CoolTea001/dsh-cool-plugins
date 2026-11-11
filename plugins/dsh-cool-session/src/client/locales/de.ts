@@ -1,0 +1,95 @@
+/**
+ * German dictionary, checked complete against the `MessageKey` union.
+ *
+ * Terminology follows the shell's own dictionaries: „Sitzung“ for a session,
+ * „Arbeitsbereich“, „archivieren / dearchivieren“, „Subagent“.
+ */
+
+import type { MessageKey } from '../locales.js'
+
+export const de = {
+  'action.delete': 'Sitzung löschen',
+  'action.cancel': 'Abbrechen',
+  'action.close': 'Schließen',
+
+  'settings.nav': 'Sitzungen',
+  'settings.title': 'Sitzungen',
+  'settings.description': 'Sitzungen suchen, filtern, archivieren oder löschen.',
+
+  'sessions.search': 'Sitzungstitel suchen',
+  'sessions.searchPlaceholder': 'Suchen...',
+  'sessions.allWorkspaces': 'Alle Arbeitsbereiche',
+  'sessions.noWorkspace': 'Kein Arbeitsbereich',
+  'sessions.allSessions': 'Alle Sitzungen',
+  'sessions.unarchived': 'Nicht archiviert',
+  'sessions.archived': 'Archiviert',
+  'sessions.running': 'Läuft',
+  'sessions.selectAll': 'Alle auswählen',
+  'sessions.selectOne': '{title} auswählen',
+  'sessions.archiveSelected': 'Ausgewählte archivieren',
+  'sessions.deleteSelected': 'Ausgewählte löschen',
+  'sessions.selectedCount': '{count} ausgewählt',
+  'sessions.columnTitle': 'Sitzung',
+  'sessions.columnStatus': 'Status',
+  'sessions.columnActions': 'Aktionen',
+  'sessions.archive': 'Archivieren',
+  'sessions.unarchive': 'Dearchivieren',
+  'sessions.delete': 'Löschen',
+
+  'sessions.loading': 'Sitzungen werden geladen…',
+  'sessions.empty': 'Noch keine Sitzungen',
+  'sessions.noMatches': 'Keine passenden Sitzungen',
+  'sessions.loadFailed': 'Die Sitzungsliste konnte nicht geladen werden',
+  'sessions.retry': 'Erneut versuchen',
+  'sessions.unavailable': 'Die Sitzungsdienste sind noch nicht bereit, daher ist das Archivieren nicht möglich',
+  'sessions.actionFailed': 'Die Aktion ist fehlgeschlagen',
+  'sessions.bulkPartial.one': '1 Sitzung gelöscht; {failed} konnte nicht gelöscht werden.',
+  'sessions.bulkPartial.other': '{deleted} Sitzungen gelöscht; {failed} konnten nicht gelöscht werden.',
+  'sessions.bulkStopped.one': '1 Sitzung gelöscht; der Rest konnte nicht verarbeitet werden.',
+  'sessions.bulkStopped.other': '{deleted} Sitzungen gelöscht; der Rest konnte nicht verarbeitet werden.',
+  'sessions.bulkArchivePartial.one': '1 Sitzung archiviert; {skipped} übersprungen, weil noch Arbeit lief.',
+  'sessions.bulkArchivePartial.other': '{archived} Sitzungen archiviert; {skipped} übersprungen, weil noch Arbeit lief.',
+  'sessions.bulkArchiveFailed.one': '1 Sitzung archiviert; {failed} konnte nicht archiviert werden.',
+  'sessions.bulkArchiveFailed.other': '{archived} Sitzungen archiviert; {failed} konnten nicht archiviert werden.',
+
+  'sessions.deleteSelectedTitle': 'Ausgewählte Sitzungen löschen',
+  'sessions.deleteBatchDescription': 'Dadurch werden die {count} ausgewählten Sitzungen und alle ihre Subagenten-Sitzungen samt Protokollen von der Festplatte entfernt. Laufende Sitzungen werden beendet. Dies kann nicht rückgängig gemacht werden!',
+
+  'sessions.archiveStopTitle': 'Diese Sitzung stoppen und archivieren?',
+  'sessions.archiveStopDescription': '„{title}“ hat noch laufende Arbeit. Das Archivieren stoppt sie zuerst; die gestoppte Arbeit wird nicht von selbst fortgesetzt.',
+  'sessions.archiveActivity': 'Arbeit, die gestoppt wird',
+  'sessions.activityTurn': 'Die laufende Runde',
+  'sessions.activitySubagents.one': '1 laufender Subagent',
+  'sessions.activitySubagents.other': '{count} laufende Subagenten',
+  'sessions.activityJobs.one': '1 Hintergrundjob',
+  'sessions.activityJobs.other': '{count} Hintergrundjobs',
+  'sessions.activitySchedules.one': '1 geplante Erinnerung',
+  'sessions.activitySchedules.other': '{count} geplante Erinnerungen',
+  'sessions.activityOther.one': '1 weiterer Arbeitsschritt ({kind})',
+  'sessions.activityOther.other': '{count} weitere Arbeitsschritte ({kind})',
+  'sessions.archiveStopAction': 'Stoppen und archivieren',
+  'sessions.archiveStopPending': 'Wird gestoppt und archiviert…',
+
+  'delete.title': 'Sitzung löschen',
+  'delete.description': 'Dadurch werden diese Sitzung und alle ihre Subagenten-Sitzungen samt Protokollen von der Festplatte entfernt. Laufende Sitzungen werden beendet. Dies kann nicht rückgängig gemacht werden!',
+  'delete.pending': 'Wird gestoppt und gelöscht…',
+  'delete.confirm': 'Löschen',
+
+  'error.host-stale': 'Die Host-Hälfte läuft noch mit einem älteren Build; starte DSH neu und versuche es erneut.',
+
+  'error.missing-session': 'Es wurde keine Sitzung benannt',
+  'error.unknown-session': 'Diese Sitzung existiert nicht mehr',
+  'error.subagent-delete': 'Eine Subagenten-Sitzung kann nicht allein gelöscht werden; lösche ihre übergeordnete Unterhaltung',
+  'error.delete-failed': 'Die Sitzung konnte nicht gelöscht werden',
+  'error.delete-unsupported': 'Dieses Harness legt die für das Löschen nötige Sitzungsablage auf der Festplatte nicht offen',
+  'error.delete-active': 'Die Sitzung läuft noch ({activity}) und konnte nicht gestoppt werden, daher wurde sie nicht gelöscht',
+  'error.session-live': 'Die Sitzung ist noch aktiv und konnte nicht freigegeben werden',
+  'error.delete-partial': 'Einige Sitzungen konnten nicht gelöscht werden: {deleted} entfernt, {remaining} weiterhin vorhanden. Versuche es bei den restlichen erneut',
+  'error.session-running': 'Die Sitzung läuft noch und konnte nicht archiviert werden',
+  'error.activityFallback': 'laufende Arbeit',
+  'activity.turn': 'die laufende Runde',
+  'activity.subagent': 'laufende Subagenten',
+  'activity.job': 'Hintergrundjobs',
+  'activity.schedule': 'geplante Erinnerungen',
+  'activity.separator': ', ',
+} satisfies Record<MessageKey, string>

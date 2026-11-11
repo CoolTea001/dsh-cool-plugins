@@ -1,6 +1,6 @@
 {
   "name": "dsh-cool-session",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness session management plugin — a Sessions page in Settings for search, filters, archive, and batch delete, plus a delete row in the session menu.",
   "type": "module",
   "license": "MIT",

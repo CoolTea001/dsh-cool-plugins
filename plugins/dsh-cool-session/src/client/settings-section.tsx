@@ -22,7 +22,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deleteSessions } from './api.js'
 import { ARROW_DOWN_MARKUP } from './icons.js'
-import { reasonOf } from './reason.js'
+import { failureText, reasonOf } from './reason.js'
 import type { ArchiveActivity, ArchiveResult } from './archive.js'
 import { countKey, type MessageKey, type Translate } from './locales.js'
 import type { Failure } from '../shared/contract.js'
@@ -170,7 +170,7 @@ function problemText(t: Translate, problem: Problem): string {
   const parts: string[] = []
   if (problem.prefix !== undefined) parts.push(t(problem.prefix.key, problem.prefix.params))
   if (problem.failure !== undefined) {
-    parts.push(t(`error.${problem.failure.code}` as MessageKey, problem.failure.params))
+    parts.push(failureText(t, problem.failure))
   } else if (typeof problem.error === 'string' && problem.error !== '') {
     parts.push(problem.error === 'HTTP 405' ? t('error.host-stale') : problem.error)
   } else if (problem.prefix === undefined) {
@@ -600,7 +600,7 @@ export function SessionsSection({
       return
     }
     if (result.failure !== undefined) {
-      setArchiveError(t(`error.${result.failure.code}` as MessageKey, result.failure.params))
+      setArchiveError(failureText(t, result.failure))
       return
     }
     setArchiveError(typeof result.message === 'string' && result.message !== ''

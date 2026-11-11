@@ -17,7 +17,7 @@
  */
 
 import { ARCHIVE_NAV_MARKUP } from './icons.js'
-import { en, zh, type Translate } from './locales.js'
+import { navLabels, type Translate } from './locales.js'
 
 /** Marks the span this module inserts, so re-patching stays idempotent. */
 const ICON_ATTRIBUTE = 'data-dsh-cs-nav-icon'
@@ -25,13 +25,17 @@ const ICON_ATTRIBUTE = 'data-dsh-cs-nav-icon'
 /** Marks the gear this module hid, so disposal can restore it. */
 const HIDDEN_ATTRIBUTE = 'data-dsh-cs-nav-hidden'
 
-/** The nav label in every locale, plus the one this render is reading. */
+/** The nav label in every translated language, plus the one this render is reading. */
 function settingsLabels(t: Translate): readonly string[] {
-  let current = ''
+  const labels = new Set(navLabels())
   // A locale switch can land between registration and this read; the shipped
-  // dictionaries still identify the cell in both languages, so a miss is safe.
-  try { current = t('settings.nav') } catch { /* dictionary not readable yet */ }
-  return [zh['settings.nav'], en['settings.nav'], current]
+  // dictionaries still identify the cell in every translated language, so a
+  // miss is safe.
+  try {
+    const current = t('settings.nav')
+    if (current !== '') labels.add(current)
+  } catch { /* dictionary not readable yet */ }
+  return [...labels]
 }
 
 /**

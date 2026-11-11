@@ -35,6 +35,9 @@ export type FailureCode =
   | 'delete-active'
   | 'session-live'
   | 'delete-partial'
+  // Archiving: the Host refused while work was still running but named no
+  // family this page could word.
+  | 'session-running'
 
 /** One coded refusal, with the values its sentence interpolates. */
 export interface Failure {

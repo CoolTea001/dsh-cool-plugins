@@ -97,6 +97,25 @@ that actually ships.
 This runs as part of `pnpm run check`, and again in CI. It is the only check that
 catches the failure mode which otherwise appears only when a user opens a panel.
 
+## The locale guard
+
+`scripts/check-locales.mjs` checks every plugin that ships split dictionaries
+(`src/client/locales/{zh,en,ja,es,fr,de,ru,pt}.ts`) for the two kinds of drift
+the compiler cannot see.
+
+The first is a placeholder. `{count}` in English and `{quantidade}` in
+Portuguese both type-check, but the locale service substitutes only the names it
+is given, so the second one reaches the screen as literal text. The guard
+requires every dictionary to declare exactly the Chinese entry's placeholder set.
+
+The second is a plural half. The caller picks between `.one` and `.other` at
+runtime, so a `.one` without its `.other` compiles and then shows a raw key name.
+A lone `.other` is allowed: dsh-cool-theme uses one as a category name.
+
+It also rejects a file whose name is not one of the eight ids, because such a
+dictionary registers under no locale the shell ever selects. Like the bundle
+guard, it runs in `pnpm run check` and in CI.
+
 ## Publishing
 
 `pnpm -r publish` publishes only the packages whose version is not on the

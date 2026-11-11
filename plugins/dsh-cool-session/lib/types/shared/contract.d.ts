@@ -22,7 +22,7 @@
  * in whatever language the browser is set to. The sentences live in
  * `client/locales.ts` keyed `error.<code>`.
  */
-export type FailureCode = 'missing-session' | 'unknown-session' | 'subagent-delete' | 'delete-failed' | 'delete-unsupported' | 'delete-active' | 'session-live' | 'delete-partial';
+export type FailureCode = 'missing-session' | 'unknown-session' | 'subagent-delete' | 'delete-failed' | 'delete-unsupported' | 'delete-active' | 'session-live' | 'delete-partial' | 'session-running';
 /** One coded refusal, with the values its sentence interpolates. */
 export interface Failure {
     /** The refusal, whose sentence is the page's `error.<code>` entry. */

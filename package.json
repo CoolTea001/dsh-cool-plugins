@@ -20,9 +20,10 @@
   "scripts": {
     "build": "pnpm -r --if-present run build",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "check": "pnpm -r --if-present run check && pnpm run check:client-bundles",
+    "check": "pnpm run check:locales && pnpm -r --if-present run check && pnpm run check:client-bundles",
     "dev": "pnpm -r --parallel --if-present run dev",
     "publish-all": "pnpm -r publish --access public",
+    "check:locales": "node scripts/check-locales.mjs",
     "check:client-bundles": "node scripts/check-client-bundles.mjs"
   },
   "devDependencies": {

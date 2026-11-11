@@ -104,6 +104,49 @@ window.__ModuleLoader__.load({
 		}
 		// src/client/reason.ts
 		/**
+		* The activity families a dictionary names, keyed by the Host's kind.
+		*
+		* The Host sends `turn`, `subagent`, `job` and `schedule` because those are the
+		* provider identifiers it works with, not prose. Only this half knows the
+		* language to read them in, so the translation happens here; a kind a future
+		* build adds stays as its identifier rather than disappearing.
+		*/
+		const ACTIVITY_KEYS = {
+			turn: "activity.turn",
+			subagent: "activity.subagent",
+			job: "activity.job",
+			schedule: "activity.schedule"
+		};
+		/**
+		* Word the work a refusal names, in the active language.
+		*
+		* @param t - the page's translate seat.
+		* @param raw - the Host's comma-separated kind list, when it named any.
+		* @returns the phrase to put in the sentence's `{activity}` position.
+		*/
+		function activityPhrase(t, raw) {
+			const kinds = typeof raw === "string" ? raw.split(",").map((kind) => kind.trim()).filter((kind) => kind !== "") : [];
+			if (kinds.length === 0) return t("error.activityFallback");
+			return kinds.map((kind) => {
+				const key = ACTIVITY_KEYS[kind];
+				return key === void 0 ? kind : t(key);
+			}).join(t("activity.separator"));
+		}
+		/**
+		* Word one coded refusal as a sentence.
+		*
+		* @param t - the page's translate seat.
+		* @param failure - the refusal code and the values its sentence interpolates.
+		* @returns the sentence to show.
+		*/
+		function failureText(t, failure) {
+			if (failure.code === "delete-active") return t("error.delete-active", {
+				...failure.params,
+				activity: activityPhrase(t, failure.params?.activity)
+			});
+			return t(`error.${failure.code}`, failure.params);
+		}
+		/**
 		* Word one refused answer.
 		*
 		* @param t - the page's translate seat.
@@ -113,7 +156,7 @@ window.__ModuleLoader__.load({
 		*/
 		function reasonOf(t, payload, fallback) {
 			if (payload.failure !== void 0) {
-				const sentence = t(`error.${payload.failure.code}`, payload.failure.params);
+				const sentence = failureText(t, payload.failure);
 				if (payload.failure.code === "delete-partial" && typeof payload.error === "string" && payload.error !== "") return `${sentence} ${payload.error}`;
 				return sentence;
 			}
@@ -313,92 +356,7 @@ window.__ModuleLoader__.load({
 		* color reaches it; the fixed 12px keeps it clear of the control's 13px text.
 		*/
 		const ARROW_DOWN_MARKUP = iconMarkup("arrow-down", CARET_SIZE);
-		// src/client/locales.ts
-		/** The dictionary namespace this page owns. */
-		const NS = "coolSession";
-		/**
-		* Pick the singular or plural spelling of a count-bearing message.
-		*
-		* @param base - the message family, whose `.one` and `.other` entries exist.
-		* @param count - the number the sentence reports.
-		* @returns the key to translate.
-		*/
-		function countKey(base, count) {
-			return `${base}.${count === 1 ? "one" : "other"}`;
-		}
-		/** The English copy, which is also the fallback every lookup ends at. */
-		const en = {
-			"action.delete": "Delete session",
-			"action.cancel": "Cancel",
-			"action.close": "Close",
-			"settings.nav": "Sessions",
-			"settings.title": "Sessions",
-			"settings.description": "Search, filter, archive, or delete sessions.",
-			"sessions.search": "Search session titles",
-			"sessions.searchPlaceholder": "Search...",
-			"sessions.allWorkspaces": "All workspaces",
-			"sessions.noWorkspace": "No workspace",
-			"sessions.allSessions": "All sessions",
-			"sessions.unarchived": "Unarchived",
-			"sessions.archived": "Archived",
-			"sessions.running": "Running",
-			"sessions.selectAll": "Select all",
-			"sessions.selectOne": "Select {title}",
-			"sessions.archiveSelected": "Archive selected",
-			"sessions.deleteSelected": "Delete selected",
-			"sessions.selectedCount": "{count} selected",
-			"sessions.columnTitle": "Session",
-			"sessions.columnStatus": "Status",
-			"sessions.columnActions": "Actions",
-			"sessions.archive": "Archive",
-			"sessions.unarchive": "Unarchive",
-			"sessions.delete": "Delete",
-			"sessions.loading": "Loading sessions…",
-			"sessions.empty": "No sessions yet",
-			"sessions.noMatches": "No matching sessions",
-			"sessions.loadFailed": "The session list could not be loaded",
-			"sessions.retry": "Retry",
-			"sessions.unavailable": "Session services are not ready, so the archive action is unavailable",
-			"sessions.actionFailed": "The action failed",
-			"sessions.bulkPartial.one": "Deleted 1 session; {failed} could not be deleted.",
-			"sessions.bulkPartial.other": "Deleted {deleted} sessions; {failed} could not be deleted.",
-			"sessions.bulkStopped.one": "Deleted 1 session; the rest could not be processed.",
-			"sessions.bulkStopped.other": "Deleted {deleted} sessions; the rest could not be processed.",
-			"sessions.bulkArchivePartial.one": "Archived 1 session; {skipped} skipped because work was still running.",
-			"sessions.bulkArchivePartial.other": "Archived {archived} sessions; {skipped} skipped because work was still running.",
-			"sessions.bulkArchiveFailed.one": "Archived 1 session; {failed} could not be archived.",
-			"sessions.bulkArchiveFailed.other": "Archived {archived} sessions; {failed} could not be archived.",
-			"sessions.deleteSelectedTitle": "Delete selected sessions",
-			"sessions.deleteBatchDescription": "This removes the {count} selected sessions and all of their subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!",
-			"sessions.archiveStopTitle": "Stop and archive this session?",
-			"sessions.archiveStopDescription": "“{title}” still has work in progress. Archiving stops it first; the stopped work will not resume on its own.",
-			"sessions.archiveActivity": "Work that will be stopped",
-			"sessions.activityTurn": "The turn in progress",
-			"sessions.activitySubagents.one": "1 running subagent",
-			"sessions.activitySubagents.other": "{count} running subagents",
-			"sessions.activityJobs.one": "1 background job",
-			"sessions.activityJobs.other": "{count} background jobs",
-			"sessions.activitySchedules.one": "1 scheduled reminder",
-			"sessions.activitySchedules.other": "{count} scheduled reminders",
-			"sessions.activityOther.one": "1 other item of work ({kind})",
-			"sessions.activityOther.other": "{count} other items of work ({kind})",
-			"sessions.archiveStopAction": "Stop and archive",
-			"sessions.archiveStopPending": "Stopping and archiving…",
-			"delete.title": "Delete session",
-			"delete.description": "This removes this session and all of its subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!",
-			"delete.pending": "Stopping and deleting…",
-			"delete.confirm": "Delete",
-			"error.host-stale": "The Host half is still running an older build; restart DSH and try again.",
-			"error.missing-session": "No session was named",
-			"error.unknown-session": "That session no longer exists",
-			"error.subagent-delete": "A subagent session cannot be deleted on its own; delete its parent conversation",
-			"error.delete-failed": "The session could not be deleted",
-			"error.delete-unsupported": "This Harness does not expose the on-disk session layout needed for deletion",
-			"error.delete-active": "The session is still running ({activity}) and could not be stopped, so it was not deleted",
-			"error.session-live": "The session is still live and could not be released",
-			"error.delete-partial": "Some sessions could not be deleted: {deleted} removed, {remaining} still present. Retry the remaining ones"
-		};
-		/** The Chinese copy, key for key the same page. */
+		// src/client/locales/zh.ts
 		const zh = {
 			"action.delete": "删除会话",
 			"action.cancel": "取消",
@@ -468,8 +426,606 @@ window.__ModuleLoader__.load({
 			"error.delete-unsupported": "当前 Harness 未暴露删除会话所需的磁盘目录信息",
 			"error.delete-active": "会话仍在运行（{activity}），无法停止，因此未删除",
 			"error.session-live": "会话仍处于活动状态，无法释放",
-			"error.delete-partial": "已删除 {deleted} 个会话，但还有 {remaining} 个未能删除；请重试剩余项"
+			"error.delete-partial": "已删除 {deleted} 个会话，但还有 {remaining} 个未能删除；请重试剩余项",
+			"error.session-running": "会话仍在运行，无法归档",
+			"error.activityFallback": "进行中的工作",
+			"activity.turn": "进行中的回合",
+			"activity.subagent": "运行中的子智能体",
+			"activity.job": "后台任务",
+			"activity.schedule": "定时提醒",
+			"activity.separator": "、"
 		};
+		// src/client/locales/en.ts
+		const en = {
+			"action.delete": "Delete session",
+			"action.cancel": "Cancel",
+			"action.close": "Close",
+			"settings.nav": "Sessions",
+			"settings.title": "Sessions",
+			"settings.description": "Search, filter, archive, or delete sessions.",
+			"sessions.search": "Search session titles",
+			"sessions.searchPlaceholder": "Search...",
+			"sessions.allWorkspaces": "All workspaces",
+			"sessions.noWorkspace": "No workspace",
+			"sessions.allSessions": "All sessions",
+			"sessions.unarchived": "Unarchived",
+			"sessions.archived": "Archived",
+			"sessions.running": "Running",
+			"sessions.selectAll": "Select all",
+			"sessions.selectOne": "Select {title}",
+			"sessions.archiveSelected": "Archive selected",
+			"sessions.deleteSelected": "Delete selected",
+			"sessions.selectedCount": "{count} selected",
+			"sessions.columnTitle": "Session",
+			"sessions.columnStatus": "Status",
+			"sessions.columnActions": "Actions",
+			"sessions.archive": "Archive",
+			"sessions.unarchive": "Unarchive",
+			"sessions.delete": "Delete",
+			"sessions.loading": "Loading sessions…",
+			"sessions.empty": "No sessions yet",
+			"sessions.noMatches": "No matching sessions",
+			"sessions.loadFailed": "The session list could not be loaded",
+			"sessions.retry": "Retry",
+			"sessions.unavailable": "Session services are not ready, so the archive action is unavailable",
+			"sessions.actionFailed": "The action failed",
+			"sessions.bulkPartial.one": "Deleted 1 session; {failed} could not be deleted.",
+			"sessions.bulkPartial.other": "Deleted {deleted} sessions; {failed} could not be deleted.",
+			"sessions.bulkStopped.one": "Deleted 1 session; the rest could not be processed.",
+			"sessions.bulkStopped.other": "Deleted {deleted} sessions; the rest could not be processed.",
+			"sessions.bulkArchivePartial.one": "Archived 1 session; {skipped} skipped because work was still running.",
+			"sessions.bulkArchivePartial.other": "Archived {archived} sessions; {skipped} skipped because work was still running.",
+			"sessions.bulkArchiveFailed.one": "Archived 1 session; {failed} could not be archived.",
+			"sessions.bulkArchiveFailed.other": "Archived {archived} sessions; {failed} could not be archived.",
+			"sessions.deleteSelectedTitle": "Delete selected sessions",
+			"sessions.deleteBatchDescription": "This removes the {count} selected sessions and all of their subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!",
+			"sessions.archiveStopTitle": "Stop and archive this session?",
+			"sessions.archiveStopDescription": "“{title}” still has work in progress. Archiving stops it first; the stopped work will not resume on its own.",
+			"sessions.archiveActivity": "Work that will be stopped",
+			"sessions.activityTurn": "The turn in progress",
+			"sessions.activitySubagents.one": "1 running subagent",
+			"sessions.activitySubagents.other": "{count} running subagents",
+			"sessions.activityJobs.one": "1 background job",
+			"sessions.activityJobs.other": "{count} background jobs",
+			"sessions.activitySchedules.one": "1 scheduled reminder",
+			"sessions.activitySchedules.other": "{count} scheduled reminders",
+			"sessions.activityOther.one": "1 other item of work ({kind})",
+			"sessions.activityOther.other": "{count} other items of work ({kind})",
+			"sessions.archiveStopAction": "Stop and archive",
+			"sessions.archiveStopPending": "Stopping and archiving…",
+			"delete.title": "Delete session",
+			"delete.description": "This removes this session and all of its subagent sessions from disk, including their logs. Running sessions will be terminated. This cannot be undone!",
+			"delete.pending": "Stopping and deleting…",
+			"delete.confirm": "Delete",
+			"error.host-stale": "The Host half is still running an older build; restart DSH and try again.",
+			"error.missing-session": "No session was named",
+			"error.unknown-session": "That session no longer exists",
+			"error.subagent-delete": "A subagent session cannot be deleted on its own; delete its parent conversation",
+			"error.delete-failed": "The session could not be deleted",
+			"error.delete-unsupported": "This Harness does not expose the on-disk session layout needed for deletion",
+			"error.delete-active": "The session is still running ({activity}) and could not be stopped, so it was not deleted",
+			"error.session-live": "The session is still live and could not be released",
+			"error.delete-partial": "Some sessions could not be deleted: {deleted} removed, {remaining} still present. Retry the remaining ones",
+			"error.session-running": "The session is still running and could not be archived",
+			"error.activityFallback": "work in progress",
+			"activity.turn": "the turn in progress",
+			"activity.subagent": "running subagents",
+			"activity.job": "background jobs",
+			"activity.schedule": "scheduled reminders",
+			"activity.separator": ", "
+		};
+		// src/client/locales/ja.ts
+		const ja = {
+			"action.delete": "セッションを削除",
+			"action.cancel": "キャンセル",
+			"action.close": "閉じる",
+			"settings.nav": "セッション",
+			"settings.title": "セッション",
+			"settings.description": "セッションの検索・絞り込み・アーカイブ・削除を行います。",
+			"sessions.search": "セッション名を検索",
+			"sessions.searchPlaceholder": "検索...",
+			"sessions.allWorkspaces": "すべてのワークスペース",
+			"sessions.noWorkspace": "ワークスペースなし",
+			"sessions.allSessions": "すべてのセッション",
+			"sessions.unarchived": "未アーカイブ",
+			"sessions.archived": "アーカイブ済み",
+			"sessions.running": "実行中",
+			"sessions.selectAll": "すべて選択",
+			"sessions.selectOne": "{title} を選択",
+			"sessions.archiveSelected": "選択項目をアーカイブ",
+			"sessions.deleteSelected": "選択項目を削除",
+			"sessions.selectedCount": "{count} 件選択中",
+			"sessions.columnTitle": "セッション名",
+			"sessions.columnStatus": "状態",
+			"sessions.columnActions": "操作",
+			"sessions.archive": "アーカイブ",
+			"sessions.unarchive": "アーカイブを解除",
+			"sessions.delete": "削除",
+			"sessions.loading": "セッションを読み込み中…",
+			"sessions.empty": "セッションはまだありません",
+			"sessions.noMatches": "一致するセッションはありません",
+			"sessions.loadFailed": "セッション一覧を読み込めませんでした",
+			"sessions.retry": "再試行",
+			"sessions.unavailable": "セッションサービスが準備できていないため、アーカイブできません",
+			"sessions.actionFailed": "操作に失敗しました",
+			"sessions.bulkPartial.one": "セッションを 1 件削除しました。{failed} 件は削除できませんでした。",
+			"sessions.bulkPartial.other": "セッションを {deleted} 件削除しました。{failed} 件は削除できませんでした。",
+			"sessions.bulkStopped.one": "セッションを 1 件削除しました。残りは処理できませんでした。",
+			"sessions.bulkStopped.other": "セッションを {deleted} 件削除しました。残りは処理できませんでした。",
+			"sessions.bulkArchivePartial.one": "セッションを 1 件アーカイブしました。{skipped} 件は作業中のためスキップしました。",
+			"sessions.bulkArchivePartial.other": "セッションを {archived} 件アーカイブしました。{skipped} 件は作業中のためスキップしました。",
+			"sessions.bulkArchiveFailed.one": "セッションを 1 件アーカイブしました。{failed} 件はアーカイブできませんでした。",
+			"sessions.bulkArchiveFailed.other": "セッションを {archived} 件アーカイブしました。{failed} 件はアーカイブできませんでした。",
+			"sessions.deleteSelectedTitle": "選択したセッションを削除",
+			"sessions.deleteBatchDescription": "選択した {count} 件のセッションとそのすべてのサブエージェントセッションを、ログを含めてディスクから削除します。実行中のセッションは終了されます。この操作は元に戻せません！",
+			"sessions.archiveStopTitle": "このセッションを停止してアーカイブしますか？",
+			"sessions.archiveStopDescription": "「{title}」には進行中の作業があります。アーカイブするとまず停止され、停止された作業は自動的に再開されません。",
+			"sessions.archiveActivity": "停止される作業",
+			"sessions.activityTurn": "進行中のターン",
+			"sessions.activitySubagents.one": "実行中のサブエージェント 1 件",
+			"sessions.activitySubagents.other": "実行中のサブエージェント {count} 件",
+			"sessions.activityJobs.one": "バックグラウンドジョブ 1 件",
+			"sessions.activityJobs.other": "バックグラウンドジョブ {count} 件",
+			"sessions.activitySchedules.one": "スケジュールされたリマインダー 1 件",
+			"sessions.activitySchedules.other": "スケジュールされたリマインダー {count} 件",
+			"sessions.activityOther.one": "その他の作業 1 件（{kind}）",
+			"sessions.activityOther.other": "その他の作業 {count} 件（{kind}）",
+			"sessions.archiveStopAction": "停止してアーカイブ",
+			"sessions.archiveStopPending": "停止してアーカイブ中…",
+			"delete.title": "セッションを削除",
+			"delete.description": "このセッションとそのすべてのサブエージェントセッションを、ログを含めてディスクから削除します。実行中のセッションは終了されます。この操作は元に戻せません！",
+			"delete.pending": "停止して削除中…",
+			"delete.confirm": "削除",
+			"error.host-stale": "Host 側が古いビルドのままです。DSH を再起動してから再試行してください。",
+			"error.missing-session": "セッションが指定されていません",
+			"error.unknown-session": "そのセッションは既に存在しません",
+			"error.subagent-delete": "サブエージェントのセッションは単独では削除できません。親の会話を削除してください",
+			"error.delete-failed": "セッションを削除できませんでした",
+			"error.delete-unsupported": "この Harness は削除に必要なディスク上のセッション配置を公開していません",
+			"error.delete-active": "セッションはまだ実行中（{activity}）で停止できなかったため、削除しませんでした",
+			"error.session-live": "セッションがまだ活動中で、解放できませんでした",
+			"error.delete-partial": "一部のセッションを削除できませんでした：{deleted} 件を削除、{remaining} 件が残っています。残りを再試行してください",
+			"error.session-running": "セッションはまだ実行中で、アーカイブできませんでした",
+			"error.activityFallback": "進行中の作業",
+			"activity.turn": "進行中のターン",
+			"activity.subagent": "実行中のサブエージェント",
+			"activity.job": "バックグラウンドジョブ",
+			"activity.schedule": "スケジュールされたリマインダー",
+			"activity.separator": "、"
+		};
+		// src/client/locales/es.ts
+		const es = {
+			"action.delete": "Eliminar sesión",
+			"action.cancel": "Cancelar",
+			"action.close": "Cerrar",
+			"settings.nav": "Sesiones",
+			"settings.title": "Sesiones",
+			"settings.description": "Busca, filtra, archiva o elimina sesiones.",
+			"sessions.search": "Buscar títulos de sesión",
+			"sessions.searchPlaceholder": "Buscar...",
+			"sessions.allWorkspaces": "Todos los espacios de trabajo",
+			"sessions.noWorkspace": "Sin espacio de trabajo",
+			"sessions.allSessions": "Todas las sesiones",
+			"sessions.unarchived": "Sin archivar",
+			"sessions.archived": "Archivadas",
+			"sessions.running": "En ejecución",
+			"sessions.selectAll": "Seleccionar todo",
+			"sessions.selectOne": "Seleccionar {title}",
+			"sessions.archiveSelected": "Archivar seleccionadas",
+			"sessions.deleteSelected": "Eliminar seleccionadas",
+			"sessions.selectedCount": "Seleccionadas: {count}",
+			"sessions.columnTitle": "Sesión",
+			"sessions.columnStatus": "Estado",
+			"sessions.columnActions": "Acciones",
+			"sessions.archive": "Archivar",
+			"sessions.unarchive": "Desarchivar",
+			"sessions.delete": "Eliminar",
+			"sessions.loading": "Cargando sesiones…",
+			"sessions.empty": "Aún no hay sesiones",
+			"sessions.noMatches": "No hay sesiones coincidentes",
+			"sessions.loadFailed": "No se pudo cargar la lista de sesiones",
+			"sessions.retry": "Reintentar",
+			"sessions.unavailable": "Los servicios de sesiones no están listos, por lo que no se puede archivar",
+			"sessions.actionFailed": "La acción falló",
+			"sessions.bulkPartial.one": "Se eliminó 1 sesión; {failed} no se pudo eliminar.",
+			"sessions.bulkPartial.other": "Se eliminaron {deleted} sesiones; {failed} no se pudieron eliminar.",
+			"sessions.bulkStopped.one": "Se eliminó 1 sesión; el resto no se pudo procesar.",
+			"sessions.bulkStopped.other": "Se eliminaron {deleted} sesiones; el resto no se pudo procesar.",
+			"sessions.bulkArchivePartial.one": "Se archivó 1 sesión; {skipped} se omitió porque seguía trabajando.",
+			"sessions.bulkArchivePartial.other": "Se archivaron {archived} sesiones; {skipped} se omitieron porque seguían trabajando.",
+			"sessions.bulkArchiveFailed.one": "Se archivó 1 sesión; {failed} no se pudo archivar.",
+			"sessions.bulkArchiveFailed.other": "Se archivaron {archived} sesiones; {failed} no se pudieron archivar.",
+			"sessions.deleteSelectedTitle": "Eliminar las sesiones seleccionadas",
+			"sessions.deleteBatchDescription": "Esto elimina del disco las {count} sesiones seleccionadas y todas sus sesiones de subagente, incluidos sus registros. Las sesiones en ejecución se terminarán. ¡Esta acción no se puede deshacer!",
+			"sessions.archiveStopTitle": "¿Detener y archivar esta sesión?",
+			"sessions.archiveStopDescription": "«{title}» todavía tiene trabajo en progreso. Al archivarla se detiene primero; el trabajo detenido no se reanudará por sí solo.",
+			"sessions.archiveActivity": "Trabajo que se detendrá",
+			"sessions.activityTurn": "El turno en progreso",
+			"sessions.activitySubagents.one": "1 subagente en ejecución",
+			"sessions.activitySubagents.other": "{count} subagentes en ejecución",
+			"sessions.activityJobs.one": "1 tarea en segundo plano",
+			"sessions.activityJobs.other": "{count} tareas en segundo plano",
+			"sessions.activitySchedules.one": "1 recordatorio programado",
+			"sessions.activitySchedules.other": "{count} recordatorios programados",
+			"sessions.activityOther.one": "1 elemento de trabajo más ({kind})",
+			"sessions.activityOther.other": "{count} elementos de trabajo más ({kind})",
+			"sessions.archiveStopAction": "Detener y archivar",
+			"sessions.archiveStopPending": "Deteniendo y archivando…",
+			"delete.title": "Eliminar sesión",
+			"delete.description": "Esto elimina del disco esta sesión y todas sus sesiones de subagente, incluidos sus registros. Las sesiones en ejecución se terminarán. ¡Esta acción no se puede deshacer!",
+			"delete.pending": "Deteniendo y eliminando…",
+			"delete.confirm": "Eliminar",
+			"error.host-stale": "La mitad Host sigue ejecutando una compilación anterior; reinicia DSH y vuelve a intentarlo.",
+			"error.missing-session": "No se indicó ninguna sesión",
+			"error.unknown-session": "Esa sesión ya no existe",
+			"error.subagent-delete": "Una sesión de subagente no se puede eliminar por sí sola; elimina su conversación principal",
+			"error.delete-failed": "No se pudo eliminar la sesión",
+			"error.delete-unsupported": "Este Harness no expone la disposición de sesiones en disco necesaria para eliminarlas",
+			"error.delete-active": "La sesión sigue en ejecución ({activity}) y no se pudo detener, por lo que no se eliminó",
+			"error.session-live": "La sesión sigue activa y no se pudo liberar",
+			"error.delete-partial": "No se pudieron eliminar algunas sesiones: {deleted} eliminadas, {remaining} aún presentes. Reintenta las restantes",
+			"error.session-running": "La sesión sigue en ejecución y no se pudo archivar",
+			"error.activityFallback": "trabajo en progreso",
+			"activity.turn": "el turno en progreso",
+			"activity.subagent": "subagentes en ejecución",
+			"activity.job": "tareas en segundo plano",
+			"activity.schedule": "recordatorios programados",
+			"activity.separator": ", "
+		};
+		// src/client/locales/fr.ts
+		const fr = {
+			"action.delete": "Supprimer la séance",
+			"action.cancel": "Annuler",
+			"action.close": "Fermer",
+			"settings.nav": "Séances",
+			"settings.title": "Séances",
+			"settings.description": "Recherchez, filtrez, archivez ou supprimez des séances.",
+			"sessions.search": "Rechercher les titres de séance",
+			"sessions.searchPlaceholder": "Rechercher...",
+			"sessions.allWorkspaces": "Tous les espaces de travail",
+			"sessions.noWorkspace": "Aucun espace de travail",
+			"sessions.allSessions": "Toutes les séances",
+			"sessions.unarchived": "Non archivées",
+			"sessions.archived": "Archivées",
+			"sessions.running": "En cours",
+			"sessions.selectAll": "Tout sélectionner",
+			"sessions.selectOne": "Sélectionner {title}",
+			"sessions.archiveSelected": "Archiver la sélection",
+			"sessions.deleteSelected": "Supprimer la sélection",
+			"sessions.selectedCount": "Sélection : {count}",
+			"sessions.columnTitle": "Séance",
+			"sessions.columnStatus": "État",
+			"sessions.columnActions": "Actions",
+			"sessions.archive": "Archiver",
+			"sessions.unarchive": "Désarchiver",
+			"sessions.delete": "Supprimer",
+			"sessions.loading": "Chargement des séances…",
+			"sessions.empty": "Aucune séance pour l’instant",
+			"sessions.noMatches": "Aucune séance correspondante",
+			"sessions.loadFailed": "Impossible de charger la liste des séances",
+			"sessions.retry": "Réessayer",
+			"sessions.unavailable": "Les services de séance ne sont pas prêts, l’archivage est donc indisponible",
+			"sessions.actionFailed": "L’action a échoué",
+			"sessions.bulkPartial.one": "1 séance supprimée ; {failed} n’a pas pu l’être.",
+			"sessions.bulkPartial.other": "{deleted} séances supprimées ; {failed} n’ont pas pu l’être.",
+			"sessions.bulkStopped.one": "1 séance supprimée ; le reste n’a pas pu être traité.",
+			"sessions.bulkStopped.other": "{deleted} séances supprimées ; le reste n’a pas pu être traité.",
+			"sessions.bulkArchivePartial.one": "1 séance archivée ; {skipped} ignorée car elle travaillait encore.",
+			"sessions.bulkArchivePartial.other": "{archived} séances archivées ; {skipped} ignorées car elles travaillaient encore.",
+			"sessions.bulkArchiveFailed.one": "1 séance archivée ; {failed} n’a pas pu l’être.",
+			"sessions.bulkArchiveFailed.other": "{archived} séances archivées ; {failed} n’ont pas pu l’être.",
+			"sessions.deleteSelectedTitle": "Supprimer les séances sélectionnées",
+			"sessions.deleteBatchDescription": "Cela supprime du disque les {count} séances sélectionnées et toutes leurs séances de sous-agent, journaux compris. Les séances en cours seront interrompues. Cette action est irréversible !",
+			"sessions.archiveStopTitle": "Arrêter et archiver cette séance ?",
+			"sessions.archiveStopDescription": "« {title} » a encore du travail en cours. L’archivage l’arrête d’abord ; le travail arrêté ne reprendra pas de lui-même.",
+			"sessions.archiveActivity": "Travail qui sera arrêté",
+			"sessions.activityTurn": "Le tour en cours",
+			"sessions.activitySubagents.one": "1 sous-agent en cours d’exécution",
+			"sessions.activitySubagents.other": "{count} sous-agents en cours d’exécution",
+			"sessions.activityJobs.one": "1 tâche en arrière-plan",
+			"sessions.activityJobs.other": "{count} tâches en arrière-plan",
+			"sessions.activitySchedules.one": "1 rappel programmé",
+			"sessions.activitySchedules.other": "{count} rappels programmés",
+			"sessions.activityOther.one": "1 autre élément de travail ({kind})",
+			"sessions.activityOther.other": "{count} autres éléments de travail ({kind})",
+			"sessions.archiveStopAction": "Arrêter et archiver",
+			"sessions.archiveStopPending": "Arrêt et archivage…",
+			"delete.title": "Supprimer la séance",
+			"delete.description": "Cela supprime du disque cette séance et toutes ses séances de sous-agent, journaux compris. Les séances en cours seront interrompues. Cette action est irréversible !",
+			"delete.pending": "Arrêt et suppression…",
+			"delete.confirm": "Supprimer",
+			"error.host-stale": "La moitié Host exécute encore une compilation plus ancienne ; redémarrez DSH et réessayez.",
+			"error.missing-session": "Aucune séance n’a été indiquée",
+			"error.unknown-session": "Cette séance n’existe plus",
+			"error.subagent-delete": "Une séance de sous-agent ne peut pas être supprimée seule ; supprimez sa conversation parente",
+			"error.delete-failed": "La séance n’a pas pu être supprimée",
+			"error.delete-unsupported": "Ce Harness n’expose pas la disposition des séances sur disque nécessaire à la suppression",
+			"error.delete-active": "La séance est encore en cours ({activity}) et n’a pas pu être arrêtée ; elle n’a donc pas été supprimée",
+			"error.session-live": "La séance est encore active et n’a pas pu être libérée",
+			"error.delete-partial": "Certaines séances n’ont pas pu être supprimées : {deleted} supprimées, {remaining} encore présentes. Réessayez les restantes",
+			"error.session-running": "La séance est encore en cours et n’a pas pu être archivée",
+			"error.activityFallback": "travail en cours",
+			"activity.turn": "le tour en cours",
+			"activity.subagent": "sous-agents en cours d’exécution",
+			"activity.job": "tâches en arrière-plan",
+			"activity.schedule": "rappels programmés",
+			"activity.separator": ", "
+		};
+		// src/client/locales/de.ts
+		const de = {
+			"action.delete": "Sitzung löschen",
+			"action.cancel": "Abbrechen",
+			"action.close": "Schließen",
+			"settings.nav": "Sitzungen",
+			"settings.title": "Sitzungen",
+			"settings.description": "Sitzungen suchen, filtern, archivieren oder löschen.",
+			"sessions.search": "Sitzungstitel suchen",
+			"sessions.searchPlaceholder": "Suchen...",
+			"sessions.allWorkspaces": "Alle Arbeitsbereiche",
+			"sessions.noWorkspace": "Kein Arbeitsbereich",
+			"sessions.allSessions": "Alle Sitzungen",
+			"sessions.unarchived": "Nicht archiviert",
+			"sessions.archived": "Archiviert",
+			"sessions.running": "Läuft",
+			"sessions.selectAll": "Alle auswählen",
+			"sessions.selectOne": "{title} auswählen",
+			"sessions.archiveSelected": "Ausgewählte archivieren",
+			"sessions.deleteSelected": "Ausgewählte löschen",
+			"sessions.selectedCount": "{count} ausgewählt",
+			"sessions.columnTitle": "Sitzung",
+			"sessions.columnStatus": "Status",
+			"sessions.columnActions": "Aktionen",
+			"sessions.archive": "Archivieren",
+			"sessions.unarchive": "Dearchivieren",
+			"sessions.delete": "Löschen",
+			"sessions.loading": "Sitzungen werden geladen…",
+			"sessions.empty": "Noch keine Sitzungen",
+			"sessions.noMatches": "Keine passenden Sitzungen",
+			"sessions.loadFailed": "Die Sitzungsliste konnte nicht geladen werden",
+			"sessions.retry": "Erneut versuchen",
+			"sessions.unavailable": "Die Sitzungsdienste sind noch nicht bereit, daher ist das Archivieren nicht möglich",
+			"sessions.actionFailed": "Die Aktion ist fehlgeschlagen",
+			"sessions.bulkPartial.one": "1 Sitzung gelöscht; {failed} konnte nicht gelöscht werden.",
+			"sessions.bulkPartial.other": "{deleted} Sitzungen gelöscht; {failed} konnten nicht gelöscht werden.",
+			"sessions.bulkStopped.one": "1 Sitzung gelöscht; der Rest konnte nicht verarbeitet werden.",
+			"sessions.bulkStopped.other": "{deleted} Sitzungen gelöscht; der Rest konnte nicht verarbeitet werden.",
+			"sessions.bulkArchivePartial.one": "1 Sitzung archiviert; {skipped} übersprungen, weil noch Arbeit lief.",
+			"sessions.bulkArchivePartial.other": "{archived} Sitzungen archiviert; {skipped} übersprungen, weil noch Arbeit lief.",
+			"sessions.bulkArchiveFailed.one": "1 Sitzung archiviert; {failed} konnte nicht archiviert werden.",
+			"sessions.bulkArchiveFailed.other": "{archived} Sitzungen archiviert; {failed} konnten nicht archiviert werden.",
+			"sessions.deleteSelectedTitle": "Ausgewählte Sitzungen löschen",
+			"sessions.deleteBatchDescription": "Dadurch werden die {count} ausgewählten Sitzungen und alle ihre Subagenten-Sitzungen samt Protokollen von der Festplatte entfernt. Laufende Sitzungen werden beendet. Dies kann nicht rückgängig gemacht werden!",
+			"sessions.archiveStopTitle": "Diese Sitzung stoppen und archivieren?",
+			"sessions.archiveStopDescription": "„{title}“ hat noch laufende Arbeit. Das Archivieren stoppt sie zuerst; die gestoppte Arbeit wird nicht von selbst fortgesetzt.",
+			"sessions.archiveActivity": "Arbeit, die gestoppt wird",
+			"sessions.activityTurn": "Die laufende Runde",
+			"sessions.activitySubagents.one": "1 laufender Subagent",
+			"sessions.activitySubagents.other": "{count} laufende Subagenten",
+			"sessions.activityJobs.one": "1 Hintergrundjob",
+			"sessions.activityJobs.other": "{count} Hintergrundjobs",
+			"sessions.activitySchedules.one": "1 geplante Erinnerung",
+			"sessions.activitySchedules.other": "{count} geplante Erinnerungen",
+			"sessions.activityOther.one": "1 weiterer Arbeitsschritt ({kind})",
+			"sessions.activityOther.other": "{count} weitere Arbeitsschritte ({kind})",
+			"sessions.archiveStopAction": "Stoppen und archivieren",
+			"sessions.archiveStopPending": "Wird gestoppt und archiviert…",
+			"delete.title": "Sitzung löschen",
+			"delete.description": "Dadurch werden diese Sitzung und alle ihre Subagenten-Sitzungen samt Protokollen von der Festplatte entfernt. Laufende Sitzungen werden beendet. Dies kann nicht rückgängig gemacht werden!",
+			"delete.pending": "Wird gestoppt und gelöscht…",
+			"delete.confirm": "Löschen",
+			"error.host-stale": "Die Host-Hälfte läuft noch mit einem älteren Build; starte DSH neu und versuche es erneut.",
+			"error.missing-session": "Es wurde keine Sitzung benannt",
+			"error.unknown-session": "Diese Sitzung existiert nicht mehr",
+			"error.subagent-delete": "Eine Subagenten-Sitzung kann nicht allein gelöscht werden; lösche ihre übergeordnete Unterhaltung",
+			"error.delete-failed": "Die Sitzung konnte nicht gelöscht werden",
+			"error.delete-unsupported": "Dieses Harness legt die für das Löschen nötige Sitzungsablage auf der Festplatte nicht offen",
+			"error.delete-active": "Die Sitzung läuft noch ({activity}) und konnte nicht gestoppt werden, daher wurde sie nicht gelöscht",
+			"error.session-live": "Die Sitzung ist noch aktiv und konnte nicht freigegeben werden",
+			"error.delete-partial": "Einige Sitzungen konnten nicht gelöscht werden: {deleted} entfernt, {remaining} weiterhin vorhanden. Versuche es bei den restlichen erneut",
+			"error.session-running": "Die Sitzung läuft noch und konnte nicht archiviert werden",
+			"error.activityFallback": "laufende Arbeit",
+			"activity.turn": "die laufende Runde",
+			"activity.subagent": "laufende Subagenten",
+			"activity.job": "Hintergrundjobs",
+			"activity.schedule": "geplante Erinnerungen",
+			"activity.separator": ", "
+		};
+		// src/client/locales/ru.ts
+		const ru = {
+			"action.delete": "Удалить сеанс",
+			"action.cancel": "Отмена",
+			"action.close": "Закрыть",
+			"settings.nav": "Сеансы",
+			"settings.title": "Сеансы",
+			"settings.description": "Поиск, фильтрация, архивирование и удаление сеансов.",
+			"sessions.search": "Поиск по названиям сеансов",
+			"sessions.searchPlaceholder": "Поиск...",
+			"sessions.allWorkspaces": "Все рабочие области",
+			"sessions.noWorkspace": "Без рабочей области",
+			"sessions.allSessions": "Все сеансы",
+			"sessions.unarchived": "Неархивированные",
+			"sessions.archived": "Архивированные",
+			"sessions.running": "Выполняется",
+			"sessions.selectAll": "Выбрать все",
+			"sessions.selectOne": "Выбрать {title}",
+			"sessions.archiveSelected": "Архивировать выбранные",
+			"sessions.deleteSelected": "Удалить выбранные",
+			"sessions.selectedCount": "Выбрано: {count}",
+			"sessions.columnTitle": "Сеанс",
+			"sessions.columnStatus": "Состояние",
+			"sessions.columnActions": "Действия",
+			"sessions.archive": "Архивировать",
+			"sessions.unarchive": "Разархивировать",
+			"sessions.delete": "Удалить",
+			"sessions.loading": "Загрузка сеансов…",
+			"sessions.empty": "Сеансов пока нет",
+			"sessions.noMatches": "Подходящих сеансов нет",
+			"sessions.loadFailed": "Не удалось загрузить список сеансов",
+			"sessions.retry": "Повторить",
+			"sessions.unavailable": "Службы сеансов не готовы, поэтому архивирование недоступно",
+			"sessions.actionFailed": "Действие не выполнено",
+			"sessions.bulkPartial.one": "Удалён 1 сеанс; {failed} удалить не удалось.",
+			"sessions.bulkPartial.other": "Удалено сеансов: {deleted}; удалить не удалось: {failed}.",
+			"sessions.bulkStopped.one": "Удалён 1 сеанс; остальные обработать не удалось.",
+			"sessions.bulkStopped.other": "Удалено сеансов: {deleted}; остальные обработать не удалось.",
+			"sessions.bulkArchivePartial.one": "Архивирован 1 сеанс; {skipped} пропущен, так как в нём ещё шла работа.",
+			"sessions.bulkArchivePartial.other": "Архивировано сеансов: {archived}; пропущено из-за незавершённой работы: {skipped}.",
+			"sessions.bulkArchiveFailed.one": "Архивирован 1 сеанс; {failed} архивировать не удалось.",
+			"sessions.bulkArchiveFailed.other": "Архивировано сеансов: {archived}; архивировать не удалось: {failed}.",
+			"sessions.deleteSelectedTitle": "Удалить выбранные сеансы",
+			"sessions.deleteBatchDescription": "Это удалит с диска {count} выбранных сеансов и все их сеансы субагентов вместе с журналами. Выполняющиеся сеансы будут прерваны. Отменить это невозможно!",
+			"sessions.archiveStopTitle": "Остановить и заархивировать этот сеанс?",
+			"sessions.archiveStopDescription": "В «{title}» ещё идёт работа. Архивирование сначала остановит её; остановленная работа не возобновится сама по себе.",
+			"sessions.archiveActivity": "Работа, которая будет остановлена",
+			"sessions.activityTurn": "Текущий ход",
+			"sessions.activitySubagents.one": "1 работающий субагент",
+			"sessions.activitySubagents.other": "Работающих субагентов: {count}",
+			"sessions.activityJobs.one": "1 фоновое задание",
+			"sessions.activityJobs.other": "Фоновых заданий: {count}",
+			"sessions.activitySchedules.one": "1 запланированное напоминание",
+			"sessions.activitySchedules.other": "Запланированных напоминаний: {count}",
+			"sessions.activityOther.one": "1 другой элемент работы ({kind})",
+			"sessions.activityOther.other": "Других элементов работы: {count} ({kind})",
+			"sessions.archiveStopAction": "Остановить и заархивировать",
+			"sessions.archiveStopPending": "Остановка и архивирование…",
+			"delete.title": "Удалить сеанс",
+			"delete.description": "Это удалит с диска этот сеанс и все его сеансы субагентов вместе с журналами. Выполняющиеся сеансы будут прерваны. Отменить это невозможно!",
+			"delete.pending": "Остановка и удаление…",
+			"delete.confirm": "Удалить",
+			"error.host-stale": "Host-часть всё ещё работает на старой сборке; перезапустите DSH и повторите попытку.",
+			"error.missing-session": "Сеанс не указан",
+			"error.unknown-session": "Такого сеанса больше нет",
+			"error.subagent-delete": "Сеанс субагента нельзя удалить отдельно; удалите его родительский диалог",
+			"error.delete-failed": "Не удалось удалить сеанс",
+			"error.delete-unsupported": "Этот Harness не предоставляет раскладку сеансов на диске, необходимую для удаления",
+			"error.delete-active": "Сеанс всё ещё выполняется ({activity}) и остановить его не удалось, поэтому он не удалён",
+			"error.session-live": "Сеанс всё ещё активен, и освободить его не удалось",
+			"error.delete-partial": "Часть сеансов удалить не удалось: удалено {deleted}, осталось {remaining}. Повторите попытку для оставшихся",
+			"error.session-running": "Сеанс всё ещё выполняется, и заархивировать его не удалось",
+			"error.activityFallback": "идущая работа",
+			"activity.turn": "текущий ход",
+			"activity.subagent": "работающие субагенты",
+			"activity.job": "фоновые задания",
+			"activity.schedule": "запланированные напоминания",
+			"activity.separator": ", "
+		};
+		// src/client/locales/pt.ts
+		const pt = {
+			"action.delete": "Excluir sessão",
+			"action.cancel": "Cancelar",
+			"action.close": "Fechar",
+			"settings.nav": "Sessões",
+			"settings.title": "Sessões",
+			"settings.description": "Pesquise, filtre, arquive ou exclua sessões.",
+			"sessions.search": "Pesquisar títulos de sessão",
+			"sessions.searchPlaceholder": "Pesquisar...",
+			"sessions.allWorkspaces": "Todos os espaços de trabalho",
+			"sessions.noWorkspace": "Sem espaço de trabalho",
+			"sessions.allSessions": "Todas as sessões",
+			"sessions.unarchived": "Não arquivadas",
+			"sessions.archived": "Arquivadas",
+			"sessions.running": "Em execução",
+			"sessions.selectAll": "Selecionar tudo",
+			"sessions.selectOne": "Selecionar {title}",
+			"sessions.archiveSelected": "Arquivar selecionadas",
+			"sessions.deleteSelected": "Excluir selecionadas",
+			"sessions.selectedCount": "Selecionadas: {count}",
+			"sessions.columnTitle": "Sessão",
+			"sessions.columnStatus": "Status",
+			"sessions.columnActions": "Ações",
+			"sessions.archive": "Arquivar",
+			"sessions.unarchive": "Desarquivar",
+			"sessions.delete": "Excluir",
+			"sessions.loading": "Carregando sessões…",
+			"sessions.empty": "Ainda não há sessões",
+			"sessions.noMatches": "Nenhuma sessão correspondente",
+			"sessions.loadFailed": "Não foi possível carregar a lista de sessões",
+			"sessions.retry": "Tentar novamente",
+			"sessions.unavailable": "Os serviços de sessão não estão prontos, então o arquivamento não está disponível",
+			"sessions.actionFailed": "A ação falhou",
+			"sessions.bulkPartial.one": "1 sessão excluída; {failed} não pôde ser excluída.",
+			"sessions.bulkPartial.other": "{deleted} sessões excluídas; {failed} não puderam ser excluídas.",
+			"sessions.bulkStopped.one": "1 sessão excluída; o restante não pôde ser processado.",
+			"sessions.bulkStopped.other": "{deleted} sessões excluídas; o restante não pôde ser processado.",
+			"sessions.bulkArchivePartial.one": "1 sessão arquivada; {skipped} ignorada porque ainda havia trabalho em andamento.",
+			"sessions.bulkArchivePartial.other": "{archived} sessões arquivadas; {skipped} ignoradas porque ainda havia trabalho em andamento.",
+			"sessions.bulkArchiveFailed.one": "1 sessão arquivada; {failed} não pôde ser arquivada.",
+			"sessions.bulkArchiveFailed.other": "{archived} sessões arquivadas; {failed} não puderam ser arquivadas.",
+			"sessions.deleteSelectedTitle": "Excluir as sessões selecionadas",
+			"sessions.deleteBatchDescription": "Isso remove do disco as {count} sessões selecionadas e todas as suas sessões de subagente, incluindo seus registros. As sessões em execução serão encerradas. Esta ação não pode ser desfeita!",
+			"sessions.archiveStopTitle": "Parar e arquivar esta sessão?",
+			"sessions.archiveStopDescription": "“{title}” ainda tem trabalho em andamento. Arquivar interrompe esse trabalho primeiro; o trabalho interrompido não será retomado sozinho.",
+			"sessions.archiveActivity": "Trabalho que será interrompido",
+			"sessions.activityTurn": "O turno em andamento",
+			"sessions.activitySubagents.one": "1 subagente em execução",
+			"sessions.activitySubagents.other": "{count} subagentes em execução",
+			"sessions.activityJobs.one": "1 tarefa em segundo plano",
+			"sessions.activityJobs.other": "{count} tarefas em segundo plano",
+			"sessions.activitySchedules.one": "1 lembrete agendado",
+			"sessions.activitySchedules.other": "{count} lembretes agendados",
+			"sessions.activityOther.one": "1 outro item de trabalho ({kind})",
+			"sessions.activityOther.other": "{count} outros itens de trabalho ({kind})",
+			"sessions.archiveStopAction": "Parar e arquivar",
+			"sessions.archiveStopPending": "Parando e arquivando…",
+			"delete.title": "Excluir sessão",
+			"delete.description": "Isso remove do disco esta sessão e todas as suas sessões de subagente, incluindo seus registros. As sessões em execução serão encerradas. Esta ação não pode ser desfeita!",
+			"delete.pending": "Parando e excluindo…",
+			"delete.confirm": "Excluir",
+			"error.host-stale": "A metade Host ainda está executando uma compilação mais antiga; reinicie o DSH e tente novamente.",
+			"error.missing-session": "Nenhuma sessão foi indicada",
+			"error.unknown-session": "Essa sessão não existe mais",
+			"error.subagent-delete": "Uma sessão de subagente não pode ser excluída sozinha; exclua a conversa principal dela",
+			"error.delete-failed": "Não foi possível excluir a sessão",
+			"error.delete-unsupported": "Este Harness não expõe o layout de sessões em disco necessário para excluir",
+			"error.delete-active": "A sessão ainda está em execução ({activity}) e não pôde ser interrompida, então não foi excluída",
+			"error.session-live": "A sessão ainda está ativa e não pôde ser liberada",
+			"error.delete-partial": "Algumas sessões não puderam ser excluídas: {deleted} removidas, {remaining} ainda presentes. Tente novamente as restantes",
+			"error.session-running": "A sessão ainda está em execução e não pôde ser arquivada",
+			"error.activityFallback": "trabalho em andamento",
+			"activity.turn": "o turno em andamento",
+			"activity.subagent": "subagentes em execução",
+			"activity.job": "tarefas em segundo plano",
+			"activity.schedule": "lembretes agendados",
+			"activity.separator": ", "
+		};
+		// src/client/locales.ts
+		/** The dictionary namespace this page owns. */
+		const NS = "coolSession";
+		/** Every dictionary, in the shape the locale service registers. */
+		const DICTIONARIES = {
+			zh,
+			en,
+			ja,
+			es,
+			fr,
+			de,
+			ru,
+			pt
+		};
+		/**
+		* Pick the singular or plural spelling of a count-bearing message.
+		*
+		* @param base - the message family, whose `.one` and `.other` entries exist.
+		* @param count - the number the sentence reports.
+		* @returns the key to translate.
+		*/
+		function countKey(base, count) {
+			return `${base}.${count === 1 ? "one" : "other"}`;
+		}
+		/**
+		* Every spelling of the Settings navigation label this package ships.
+		*
+		* The Settings navigation glyph is patched by matching the rendered label, and
+		* the shell's CSS module class names rotate between releases, so the label is
+		* the only stable handle on that cell. A language switch can land between
+		* registration and that read, so the set covers all eight dictionaries rather
+		* than only the active one.
+		*
+		* @returns the distinct navigation labels, in dictionary order.
+		*/
+		function navLabels() {
+			return [...new Set(Object.values(DICTIONARIES).map((dict) => dict["settings.nav"]))];
+		}
 		// src/client/settings-section.tsx
 		/**
 		* The Sessions page of the Settings panel: list, search, filter, selection,
@@ -555,7 +1111,7 @@ window.__ModuleLoader__.load({
 		function problemText(t, problem) {
 			const parts = [];
 			if (problem.prefix !== void 0) parts.push(t(problem.prefix.key, problem.prefix.params));
-			if (problem.failure !== void 0) parts.push(t(`error.${problem.failure.code}`, problem.failure.params));
+			if (problem.failure !== void 0) parts.push(failureText(t, problem.failure));
 			else if (typeof problem.error === "string" && problem.error !== "") parts.push(problem.error === "HTTP 405" ? t("error.host-stale") : problem.error);
 			else if (problem.prefix === void 0) parts.push(t(problem.fallback ?? "sessions.actionFailed"));
 			return parts.join(" ");
@@ -932,7 +1488,7 @@ window.__ModuleLoader__.load({
 					return;
 				}
 				if (result.failure !== void 0) {
-					setArchiveError(t(`error.${result.failure.code}`, result.failure.params));
+					setArchiveError(failureText(t, result.failure));
 					return;
 				}
 				setArchiveError(typeof result.message === "string" && result.message !== "" ? result.message : t("sessions.actionFailed"));
@@ -1277,7 +1833,7 @@ window.__ModuleLoader__.load({
 					};
 					return {
 						ok: false,
-						message: typeof failure.rpcError?.message === "string" && failure.rpcError.message !== "" ? failure.rpcError.message : "the session is still running"
+						failure: { code: "session-running" }
 					};
 				}
 				if (code === "session/not-found") return {
@@ -1312,17 +1868,14 @@ window.__ModuleLoader__.load({
 		const ICON_ATTRIBUTE = "data-dsh-cs-nav-icon";
 		/** Marks the gear this module hid, so disposal can restore it. */
 		const HIDDEN_ATTRIBUTE = "data-dsh-cs-nav-hidden";
-		/** The nav label in every locale, plus the one this render is reading. */
+		/** The nav label in every translated language, plus the one this render is reading. */
 		function settingsLabels(t) {
-			let current = "";
+			const labels = new Set(navLabels());
 			try {
-				current = t("settings.nav");
+				const current = t("settings.nav");
+				if (current !== "") labels.add(current);
 			} catch {}
-			return [
-				zh["settings.nav"],
-				en["settings.nav"],
-				current
-			];
+			return [...labels];
 		}
 		/**
 		* Find the settings navigation cells, tolerating a rotated class hash.
@@ -1523,10 +2076,7 @@ window.__ModuleLoader__.load({
 			if (slots === void 0) return;
 			const locale = ctx.get("locale");
 			ctx.effect(() => insertStyles(), "dsh-cool-session: styles");
-			ctx.effect(() => locale.register(NS, {
-				zh,
-				en
-			}), "dsh-cool-session: dictionaries");
+			ctx.effect(() => locale.register(NS, DICTIONARIES), "dsh-cool-session: dictionaries");
 			const t = locale.bind(NS);
 			const afterDelete = (sessionId) => {
 				const uiWorkspace = ctx.get("uiWorkspace");

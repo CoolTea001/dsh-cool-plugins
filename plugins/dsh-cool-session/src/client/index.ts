@@ -18,7 +18,7 @@ import { requestDeleteSession, retireLegacyDeleteRow, SessionDeleteDialog, Sessi
 import { SessionsSection } from './settings-section.js'
 import { setSessionArchived } from './archive.js'
 import { installSessionNavIcon } from './nav-icon.js'
-import { en, NS, zh, type Translate } from './locales.js'
+import { DICTIONARIES, NS, type LocaleId, type Translate } from './locales.js'
 import { insertStyles } from './styles.js'
 
 export const name = 'dsh-cool-session/client'
@@ -45,7 +45,7 @@ export const inject = ['slots', 'locale']
  */
 interface LocaleService {
   /** Register one namespace's dictionaries for the shipped locales. */
-  register(ns: string, dicts: Readonly<Record<'zh' | 'en', Readonly<Record<string, string>>>>): () => void
+  register(ns: string, dicts: Readonly<Record<LocaleId, Readonly<Record<string, string>>>>): () => void
   /** Bind a namespace to a stable translate function reading the active locale. */
   bind(ns: string): Translate
 }
@@ -57,8 +57,10 @@ export function apply(ctx: any): void {
 
   ctx.effect(() => insertStyles(), 'dsh-cool-session: styles')
   // The registration's lifetime is the plugin's, so a reload or an HMR update
-  // replaces the dictionaries rather than leaving two of them behind.
-  ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-cool-session: dictionaries')
+  // replaces the dictionaries rather than leaving two of them behind. All eight
+  // ship together: the service picks the active one per call, and a language
+  // this package has no dictionary for falls back to English.
+  ctx.effect(() => locale.register(NS, DICTIONARIES), 'dsh-cool-session: dictionaries')
   const t = locale.bind(NS)
 
   // A deleted Session must not stay in the shell's main view or in either

@@ -88,14 +88,9 @@ export async function setSessionArchived(
     if (code === 'workspace/session-active') {
       const activity = activityOf(failure.rpcError?.details)
       // A refusal without a readable family list cannot drive the "stop and
-      // archive" confirmation, so it is reported as the plain failure it is.
+      // archive" confirmation, so it is reported as the plain refusal it is.
       if (activity.length > 0) return { ok: false, active: activity }
-      return {
-        ok: false,
-        message: typeof failure.rpcError?.message === 'string' && failure.rpcError.message !== ''
-          ? failure.rpcError.message
-          : 'the session is still running',
-      }
+      return { ok: false, failure: { code: 'session-running' } }
     }
     if (code === 'session/not-found') return { ok: false, failure: { code: 'unknown-session' } }
     return { ok: false, message: error instanceof Error ? error.message : String(error) }

@@ -72,6 +72,16 @@ export default dshPlugin({ packageId: 'dsh-cool-git' })
 
 它作为 `pnpm run check` 的一部分运行，CI 里也会再跑一次。这是唯一能抓住「只在用户打开面板时才暴露」的那类失败的检查。
 
+## 语言守卫
+
+`scripts/check-locales.mjs` 检查每个提供拆分字典（`src/client/locales/{zh,en,ja,es,fr,de,ru,pt}.ts`）的插件，覆盖编译器看不到的两类漂移。
+
+第一类是占位符。英文写 `{count}`、葡语写 `{quantidade}` 都能通过类型检查，但 locale 服务只替换调用方传进来的名字，所以后者会以字面文本出现在界面上。守卫要求每份字典的占位符集合与中国条目完全一致。
+
+第二类是复数分支。调用方在运行时从 `.one` 与 `.other` 之间二选一，因此只有 `.one` 而没有 `.other` 能编译，随后会把原始 key 名显示出来。单独的 `.other` 是允许的：dsh-cool-theme 用它当分类名。
+
+它还会拒绝文件名不属于这八个 id 的字典，因为这样的字典会注册到 shell 永远不会选中的语言上。和 bundle 守卫一样，它在 `pnpm run check` 与 CI 中运行。
+
 ## 发布
 
 `pnpm -r publish` 只发布 registry 上还没有该版本的包。bump 一个包就只发一个包。
