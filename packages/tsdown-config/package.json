@@ -1,0 +1,10 @@
+{
+  "name": "@dsh-cool/tsdown-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared tsdown preset for the DSH plugin packages in this repository.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

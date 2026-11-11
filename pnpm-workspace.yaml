@@ -1,0 +1,7 @@
+# Three explicit globs rather than `*/*`: pnpm does not recurse into a
+# directory that has no package.json of its own, so a wildcard one level up
+# would match `plugins/` itself and find nothing.
+packages:
+  - 'plugins/*'
+  - 'web/*'
+  - 'packages/*'

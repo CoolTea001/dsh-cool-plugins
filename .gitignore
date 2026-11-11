@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Repo-local scratch, mirrored from the per-plugin repositories.
+.tmp/
+.agents/
+.DS_Store
