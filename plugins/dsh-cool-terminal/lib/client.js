@@ -4,14 +4,14 @@ window.__ModuleLoader__.load({
 		var module = { exports: {} };
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		//#region \0rolldown/runtime.js
+		// \0rolldown/runtime.js
 		var __create = Object.create;
 		var __defProp = Object.defineProperty;
 		var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 		var __getOwnPropNames = Object.getOwnPropertyNames;
 		var __getProtoOf = Object.getPrototypeOf;
 		var __hasOwnProp = Object.prototype.hasOwnProperty;
-		var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod), cb = null), mod.exports);
+		var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod, mod.exports), cb = null), mod.exports);
 		var __copyProps = (to, from, except, desc) => {
 			if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
 				key = keys[i];
@@ -26,11 +26,10 @@ window.__ModuleLoader__.load({
 			value: mod,
 			enumerable: true
 		}) : target, mod));
-		//#endregion
 		let react = require("react");
 		react = __toESM(react, 1);
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		//#region node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/lib/xterm.js
+		// ../../node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/lib/xterm.js
 		var require_xterm = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			(function(e, t) {
 				if ("object" == typeof exports && "object" == typeof module) module.exports = t();
@@ -13027,8 +13026,7 @@ window.__ModuleLoader__.load({
 				})(), s;
 			})()));
 		}));
-		//#endregion
-		//#region node_modules/.pnpm/@xterm+addon-fit@0.11.0/node_modules/@xterm/addon-fit/lib/addon-fit.js
+		// ../../node_modules/.pnpm/@xterm+addon-fit@0.11.0/node_modules/@xterm/addon-fit/lib/addon-fit.js
 		var require_addon_fit = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			(function(e, t) {
 				"object" == typeof exports && "object" == typeof module ? module.exports = t() : "function" == typeof define && define.amd ? define([], t) : "object" == typeof exports ? exports.FitAddon = t() : e.FitAddon = t();
@@ -13063,8 +13061,7 @@ window.__ModuleLoader__.load({
 				})(), e;
 			})()));
 		}));
-		//#endregion
-		//#region src/client/icons.tsx
+		// src/client/icons.tsx
 		var import_xterm = require_xterm();
 		var import_addon_fit = require_addon_fit();
 		/**
@@ -13131,8 +13128,7 @@ window.__ModuleLoader__.load({
 		const IconList = svgIcon("list");
 		/** Copy a command to the clipboard (assets/copy.svg). */
 		const IconCopy = svgIcon("copy");
-		//#endregion
-		//#region src/client/api.ts
+		// src/client/api.ts
 		/**
 		* Client half of the package-private bridge to the Host routes.
 		*
@@ -13213,8 +13209,7 @@ window.__ModuleLoader__.load({
 		function streamUrl(terminalId) {
 			return `${BASE}/stream?terminalId=${encodeURIComponent(terminalId)}`;
 		}
-		//#endregion
-		//#region src/client/commands.ts
+		// src/client/commands.ts
 		/** Monotone counter; combined with the clock so ids stay unique across resets. */
 		let sequence$1 = 0;
 		const STORAGE_KEY$1 = "dsh-cool-terminal.commands.v1";
@@ -13303,8 +13298,7 @@ window.__ModuleLoader__.load({
 				description
 			};
 		}
-		//#endregion
-		//#region src/client/commands-dialog.tsx
+		// src/client/commands-dialog.tsx
 		/**
 		* The common-commands dialog.
 		*
@@ -13585,8 +13579,7 @@ window.__ModuleLoader__.load({
 				onDone: () => setToast(null)
 			}));
 		}
-		//#endregion
-		//#region src/client/startup-dialog.tsx
+		// src/client/startup-dialog.tsx
 		/**
 		* The per-console Command autostart dialog.
 		*
@@ -13658,8 +13651,7 @@ window.__ModuleLoader__.load({
 				onChange: setAutoRun
 			})));
 		}
-		//#endregion
-		//#region src/client/geometry.ts
+		// src/client/geometry.ts
 		/**
 		* Per-console terminal geometry remembered across page loads.
 		*
@@ -13755,8 +13747,7 @@ window.__ModuleLoader__.load({
 				window.localStorage.setItem(GEOMETRY_KEY, JSON.stringify(all));
 			} catch {}
 		}
-		//#endregion
-		//#region src/client/resize-handle.ts
+		// src/client/resize-handle.ts
 		/**
 		* Pointer gesture for the terminal sidebar's right edge.
 		*
@@ -13833,8 +13824,7 @@ window.__ModuleLoader__.load({
 				onLostPointerCapture: onPointerCancel
 			});
 		}
-		//#endregion
-		//#region src/client/layout.ts
+		// src/client/layout.ts
 		/**
 		* The terminal tab's resizable sidebar boundary, and the width it remembers.
 		*
@@ -14396,8 +14386,7 @@ window.__ModuleLoader__.load({
 			for (let index = 0; index < a.items.length; index += 1) if (a.items[index].id !== b.items[index].id) return false;
 			return true;
 		}
-		//#endregion
-		//#region src/client/terminals.ts
+		// src/client/terminals.ts
 		/** Group key of the pseudo console bound to the session's own workdir. */
 		const SESSION_KEY = "__session__";
 		/**
@@ -14751,8 +14740,7 @@ window.__ModuleLoader__.load({
 				}
 			};
 		}
-		//#endregion
-		//#region src/client/terminal.tsx
+		// src/client/terminal.tsx
 		/**
 		* The terminal tab: a Workspace sidebar on the left and the active console on
 		* the right.
@@ -16094,8 +16082,7 @@ window.__ModuleLoader__.load({
 				}
 			};
 		}
-		//#endregion
-		//#region src/client/autostart.ts
+		// src/client/autostart.ts
 		/**
 		* The page-load half of Command autostart.
 		*
@@ -16135,8 +16122,7 @@ window.__ModuleLoader__.load({
 				}
 			}
 		}
-		//#endregion
-		//#region src/client/styles.ts
+		// src/client/styles.ts
 		/**
 		* Package-owned stylesheet for the terminal tab.
 		*
@@ -16255,8 +16241,7 @@ window.__ModuleLoader__.load({
 				element.remove();
 			};
 		}
-		//#endregion
-		//#region src/client/locales/zh.ts
+		// src/client/locales/zh.ts
 		/**
 		* Simplified Chinese dictionary — the key-set source of truth.
 		*
@@ -16313,8 +16298,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "关闭",
 			"completion.footer": "↑↓ 选择 · Enter 填充 · Esc 关闭"
 		};
-		//#endregion
-		//#region src/client/locales/en.ts
+		// src/client/locales/en.ts
 		const en = {
 			"view.tab": "Terminal",
 			"sidebar.session": "Current session",
@@ -16363,8 +16347,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Close",
 			"completion.footer": "↑↓ select · Enter fill · Esc close"
 		};
-		//#endregion
-		//#region src/client/locales/ja.ts
+		// src/client/locales/ja.ts
 		const ja = {
 			"view.tab": "ターミナル",
 			"sidebar.session": "現在のセッション",
@@ -16413,8 +16396,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "閉じる",
 			"completion.footer": "↑↓ 選択 · Enter 確定 · Esc 閉じる"
 		};
-		//#endregion
-		//#region src/client/locales/es.ts
+		// src/client/locales/es.ts
 		const es = {
 			"view.tab": "Terminal",
 			"sidebar.session": "Sesión actual",
@@ -16463,8 +16445,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Cerrar",
 			"completion.footer": "↑↓ elegir · Enter completar · Esc cerrar"
 		};
-		//#endregion
-		//#region src/client/locales/fr.ts
+		// src/client/locales/fr.ts
 		const fr = {
 			"view.tab": "Terminal",
 			"sidebar.session": "Session actuelle",
@@ -16513,8 +16494,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Fermer",
 			"completion.footer": "↑↓ choisir · Entrée insérer · Échap fermer"
 		};
-		//#endregion
-		//#region src/client/locales/de.ts
+		// src/client/locales/de.ts
 		const de = {
 			"view.tab": "Terminal",
 			"sidebar.session": "Aktuelle Sitzung",
@@ -16563,8 +16543,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Schließen",
 			"completion.footer": "↑↓ auswählen · Enter einsetzen · Esc schließen"
 		};
-		//#endregion
-		//#region src/client/locales/ru.ts
+		// src/client/locales/ru.ts
 		const ru = {
 			"view.tab": "Терминал",
 			"sidebar.session": "Текущий сеанс",
@@ -16613,8 +16592,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Закрыть",
 			"completion.footer": "↑↓ выбрать · Enter вставить · Esc закрыть"
 		};
-		//#endregion
-		//#region src/client/locales/pt.ts
+		// src/client/locales/pt.ts
 		const pt = {
 			"view.tab": "Terminal",
 			"sidebar.session": "Sessão atual",
@@ -16663,8 +16641,7 @@ window.__ModuleLoader__.load({
 			"commands.close": "Fechar",
 			"completion.footer": "↑↓ selecionar · Enter preencher · Esc fechar"
 		};
-		//#endregion
-		//#region src/client/locales.ts
+		// src/client/locales.ts
 		/**
 		* Locale entry point for the terminal tab.
 		*
@@ -16735,8 +16712,7 @@ window.__ModuleLoader__.load({
 			const bound = locale.bind(NS);
 			return (key, params) => bound(key, params);
 		}
-		//#endregion
-		//#region src/client/index.ts
+		// src/client/index.ts
 		/**
 		* Client entry for dsh-cool-terminal.
 		*
@@ -16781,7 +16757,6 @@ window.__ModuleLoader__.load({
 			if (locale !== void 0) entry.locale = NS;
 			slots.inject("conversation.view", () => slots.register(entry, View));
 		}
-		//#endregion
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;

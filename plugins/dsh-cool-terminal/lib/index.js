@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, hostname, userInfo } from "node:os";
 import { basename, join } from "node:path";
-//#region src/host/startup.ts
+// src/host/startup.ts
 /** Input and timing for a command injected into a freshly spawned shell. */
 /** Upper bound on a console's startup command, in UTF-16 code units. */
 const MAX_STARTUP_CHARS = 4096;
@@ -84,8 +84,7 @@ var StartupCommand = class {
 		this.tail = Buffer.alloc(0);
 	}
 };
-//#endregion
-//#region src/host/index.ts
+// src/host/index.ts
 /**
 * Host entry for dsh-cool-terminal.
 *
@@ -1182,5 +1181,4 @@ function apply(ctx) {
 		};
 	}, "dsh-cool-terminal: terminal routes");
 }
-//#endregion
 export { ROUTES, apply, inject, name };
