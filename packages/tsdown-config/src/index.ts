@@ -59,7 +59,14 @@ export interface DshPluginOptions {
    * deliberate choice, so the warning is not read as an oversight.
    */
   quietBundledDeps?: boolean
-  /** Minify the client bundle. Worth it when it carries large data (grammars). */
+  /**
+   * Minify the client bundle. Worth it when it carries large data (grammars).
+   *
+   * Only the `true` case is forwarded. Omitting the field is NOT the same as
+   * passing `false`: tsdown forwards an explicit `false` to rolldown, whose
+   * output then differs from the field being absent. Several plugins built
+   * without it, so the preset leaves it out unless asked.
+   */
   clientMinify?: boolean
   /**
    * Import a non-JS asset as its source text, for example `{ '.svg': 'text' }`.
@@ -108,7 +115,7 @@ export function dshPlugin(options: DshPluginOptions): UserConfig[] {
       target: 'es2022',
       fixedExtension: false,
       dts: false,
-      minify: clientMinify,
+      ...(clientMinify ? { minify: true } : {}),
       ...(clientLoader === undefined ? {} : { loader: clientLoader }),
       define: clientDefine,
       deps: {

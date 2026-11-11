@@ -23,6 +23,16 @@ importers:
 
   packages/tsdown-config: {}
 
+  plugins/dsh-cool-daily:
+    dependencies:
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+    devDependencies:
+      '@dsh-cool/tsdown-config':
+        specifier: workspace:*
+        version: link:../../packages/tsdown-config
+
   plugins/dsh-cool-session:
     dependencies:
       react:
