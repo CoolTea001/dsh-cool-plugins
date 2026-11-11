@@ -1,0 +1,7 @@
+# dsh-cool-session bundle patch: mount the host half.
+#
+# The host half answers the session catalog routes; the browser half is loaded
+# from this package's `dsh.client` manifest and owns the Sessions tab.
+- insert:
+    - id: dsh-cool-session
+      name: dsh-cool-session
