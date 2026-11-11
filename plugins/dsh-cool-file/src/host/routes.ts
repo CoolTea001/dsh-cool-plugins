@@ -10,20 +10,30 @@
  * The Host stays authoritative about *which* workspace is browsed. A request may
  * name the session it belongs to, but never a directory: the root is read from
  * that session's own header, so a page cannot point the plugin at a tree the
- * session does not own. Both routes are reads; this plugin exposes no write.
+ * session does not own. Three routes read; the fourth is the editor's save, and
+ * it accepts nothing but the text of one file already inside that workspace.
  */
 
-import { listDirectory, readFile } from './files.js'
-import type { ListPayload, ReadPayload } from '../shared/contract.js'
+import { listDirectory, readFile, readWholeFile, saveFile } from './files.js'
+import type { ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 /** Route table, kept in one place so the two halves cannot drift. */
 export const ROUTES = {
   list: '/dsh-cool-file/api/list',
   read: '/dsh-cool-file/api/read',
+  text: '/dsh-cool-file/api/text',
+  write: '/dsh-cool-file/api/write',
 } as const
 
-/** Longest request body a route accepts; both bodies are a path and an id. */
+/** Longest body the read routes accept; each is a path and a session id. */
 const MAX_BODY_BYTES = 16 * 1024
+
+/**
+ * Longest body the save route accepts: the content cap, with room for the JSON
+ * escaping of control characters (a newline doubles, a control byte becomes six)
+ * plus the path and the freshness token.
+ */
+const MAX_WRITE_BODY_BYTES = 16 * 1024 * 1024
 
 function sendJson(res: any, status: number, body: unknown): void {
   res.writeHead(status, {
@@ -48,16 +58,17 @@ function methodAllowed(req: any, res: any, allowed: readonly string[]): boolean 
  * Read a JSON object body, bounded before it is parsed.
  *
  * @param req - the incoming request.
+ * @param limit - largest body accepted, in bytes.
  * @returns the parsed body; `{}` for an empty one.
  * @throws when the body is too large or is not a JSON object.
  */
-async function readBody(req: any): Promise<Record<string, unknown>> {
+async function readBody(req: any, limit: number): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     const buffer = Buffer.from(chunk as Uint8Array)
     size += buffer.length
-    if (size > MAX_BODY_BYTES) throw new Error('body is too large')
+    if (size > limit) throw new Error('body is too large')
     chunks.push(buffer)
   }
   const text = Buffer.concat(chunks).toString('utf8')
@@ -89,21 +100,23 @@ function sameOrigin(req: any): boolean {
 }
 
 /**
- * Run one read and answer it as JSON.
+ * Run one answer and send it as JSON.
  *
  * @param req - the incoming request.
  * @param res - the response to write.
- * @param run - the read, given the parsed body.
+ * @param run - the answer, given the parsed body.
+ * @param limit - largest body accepted, in bytes.
  */
 async function handle(
   req: any,
   res: any,
-  run: (body: Record<string, unknown>) => Promise<ListPayload | ReadPayload>,
+  run: (body: Record<string, unknown>) => Promise<ListPayload | ReadPayload | TextPayload | SavePayload>,
+  limit: number = MAX_BODY_BYTES,
 ): Promise<void> {
   if (!methodAllowed(req, res, ['POST'])) return
   let body: Record<string, unknown>
   try {
-    body = await readBody(req)
+    body = await readBody(req, limit)
   } catch (error) {
     sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'bad request' })
     return
@@ -112,7 +125,7 @@ async function handle(
 }
 
 /**
- * Register both routes on the browser HTTP carrier.
+ * Register the four routes on the browser HTTP carrier.
  *
  * @param ctx - the Host plugin context.
  * @returns the disposer that removes the routes with the plugin.
@@ -137,6 +150,15 @@ export function registerRoutes(ctx: any): () => void {
   const disposers = [
     route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))),
     route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
+    route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path))),
+    route(ROUTES.write, (req, res) =>
+      handle(
+        req,
+        res,
+        (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version),
+        MAX_WRITE_BODY_BYTES,
+      ),
+    ),
   ]
 
   return () => {

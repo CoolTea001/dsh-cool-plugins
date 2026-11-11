@@ -10,13 +10,17 @@
  *
  * The page owns no workspace state of its own: every answer is a plain value
  * fetched from the Host over this package's own same-origin routes (see
- * `api.ts`), and the only local state is which folders are open, which children
- * have arrived, whether the entries the system hides are drawn, which file is
- * selected, and which request is in flight.
+ * `api.ts`), and the local state is which folders are open, which children have
+ * arrived, whether the entries the system hides are drawn, which file is
+ * selected, whether the reader is previewing or editing, what drafts they hold,
+ * and which request is in flight.
  *
- * The page is read-only on purpose. It lists entries, expands them, and shows
- * the first page of a text file; it never writes, renames, or deletes. That
- * keeps the Host route a read and the tab safe to leave open.
+ * The page reads by default and writes only when asked. It lists entries,
+ * expands them, and shows the first page of a text file; the editor — reached
+ * through the header's Preview/Editor menu — replaces one file's complete text
+ * and nothing else. It never creates, renames or deletes, and a save quotes the
+ * freshness token of the read it started from, so a file that moved on is
+ * refused instead of overwritten.
  *
  * The page is full-bleed, the same way the Terminal and Git tabs are: the root
  * class gives the stylesheet a handle on this subtree, the root declares the

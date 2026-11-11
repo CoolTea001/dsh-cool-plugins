@@ -43,6 +43,27 @@ const GUTTER_PADDING = 16
 const GUTTER_MIN_DIGITS = 2
 
 /**
+ * The number column for a file of `lineCount` rows.
+ *
+ * The editor draws its own number column — it has to translate the numbers by
+ * the field's scroll offset, which the preview never does — but the digits, the
+ * width and the pitch have to be the preview's, or the two modes would disagree
+ * about where a row starts.
+ *
+ * @param lineCount - how many rows the file has.
+ * @returns the numbers, one per line, and the width of the column.
+ */
+export function gutterBox(lineCount: number): { readonly text: string; readonly style: CSSProperties } {
+  const digits = Math.max(GUTTER_MIN_DIGITS, String(lineCount).length)
+  const numbers: string[] = []
+  for (let line = 1; line <= lineCount; line += 1) numbers.push(String(line))
+  const style: CSSProperties = { width: `calc(${digits}ch + ${GUTTER_PADDING}px)` }
+  // One number per line: the gutter is a `<pre>`, so the breaks between them
+  // are its own line boxes, counted by the same 19.2px the rows use.
+  return { text: numbers.join('\n'), style }
+}
+
+/**
  * Draw one file's text with line numbers and syntax colours.
  *
  * @param props - the text to draw and the path it came from.
@@ -50,15 +71,7 @@ const GUTTER_MIN_DIGITS = 2
  */
 export function CodePreview({ text, path }: CodePreviewProps): ReactElement {
   const { html, lineCount } = useMemo(() => highlightCode(text, path), [text, path])
-  const gutter = useMemo(() => {
-    const digits = Math.max(GUTTER_MIN_DIGITS, String(lineCount).length)
-    const numbers: string[] = []
-    for (let line = 1; line <= lineCount; line += 1) numbers.push(String(line))
-    const style: CSSProperties = { width: `calc(${digits}ch + ${GUTTER_PADDING}px)` }
-    // One number per line: the gutter is a `<pre>`, so the breaks between them
-    // are its own line boxes, counted by the same 19.2px the rows use.
-    return { text: numbers.join('\n'), style }
-  }, [lineCount])
+  const gutter = useMemo(() => gutterBox(lineCount), [lineCount])
   return (
     <div className="dsh-cf-code-view">
       {/* The ruler is not content: it is hidden from assistive technology,

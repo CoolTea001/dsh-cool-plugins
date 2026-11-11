@@ -6,7 +6,7 @@
  * exactly one failure shape no matter how the answer went wrong.
  */
 
-import type { ListPayload, ReadPayload } from '../shared/contract.js'
+import type { ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 const BASE = '/dsh-cool-file/api'
 
@@ -55,4 +55,33 @@ export function fetchListing(sessionId: string | undefined, path: string): Promi
  */
 export function fetchFile(sessionId: string | undefined, path: string): Promise<ReadPayload> {
   return postJson('/read', { sessionId, path })
+}
+
+/**
+ * Ask the Host for one workspace file's complete raw text, for the editor.
+ *
+ * @param sessionId - the session whose workspace is browsed, when known.
+ * @param path - the file as a workspace path.
+ * @returns the text payload, with the freshness token a save must quote.
+ */
+export function fetchText(sessionId: string | undefined, path: string): Promise<TextPayload> {
+  return postJson('/text', { sessionId, path })
+}
+
+/**
+ * Ask the Host to replace one workspace file with the editor's content.
+ *
+ * @param sessionId - the session whose workspace is browsed, when known.
+ * @param path - the file as a workspace path.
+ * @param text - the complete new content.
+ * @param version - the freshness token the read returned, so a stale save is refused.
+ * @returns the save payload.
+ */
+export function saveFile(
+  sessionId: string | undefined,
+  path: string,
+  text: string,
+  version: string | undefined,
+): Promise<SavePayload> {
+  return postJson('/write', { sessionId, path, text, version })
 }

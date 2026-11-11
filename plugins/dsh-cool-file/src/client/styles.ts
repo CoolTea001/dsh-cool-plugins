@@ -121,7 +121,9 @@ const FILES_CSS = [
   '.dsh-cf-row-icon{flex:none;display:inline-flex;color:var(--dsw-alias-label-secondary)}',
   '.dsh-cf-row[data-type=directory] .dsh-cf-row-icon{color:var(--dsw-alias-brand-primary)}',
   '.dsh-cf-row-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-  '.dsh-cf-row-size{flex:none;color:var(--dsw-alias-label-secondary);opacity:.75;font-size:11px;font-variant-numeric:tabular-nums}',
+  // A file the editor holds an unsaved draft for. The tree says so without
+  // opening the file: a lost edit is the one thing this tab must not hide.
+  '.dsh-cf-row-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-state-warn-primary)}',
 
   // 5. Sidebar states: empty, loading, failure and the entry cap.
   //
@@ -136,6 +138,49 @@ const FILES_CSS = [
   '.dsh-cf-main-head{flex:none;display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
   '.dsh-cf-file-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:600}',
   '.dsh-cf-file-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);opacity:.8;font-size:11px}',
+  // The selected file's line count (and size, when the read reported one). It
+  // sits in the preview header, not in the tree: a size beside every row turned
+  // the workspace into a table and squeezed the names.
+  '.dsh-cf-file-meta{flex:none;color:var(--dsw-alias-label-secondary);opacity:.75;font-size:11px;font-variant-numeric:tabular-nums}',
+  // Saving has no header state of its own: a draft is shown by the dot beside
+  // its file in the tree, and the shortcut that writes it lives in the field.
+  // The switch's list is the shell's `Menu`, so only its trigger is this page's
+  // (see `mode.tsx`): the card, the rows, the check and the keys are the ones
+  // every other dropdown in the window uses.
+  '.dsh-cf-mode{flex:none;display:inline-flex}',
+  '.dsh-cf-mode-btn{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
+  '.dsh-cf-mode-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
+  '.dsh-cf-mode-btn[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}',
+  '.dsh-cf-mode-btn svg{flex:none;opacity:.7}',
+  // A failed save is a notice above the body, not a replacement for it: the
+  // draft is still there, and the reader decides whether to reload.
+  '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
+  '.dsh-cf-save-error-text{flex:1 1 auto;min-width:0}',
+  '.dsh-cf-link{flex:none;padding:0;border:0;background:transparent;color:var(--dsw-alias-brand-primary);font:inherit;font-size:11.5px;text-decoration:underline;cursor:pointer}',
+  // The editor is the preview with a caret in it, so the body stops scrolling:
+  // the field inside owns both axes and the artwork follows it (see
+  // `editor.tsx`). A page scrollbar beside the field's own would be a second,
+  // empty one.
+  '.dsh-cf-body[data-editor]{display:flex;overflow:hidden}',
+  // Every metric here is declared twice — once for the painted rows, once for
+  // the transparent field over them — and the two must agree to the pixel, or
+  // the caret drifts away from the glyph it sits on. That includes the ligature
+  // setting: a form field may shape `=>` differently from a `<pre>`, and two
+  // glyphs of difference on one line is enough to shift everything under them.
+  '.dsh-cf-edit{flex:1 1 auto;display:flex;min-width:0;min-height:0;position:relative;overflow:hidden;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;font-variant-ligatures:none}',
+  '.dsh-cf-edit-gutter{flex:none;position:relative;overflow:hidden;box-sizing:border-box;text-align:right;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);opacity:.55;user-select:none;-webkit-user-select:none;pointer-events:none}',
+  '.dsh-cf-edit-numbers{margin:0;padding:12px 8px 24px;white-space:pre;font:inherit;line-height:inherit;will-change:transform}',
+  '.dsh-cf-edit-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden}',
+  // The rows are clipped by the pane and slid by the field's offset; they never
+  // scroll or take the pointer themselves.
+  '.dsh-cf-edit-pane .dsh-cf-code{position:absolute;inset:0;box-sizing:border-box;overflow:hidden;pointer-events:none;user-select:none;-webkit-user-select:none}',
+  '.dsh-cf-edit-pane .dsh-cf-code code{will-change:transform}',
+  // The field's own glyphs are invisible: the coloured ones behind it are what
+  // the reader sees. It still paints a caret, and a wash over the selection, so
+  // the two marks it makes are the two a caret belongs to.
+  '.dsh-cf-edit-input{position:absolute;inset:0;z-index:1;box-sizing:border-box;width:100%;height:100%;margin:0;padding:12px 16px 24px 8px;border:0;outline:0;resize:none;background:transparent;color:transparent;caret-color:var(--dsw-alias-brand-primary);font:inherit;line-height:inherit;tab-size:2;white-space:pre;overflow:auto}',
+  '.dsh-cf-edit-input::selection{background:rgba(110,150,255,.26);color:transparent}',
+  '.dsh-cf-edit-input::selection{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 26%,transparent)}',
   // The body is the vertical scroller; the code block inside it owns the
   // horizontal one, so a long line slides sideways under the pointer. The number
   // column is a sibling of that block, never inside it: that is what leaves the

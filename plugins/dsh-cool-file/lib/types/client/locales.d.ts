@@ -21,11 +21,24 @@ declare const en: {
     'side.filtered': string;
     'action.refresh': string;
     'action.toggleHidden': string;
+    'mode.label': string;
+    'mode.preview': string;
+    'mode.editor': string;
     'preview.empty': string;
     'preview.emptyHint': string;
     'preview.loading': string;
     'preview.lines': string;
     'preview.truncated': string;
+    'editor.loading': string;
+    'editor.error': string;
+    'editor.tooLarge': string;
+    'editor.notText': string;
+    'editor.missing': string;
+    'editor.unsaved': string;
+    'editor.stale': string;
+    'editor.saveFailed': string;
+    'editor.reload': string;
+    'editor.plain': string;
     'error.read': string;
 };
 /** The Chinese copy, key for key the same page. */

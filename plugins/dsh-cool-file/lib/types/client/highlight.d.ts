@@ -40,6 +40,17 @@ export interface HighlightedCode {
     readonly lineCount: number;
 }
 /**
+ * The same rows, uncoloured, for a caller that cannot afford the tokenizer.
+ *
+ * The editor re-draws its rows on every keystroke, so for a file past the budget
+ * it pays for the plain path rather than a grammar: the caret still lands on the
+ * glyph it belongs to, the rows just wear one colour.
+ *
+ * @param text - the file text, as the Host returned it.
+ * @returns the escaped rows and their count.
+ */
+export declare function plainCode(text: string): HighlightedCode;
+/**
  * Draw one preview as HTML: coloured rows, and how many line numbers they need.
  *
  * The returned markup is this module's own: every token is escaped here, and

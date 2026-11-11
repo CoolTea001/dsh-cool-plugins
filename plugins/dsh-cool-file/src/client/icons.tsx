@@ -115,3 +115,12 @@ export function IconHide(): ReactElement {
 export function IconArrow(): ReactElement {
   return assetIcon(ARROW)
 }
+
+/** The chevron on the header's mode button: a menu opens below it. */
+export function IconChevronDown({ size = 12 }: { size?: number }): ReactElement {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}

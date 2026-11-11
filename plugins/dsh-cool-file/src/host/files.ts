@@ -1,22 +1,37 @@
 /**
- * Workspace reads for the Files tab.
+ * Workspace reads — and the editor's one guarded write — for the Files tab.
  *
- * Two questions the page asks, and nothing else: what a directory holds, and
- * what a text file says. Both are answered through the composed
+ * Two questions the page asks, and one answer it gives: what a directory holds,
+ * what a text file says (paged for the preview, whole for the editor), and the
+ * text the editor wants written back. Reads are answered through the composed
  * `workspaceFiles` service, so the session's own workspace root is the only
- * directory a page can reach and every listing stays inside it. A session that
- * is not live yet still owns a durable header, and that header's `cwd` is what
- * lets a reopened page answer for its workspace on the first request.
+ * directory a page can reach and every listing stays inside it. The write is the
+ * exception: that service is read-only, so saving goes through `ctx.fs`, fenced
+ * by the session's own sandbox policy and guarded by the freshness token the
+ * editor was handed. A session that is not live yet still owns a durable header,
+ * and that header's `cwd` is what lets a reopened page answer for its workspace
+ * on the first request.
  *
  * A session the Host cannot name at all falls back to the executor's default
  * directory, which is at least a directory that exists; the page then shows
  * whatever that directory holds rather than an empty tab.
  */
 
-import type { FileEntry, ListPayload, ReadPayload } from '../shared/contract.js'
+import type { FileEntry, ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 /** How many lines one preview asks for; the service's own cap still applies. */
 const READ_LINES = 5000
+
+/**
+ * Largest file the editor will open or overwrite, in bytes.
+ *
+ * The preview pages its answer, so it can show the head of any file; the editor
+ * cannot — it hands back a whole document, and a whole document is what must be
+ * written. A cap keeps a mistaken click on a 500 MB log from pinning the Host
+ * and the browser at once. Refusing is the honest answer: the page says the file
+ * is too large and leaves it in preview.
+ */
+const EDIT_BYTES = 2 * 1024 * 1024
 
 /** A stand-in session identity for a request that named none. */
 const LOCAL_SESSION = 'local'
@@ -206,6 +221,160 @@ export async function readFile(ctx: any, sessionId: unknown, rawPath: unknown): 
       ...(typeof page.bytes === 'number' ? { bytes: page.bytes } : {}),
     }
   } catch (error) {
+    return { ok: false, error: messageOf(error) }
+  }
+}
+
+/**
+ * The complete raw text of one workspace file, for the editor.
+ *
+ * The preview's paged read is the wrong input for an editor — it is a window,
+ * and it drops the terminator after the last line — so this is a second read of
+ * the file as it is stored. The freshness token travels with it: a save quotes
+ * that token, and the backend refuses the write if the file moved on in between.
+ *
+ * @param ctx - the Host plugin context.
+ * @param sessionId - the session the page belongs to, when it named one.
+ * @param rawPath - the file as a workspace path.
+ * @returns the text, or an `ok: false` answer.
+ */
+export async function readWholeFile(ctx: any, sessionId: unknown, rawPath: unknown): Promise<TextPayload> {
+  const path = readPath(rawPath)
+  if (path === undefined || path === '') return { ok: false, error: 'The path must name a workspace file' }
+
+  const root = await resolveRoot(ctx, sessionId)
+  if (root === undefined) return { ok: false, error: 'This session has no working directory to browse' }
+
+  const fs = ctx.get('fs')
+  if (fs === undefined) return { ok: false, error: 'The filesystem service is not mounted' }
+
+  try {
+    const target = await fs.resolve(path, { cwd: root })
+    const info = await fs.stat(target)
+    if (info === undefined) {
+      return { ok: false, reason: 'missing', error: 'This file no longer exists' }
+    }
+    if (info.type !== 'file') return { ok: false, error: 'This path is not a regular file' }
+    if (typeof info.size === 'number' && info.size > EDIT_BYTES) {
+      return {
+        ok: false,
+        reason: 'too-large',
+        error: `This file is larger than ${EDIT_BYTES} bytes and can only be previewed`,
+      }
+    }
+    const data: Uint8Array = await fs.readBytes(target, undefined, EDIT_BYTES)
+    if (data.includes(0)) return { ok: false, reason: 'not-text', error: 'This file is not a text file' }
+    let text: string
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(data)
+    } catch {
+      return { ok: false, reason: 'not-text', error: 'This file is not UTF-8 text' }
+    }
+    return { ok: true, path, text, bytes: data.length, version: String(info.version) }
+  } catch (error) {
+    return { ok: false, error: messageOf(error) }
+  }
+}
+
+/**
+ * The sandbox policy one save runs under.
+ *
+ * The session's own mode and `cwd` are the fence, exactly as they are for the
+ * agent's write tool — the editor must not be a way around a read-only session.
+ * A request that names no live session has no policy to inherit; the deployment
+ * default then applies, bounded by its own fallback root, and a workspace the
+ * default does not cover is refused rather than quietly widened.
+ *
+ * @param ctx - the Host plugin context.
+ * @param sessionId - the session the page belongs to, when it named one.
+ * @returns the policy for this call, or undefined when no service owns one.
+ */
+function policyFor(ctx: any, sessionId: unknown): unknown {
+  const policy = ctx.get('sandboxPolicy')
+  if (policy === undefined || typeof policy.resolve !== 'function') return undefined
+  try {
+    const sessions = ctx.get('sessions')
+    const session = typeof sessionId === 'string' && sessionId !== '' ? sessions?.get(sessionId) : undefined
+    return policy.resolve(session === undefined ? {} : { session })
+  } catch {
+    return undefined
+  }
+}
+
+/** Whether a caught error carries one of the filesystem service's stable codes. */
+function hasCode(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
+}
+
+/**
+ * How many lines a stored text holds, by the read service's own convention: a
+ * final newline terminates the last line instead of starting an empty one.
+ */
+function lineCount(text: string): number {
+  if (text === '') return 0
+  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text
+  let lines = 1
+  for (let at = trimmed.indexOf('\n'); at !== -1; at = trimmed.indexOf('\n', at + 1)) lines += 1
+  return lines
+}
+
+/**
+ * Replace one workspace text file with what the editor holds.
+ *
+ * Three fences stand between the page and the disk. The path must stay inside
+ * the workspace (the same grammar the reads use); the content must be UTF-8 text
+ * within the edit cap; and the write is version-guarded by the token the editor
+ * read, so a file the agent — or another editor — changed since it was opened is
+ * refused with `reason: 'stale'` instead of silently losing that change.
+ *
+ * @param ctx - the Host plugin context.
+ * @param sessionId - the session the page belongs to, when it named one.
+ * @param rawPath - the file as a workspace path.
+ * @param rawText - the complete new content.
+ * @param rawVersion - the freshness token the editor's read returned.
+ * @returns the save outcome, or an `ok: false` answer.
+ */
+export async function saveFile(
+  ctx: any,
+  sessionId: unknown,
+  rawPath: unknown,
+  rawText: unknown,
+  rawVersion: unknown,
+): Promise<SavePayload> {
+  const path = readPath(rawPath)
+  if (path === undefined || path === '') return { ok: false, error: 'The path must name a workspace file' }
+  if (typeof rawText !== 'string') return { ok: false, error: 'The content must be text' }
+
+  const bytes = Buffer.byteLength(rawText, 'utf8')
+  if (bytes > EDIT_BYTES) return { ok: false, error: `The content is larger than ${EDIT_BYTES} bytes` }
+
+  const root = await resolveRoot(ctx, sessionId)
+  if (root === undefined) return { ok: false, error: 'This session has no working directory to browse' }
+
+  const fs = ctx.get('fs')
+  if (fs === undefined) return { ok: false, error: 'The filesystem service is not mounted' }
+
+  try {
+    const target = await fs.resolve(path, { cwd: root })
+    const info = await fs.stat(target)
+    if (info === undefined) return { ok: false, reason: 'missing', error: 'This file no longer exists' }
+    if (info.type !== 'file') return { ok: false, error: 'This path is not a regular file' }
+
+    // A save that quoted a token is guarded by it; one that did not is guarded by
+    // the version just observed, so even a client that forgot still races safely.
+    const version = typeof rawVersion === 'string' && rawVersion !== '' ? rawVersion : String(info.version)
+    const outcome = await fs.writeText(
+      target,
+      rawText,
+      { kind: 'replaceIfVersion', version },
+      undefined,
+      policyFor(ctx, sessionId),
+    )
+    return { ok: true, path, lines: lineCount(rawText), bytes, version: String(outcome.version) }
+  } catch (error) {
+    if (hasCode(error, 'FS_STALE_VERSION')) {
+      return { ok: false, reason: 'stale', error: 'The file changed on disk since it was opened' }
+    }
     return { ok: false, error: messageOf(error) }
   }
 }

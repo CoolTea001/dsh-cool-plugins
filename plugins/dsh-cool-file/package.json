@@ -7,11 +7,12 @@
   "author": "CoolTea",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CoolTea001/dsh-cool-file.git"
+    "url": "git+https://github.com/CoolTea001/dsh-cool-plugins.git",
+    "directory": "plugins/dsh-cool-file"
   },
-  "homepage": "https://github.com/CoolTea001/dsh-cool-file#readme",
+  "homepage": "https://github.com/CoolTea001/dsh-cool-plugins/tree/dev/plugins/dsh-cool-file#readme",
   "bugs": {
-    "url": "https://github.com/CoolTea001/dsh-cool-file/issues"
+    "url": "https://github.com/CoolTea001/dsh-cool-plugins/issues"
   },
   "keywords": [
     "dsh",
@@ -39,8 +40,7 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh.md",
-    "THIRD_PARTY_NOTICES.md",
-    "LICENSE"
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "build": "tsdown && tsc -p tsconfig.json --emitDeclarationOnly",
@@ -66,8 +66,9 @@
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
-  "packageManager": "pnpm@11.7.0",
   "devDependencies": {
+    "@dsh-cool/tsdown-config": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.5",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
     "shiki": "^4.5.0",

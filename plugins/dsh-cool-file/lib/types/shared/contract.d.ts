@@ -3,10 +3,9 @@
  *
  * The browser half never sees the Host Cordis context, so every fact about the
  * workspace crosses the same-origin HTTP routes as JSON shaped by the types
- * below. The Host half reads the composed filesystem through the
- * `workspaceFiles` service and the browser half renders what it answered;
- * nothing here touches Node or the DOM, so the module is bundled into both
- * halves unchanged.
+ * below. The Host half reads and writes the composed filesystem through its own
+ * services and the browser half renders what it answered; nothing here touches
+ * Node or the DOM, so the module is bundled into both halves unchanged.
  *
  * Every answer carries `ok`: an `ok: false` result is a normal answer the page
  * draws in its own error state, never a rejected promise. Paths are
@@ -59,5 +58,52 @@ export interface ReadPayload {
     readonly eof?: boolean;
     /** Byte size of the complete file, when the backend reports it. */
     readonly bytes?: number;
+}
+/**
+ * `POST /text`: the complete raw text of one workspace file.
+ *
+ * The preview route pages a file and normalizes its last line; the editor needs
+ * the bytes exactly as they are on disk, because whatever it gives back is
+ * written verbatim. This answer is therefore a second, separate read rather than
+ * a wider page: `text` is the whole file (line endings included), `version` is
+ * the freshness token a save must carry, and a file over the Host's edit cap is
+ * refused here instead of being half-loaded.
+ */
+export interface TextPayload {
+    readonly ok: boolean;
+    /** Raw diagnostic text, when the answer failed. */
+    readonly error?: string;
+    /**
+     * Machine-readable cause for the failures the page words itself, so its copy
+     * follows the active language instead of the Host's English text.
+     */
+    readonly reason?: 'too-large' | 'not-text' | 'missing';
+    /** The file's workspace path. */
+    readonly path?: string;
+    /** The complete file, decoded as UTF-8, line endings untouched. */
+    readonly text?: string;
+    /** Byte size of the complete file. */
+    readonly bytes?: number;
+    /** Opaque freshness token; sent back with a save so a stale write is refused. */
+    readonly version?: string;
+}
+/** `POST /write`: replace one workspace text file with the editor's content. */
+export interface SavePayload {
+    readonly ok: boolean;
+    /** Raw diagnostic text, when the answer failed. */
+    readonly error?: string;
+    /**
+     * Machine-readable cause for the two failures the page words itself, so its
+     * copy follows the active language instead of the Host's English text.
+     */
+    readonly reason?: 'stale' | 'missing';
+    /** The file's workspace path. */
+    readonly path?: string;
+    /** How many lines the saved content holds. */
+    readonly lines?: number;
+    /** Byte size of the saved content. */
+    readonly bytes?: number;
+    /** Freshness token after the write, which the next save carries. */
+    readonly version?: string;
 }
 //# sourceMappingURL=contract.d.ts.map

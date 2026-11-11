@@ -1,6 +1,16 @@
 // src/host/files.ts
 /** How many lines one preview asks for; the service's own cap still applies. */
 const READ_LINES = 5e3;
+/**
+* Largest file the editor will open or overwrite, in bytes.
+*
+* The preview pages its answer, so it can show the head of any file; the editor
+* cannot — it hands back a whole document, and a whole document is what must be
+* written. A cap keeps a mistaken click on a 500 MB log from pinning the Host
+* and the browser at once. Refusing is the honest answer: the page says the file
+* is too large and leaves it in preview.
+*/
+const EDIT_BYTES = 2097152;
 /** A stand-in session identity for a request that named none. */
 const LOCAL_SESSION = "local";
 /**
@@ -183,6 +193,198 @@ async function readFile(ctx, sessionId, rawPath) {
 		};
 	}
 }
+/**
+* The complete raw text of one workspace file, for the editor.
+*
+* The preview's paged read is the wrong input for an editor — it is a window,
+* and it drops the terminator after the last line — so this is a second read of
+* the file as it is stored. The freshness token travels with it: a save quotes
+* that token, and the backend refuses the write if the file moved on in between.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the file as a workspace path.
+* @returns the text, or an `ok: false` answer.
+*/
+async function readWholeFile(ctx, sessionId, rawPath) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		error: "The path must name a workspace file"
+	};
+	const root = await resolveRoot(ctx, sessionId);
+	if (root === void 0) return {
+		ok: false,
+		error: "This session has no working directory to browse"
+	};
+	const fs = ctx.get("fs");
+	if (fs === void 0) return {
+		ok: false,
+		error: "The filesystem service is not mounted"
+	};
+	try {
+		const target = await fs.resolve(path, { cwd: root });
+		const info = await fs.stat(target);
+		if (info === void 0) return {
+			ok: false,
+			reason: "missing",
+			error: "This file no longer exists"
+		};
+		if (info.type !== "file") return {
+			ok: false,
+			error: "This path is not a regular file"
+		};
+		if (typeof info.size === "number" && info.size > EDIT_BYTES) return {
+			ok: false,
+			reason: "too-large",
+			error: `This file is larger than ${EDIT_BYTES} bytes and can only be previewed`
+		};
+		const data = await fs.readBytes(target, void 0, EDIT_BYTES);
+		if (data.includes(0)) return {
+			ok: false,
+			reason: "not-text",
+			error: "This file is not a text file"
+		};
+		let text;
+		try {
+			text = new TextDecoder("utf-8", { fatal: true }).decode(data);
+		} catch {
+			return {
+				ok: false,
+				reason: "not-text",
+				error: "This file is not UTF-8 text"
+			};
+		}
+		return {
+			ok: true,
+			path,
+			text,
+			bytes: data.length,
+			version: String(info.version)
+		};
+	} catch (error) {
+		return {
+			ok: false,
+			error: messageOf(error)
+		};
+	}
+}
+/**
+* The sandbox policy one save runs under.
+*
+* The session's own mode and `cwd` are the fence, exactly as they are for the
+* agent's write tool — the editor must not be a way around a read-only session.
+* A request that names no live session has no policy to inherit; the deployment
+* default then applies, bounded by its own fallback root, and a workspace the
+* default does not cover is refused rather than quietly widened.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @returns the policy for this call, or undefined when no service owns one.
+*/
+function policyFor(ctx, sessionId) {
+	const policy = ctx.get("sandboxPolicy");
+	if (policy === void 0 || typeof policy.resolve !== "function") return void 0;
+	try {
+		const sessions = ctx.get("sessions");
+		const session = typeof sessionId === "string" && sessionId !== "" ? sessions?.get(sessionId) : void 0;
+		return policy.resolve(session === void 0 ? {} : { session });
+	} catch {
+		return;
+	}
+}
+/** Whether a caught error carries one of the filesystem service's stable codes. */
+function hasCode(error, code) {
+	return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+/**
+* How many lines a stored text holds, by the read service's own convention: a
+* final newline terminates the last line instead of starting an empty one.
+*/
+function lineCount(text) {
+	if (text === "") return 0;
+	const trimmed = text.endsWith("\n") ? text.slice(0, -1) : text;
+	let lines = 1;
+	for (let at = trimmed.indexOf("\n"); at !== -1; at = trimmed.indexOf("\n", at + 1)) lines += 1;
+	return lines;
+}
+/**
+* Replace one workspace text file with what the editor holds.
+*
+* Three fences stand between the page and the disk. The path must stay inside
+* the workspace (the same grammar the reads use); the content must be UTF-8 text
+* within the edit cap; and the write is version-guarded by the token the editor
+* read, so a file the agent — or another editor — changed since it was opened is
+* refused with `reason: 'stale'` instead of silently losing that change.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the file as a workspace path.
+* @param rawText - the complete new content.
+* @param rawVersion - the freshness token the editor's read returned.
+* @returns the save outcome, or an `ok: false` answer.
+*/
+async function saveFile(ctx, sessionId, rawPath, rawText, rawVersion) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		error: "The path must name a workspace file"
+	};
+	if (typeof rawText !== "string") return {
+		ok: false,
+		error: "The content must be text"
+	};
+	const bytes = Buffer.byteLength(rawText, "utf8");
+	if (bytes > EDIT_BYTES) return {
+		ok: false,
+		error: `The content is larger than ${EDIT_BYTES} bytes`
+	};
+	const root = await resolveRoot(ctx, sessionId);
+	if (root === void 0) return {
+		ok: false,
+		error: "This session has no working directory to browse"
+	};
+	const fs = ctx.get("fs");
+	if (fs === void 0) return {
+		ok: false,
+		error: "The filesystem service is not mounted"
+	};
+	try {
+		const target = await fs.resolve(path, { cwd: root });
+		const info = await fs.stat(target);
+		if (info === void 0) return {
+			ok: false,
+			reason: "missing",
+			error: "This file no longer exists"
+		};
+		if (info.type !== "file") return {
+			ok: false,
+			error: "This path is not a regular file"
+		};
+		const version = typeof rawVersion === "string" && rawVersion !== "" ? rawVersion : String(info.version);
+		const outcome = await fs.writeText(target, rawText, {
+			kind: "replaceIfVersion",
+			version
+		}, void 0, policyFor(ctx, sessionId));
+		return {
+			ok: true,
+			path,
+			lines: lineCount(rawText),
+			bytes,
+			version: String(outcome.version)
+		};
+	} catch (error) {
+		if (hasCode(error, "FS_STALE_VERSION")) return {
+			ok: false,
+			reason: "stale",
+			error: "The file changed on disk since it was opened"
+		};
+		return {
+			ok: false,
+			error: messageOf(error)
+		};
+	}
+}
 // src/host/routes.ts
 /**
 * The Host half's HTTP surface.
@@ -196,15 +398,24 @@ async function readFile(ctx, sessionId, rawPath) {
 * The Host stays authoritative about *which* workspace is browsed. A request may
 * name the session it belongs to, but never a directory: the root is read from
 * that session's own header, so a page cannot point the plugin at a tree the
-* session does not own. Both routes are reads; this plugin exposes no write.
+* session does not own. Three routes read; the fourth is the editor's save, and
+* it accepts nothing but the text of one file already inside that workspace.
 */
 /** Route table, kept in one place so the two halves cannot drift. */
 const ROUTES = {
 	list: "/dsh-cool-file/api/list",
-	read: "/dsh-cool-file/api/read"
+	read: "/dsh-cool-file/api/read",
+	text: "/dsh-cool-file/api/text",
+	write: "/dsh-cool-file/api/write"
 };
-/** Longest request body a route accepts; both bodies are a path and an id. */
+/** Longest body the read routes accept; each is a path and a session id. */
 const MAX_BODY_BYTES = 16384;
+/**
+* Longest body the save route accepts: the content cap, with room for the JSON
+* escaping of control characters (a newline doubles, a control byte becomes six)
+* plus the path and the freshness token.
+*/
+const MAX_WRITE_BODY_BYTES = 16777216;
 function sendJson(res, status, body) {
 	res.writeHead(status, {
 		"content-type": "application/json; charset=utf-8",
@@ -229,16 +440,17 @@ function methodAllowed(req, res, allowed) {
 * Read a JSON object body, bounded before it is parsed.
 *
 * @param req - the incoming request.
+* @param limit - largest body accepted, in bytes.
 * @returns the parsed body; `{}` for an empty one.
 * @throws when the body is too large or is not a JSON object.
 */
-async function readBody(req) {
+async function readBody(req, limit) {
 	const chunks = [];
 	let size = 0;
 	for await (const chunk of req) {
 		const buffer = Buffer.from(chunk);
 		size += buffer.length;
-		if (size > MAX_BODY_BYTES) throw new Error("body is too large");
+		if (size > limit) throw new Error("body is too large");
 		chunks.push(buffer);
 	}
 	const text = Buffer.concat(chunks).toString("utf8");
@@ -266,17 +478,18 @@ function sameOrigin(req) {
 	}
 }
 /**
-* Run one read and answer it as JSON.
+* Run one answer and send it as JSON.
 *
 * @param req - the incoming request.
 * @param res - the response to write.
-* @param run - the read, given the parsed body.
+* @param run - the answer, given the parsed body.
+* @param limit - largest body accepted, in bytes.
 */
-async function handle(req, res, run) {
+async function handle(req, res, run, limit = MAX_BODY_BYTES) {
 	if (!methodAllowed(req, res, ["POST"])) return;
 	let body;
 	try {
-		body = await readBody(req);
+		body = await readBody(req, limit);
 	} catch (error) {
 		sendJson(res, 400, {
 			ok: false,
@@ -287,7 +500,7 @@ async function handle(req, res, run) {
 	sendJson(res, 200, await run(body));
 }
 /**
-* Register both routes on the browser HTTP carrier.
+* Register the four routes on the browser HTTP carrier.
 *
 * @param ctx - the Host plugin context.
 * @returns the disposer that removes the routes with the plugin.
@@ -310,7 +523,12 @@ function registerRoutes(ctx) {
 		path,
 		handler: guard(handler)
 	});
-	const disposers = [route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))), route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path)))];
+	const disposers = [
+		route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))),
+		route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
+		route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path))),
+		route(ROUTES.write, (req, res) => handle(req, res, (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version), MAX_WRITE_BODY_BYTES))
+	];
 	return () => {
 		for (const dispose of disposers) dispose();
 	};

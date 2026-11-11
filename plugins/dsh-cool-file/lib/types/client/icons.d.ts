@@ -29,4 +29,8 @@ export declare function IconShow(): ReactElement;
 export declare function IconHide(): ReactElement;
 /** The arrow a branch turns from closed to open (assets/arrow.svg). */
 export declare function IconArrow(): ReactElement;
+/** The chevron on the header's mode button: a menu opens below it. */
+export declare function IconChevronDown({ size }: {
+    size?: number;
+}): ReactElement;
 //# sourceMappingURL=icons.d.ts.map

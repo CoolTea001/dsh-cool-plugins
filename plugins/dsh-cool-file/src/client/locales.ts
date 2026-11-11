@@ -26,11 +26,26 @@ const en = {
   'action.refresh': 'Refresh',
   'action.toggleHidden': 'Show hidden files',
 
+  'mode.label': 'View mode',
+  'mode.preview': 'Preview',
+  'mode.editor': 'Editor',
+
   'preview.empty': 'Select a file to preview it',
   'preview.emptyHint': 'Files in this session’s workspace appear here.',
   'preview.loading': 'Reading file…',
   'preview.lines': '{count} lines',
   'preview.truncated': 'Showing the first {count} lines; the file continues.',
+
+  'editor.loading': 'Opening the editor…',
+  'editor.error': 'Could not open this file for editing',
+  'editor.tooLarge': 'This file is too large to edit, so it can only be previewed.',
+  'editor.notText': 'This file is not UTF-8 text, so it can only be previewed.',
+  'editor.missing': 'This file no longer exists.',
+  'editor.unsaved': 'Unsaved changes',
+  'editor.stale': 'The file changed on disk since you opened it. Reload it to keep editing.',
+  'editor.saveFailed': 'Could not save this file',
+  'editor.reload': 'Reload',
+  'editor.plain': 'This file is large, so it is edited without syntax colours.',
 
   'error.read': 'Could not read this file',
 } satisfies Record<string, string>
@@ -49,11 +64,26 @@ export const zh: typeof en = {
   'action.refresh': '刷新',
   'action.toggleHidden': '显示隐藏文件',
 
+  'mode.label': '查看模式',
+  'mode.preview': '预览',
+  'mode.editor': '编辑',
+
   'preview.empty': '选择一个文件以预览',
   'preview.emptyHint': '此处显示当前会话工作区中的文件。',
   'preview.loading': '正在读取文件…',
   'preview.lines': '{count} 行',
   'preview.truncated': '仅显示前 {count} 行，文件还有更多内容。',
+
+  'editor.loading': '正在打开编辑器…',
+  'editor.error': '无法用编辑器打开该文件',
+  'editor.tooLarge': '文件过大，无法编辑，只能预览。',
+  'editor.notText': '该文件不是 UTF-8 文本，只能预览。',
+  'editor.missing': '文件已不存在。',
+  'editor.unsaved': '未保存',
+  'editor.stale': '文件已在磁盘上发生变化，重新加载后可继续编辑。',
+  'editor.saveFailed': '无法保存该文件',
+  'editor.reload': '重新加载',
+  'editor.plain': '文件较大，编辑时不显示语法高亮。',
 
   'error.read': '无法读取该文件',
 }

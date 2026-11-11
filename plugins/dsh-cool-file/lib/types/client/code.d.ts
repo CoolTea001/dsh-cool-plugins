@@ -24,7 +24,7 @@
  * lives in `highlight.ts`; what it returns is escaped HTML — one block per row,
  * coloured tokens inside — plus the row count the gutter needs.
  */
-import { type ReactElement } from 'react';
+import { type CSSProperties, type ReactElement } from 'react';
 /** Props of the preview body. */
 interface CodePreviewProps {
     /** The file text exactly as the Host returned it. */
@@ -32,6 +32,21 @@ interface CodePreviewProps {
     /** The workspace path, which chooses the grammar and names the scroll region. */
     readonly path: string;
 }
+/**
+ * The number column for a file of `lineCount` rows.
+ *
+ * The editor draws its own number column — it has to translate the numbers by
+ * the field's scroll offset, which the preview never does — but the digits, the
+ * width and the pitch have to be the preview's, or the two modes would disagree
+ * about where a row starts.
+ *
+ * @param lineCount - how many rows the file has.
+ * @returns the numbers, one per line, and the width of the column.
+ */
+export declare function gutterBox(lineCount: number): {
+    readonly text: string;
+    readonly style: CSSProperties;
+};
 /**
  * Draw one file's text with line numbers and syntax colours.
  *

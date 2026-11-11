@@ -10,13 +10,17 @@
  *
  * The page owns no workspace state of its own: every answer is a plain value
  * fetched from the Host over this package's own same-origin routes (see
- * `api.ts`), and the only local state is which folders are open, which children
- * have arrived, whether the entries the system hides are drawn, which file is
- * selected, and which request is in flight.
+ * `api.ts`), and the local state is which folders are open, which children have
+ * arrived, whether the entries the system hides are drawn, which file is
+ * selected, whether the reader is previewing or editing, what drafts they hold,
+ * and which request is in flight.
  *
- * The page is read-only on purpose. It lists entries, expands them, and shows
- * the first page of a text file; it never writes, renames, or deletes. That
- * keeps the Host route a read and the tab safe to leave open.
+ * The page reads by default and writes only when asked. It lists entries,
+ * expands them, and shows the first page of a text file; the editor — reached
+ * through the header's Preview/Editor menu — replaces one file's complete text
+ * and nothing else. It never creates, renames or deletes, and a save quotes the
+ * freshness token of the read it started from, so a file that moved on is
+ * refused instead of overwritten.
  *
  * The page is full-bleed, the same way the Terminal and Git tabs are: the root
  * class gives the stylesheet a handle on this subtree, the root declares the
@@ -34,12 +38,14 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react'
-import { fetchFile, fetchListing } from './api.js'
+import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 import { suppressComposerSeat } from './chrome.js'
 import { CodePreview } from './code.js'
+import { CodeEditor, EDIT_HIGHLIGHT_CHARS } from './editor.js'
 import { IconArrow, IconFile, IconFolder, IconHide, IconRefresh, IconShow } from './icons.js'
 import { clampSideWidth, readLayout, ResizeHandle, writeLayout, type FileLayout } from './layout.js'
 import type { Translate } from './locales.js'
+import { ModeMenu, readMode, writeMode, type FilesMode } from './mode.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import type { FileEntry, ListPayload } from '../shared/contract.js'
 
@@ -55,6 +61,33 @@ interface Preview {
   readonly lines: number
   readonly eof: boolean
   readonly bytes?: number
+}
+
+/**
+ * What the page knows about one file opened for editing.
+ *
+ * `text` is the complete file — not the preview's page — with its line endings
+ * normalized to LF so a textarea can hold it, and `eol` remembers what the file
+ * used so a save can put it back. `version` is the freshness token the read
+ * returned: the save quotes it, and the Host refuses the write if the file moved
+ * on since it was opened.
+ */
+interface EditorDoc {
+  readonly loading: boolean
+  /** The Host's message, or `''` when it gave none. Null means "no error". */
+  readonly error: string | null
+  readonly text: string
+  readonly eol: '\n' | '\r\n'
+  readonly bytes?: number
+  readonly version?: string
+}
+
+/** A file whose editor is still being read. */
+const PENDING_DOC: EditorDoc = {
+  loading: true,
+  error: null,
+  text: '',
+  eol: '\n',
 }
 
 /**
@@ -133,6 +166,65 @@ function formatSize(bytes: number): string {
 }
 
 /**
+ * The line ending a stored file uses.
+ *
+ * A file is CRLF when it contains CRLF and no bare LF; a mixed file is treated
+ * as LF, which is what saving it will normalize it to.
+ *
+ * @param text - the file as stored.
+ * @returns the ending a save should restore.
+ */
+function eolOf(text: string): '\n' | '\r\n' {
+  if (!text.includes('\r\n')) return '\n'
+  return text.replace(/\r\n/g, '').includes('\n') ? '\n' : '\r\n'
+}
+
+/**
+ * The text as a textarea holds it: CRLF folded to LF.
+ *
+ * @param text - the file as stored.
+ * @returns the text the draft is edited in.
+ */
+function toLf(text: string): string {
+  return text.replace(/\r\n/g, '\n')
+}
+
+/**
+ * The draft as the file must be stored, in the file's own line ending.
+ *
+ * @param text - the LF draft.
+ * @param eol - the ending the file used.
+ * @returns the content a save writes.
+ */
+function toEol(text: string, eol: '\n' | '\r\n'): string {
+  return eol === '\n' ? text : text.replace(/\n/g, '\r\n')
+}
+
+/**
+ * How many lines a text holds, by the read service's convention: a final newline
+ * terminates the last line instead of starting an empty one.
+ *
+ * @param text - the text to count.
+ * @returns the line count.
+ */
+function lineCount(text: string): number {
+  if (text === '') return 0
+  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text
+  return trimmed.split('\n').length
+}
+
+/**
+ * A saved file's text as the preview body shows it: the stored text without the
+ * terminator after its last line, which is the form the paged read returns.
+ *
+ * @param text - the stored text.
+ * @returns the preview text.
+ */
+function previewTextOf(text: string): string {
+  return text.endsWith('\n') ? text.slice(0, -1) : text
+}
+
+/**
  * The last segment of a workspace path.
  *
  * @param path - a `/`-joined path.
@@ -204,8 +296,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const [preview, setPreview] = useState<Preview | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [fileLoading, setFileLoading] = useState(false)
+  /** What the page does with the open file: preview it, or edit it. */
+  const [mode, setMode] = useState<FilesMode>(readMode)
+  /** Every file opened for editing, by workspace path. */
+  const [docs, setDocs] = useState<Readonly<Record<string, EditorDoc>>>({})
+  /** The unsaved drafts, by workspace path: a path present here is dirty. */
+  const [drafts, setDrafts] = useState<Readonly<Record<string, string>>>({})
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<{ readonly text: string; readonly stale: boolean } | null>(null)
   /** Guards the preview against an answer for a file that is no longer selected. */
   const previewToken = useRef(0)
+  /** Guards an editor read against an answer for a tree that is no longer shown. */
+  const docGeneration = useRef(0)
   /** Directories with a request in flight, so a double click asks once. */
   const inFlight = useRef<Set<string>>(new Set())
   /**
@@ -363,6 +465,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   // tree.
   useEffect(() => {
     generation.current += 1
+    docGeneration.current += 1
     inFlight.current.clear()
     previewToken.current += 1
     setWorkspaceName('')
@@ -372,6 +475,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     setPreview(null)
     setFileError(null)
     setFileLoading(false)
+    setDocs({})
+    setDrafts({})
+    setSaving(false)
+    setSaveError(null)
     loadDirectory('')
   }, [sessionId, loadDirectory])
 
@@ -400,6 +507,189 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     },
     [sessionId, t],
   )
+
+  /**
+   * Read one file whole, for the editor.
+   *
+   * A separate read from the preview's: the editor must see every line and the
+   * file's own line endings, not the first page of a normalized one. The answer
+   * carries the freshness token the save will quote, and an answer for a tree
+   * that has since been replaced is dropped.
+   *
+   * @param path - the file as a workspace path.
+   */
+  const loadDocument = useCallback(
+    (path: string): void => {
+      const token = docGeneration.current
+      setDocs((previous) => ({
+        ...previous,
+        [path]: { ...(previous[path] ?? PENDING_DOC), loading: true, error: null },
+      }))
+      void fetchText(sessionId, path).then((payload) => {
+        if (token !== docGeneration.current) return
+        setDocs((previous) => {
+          if (payload.ok !== true) {
+            const error =
+              payload.reason === 'too-large'
+                ? t('editor.tooLarge')
+                : payload.reason === 'not-text'
+                  ? t('editor.notText')
+                  : payload.reason === 'missing'
+                    ? t('editor.missing')
+                    : (typeof payload.error === 'string' ? payload.error : t('editor.error'))
+            return {
+              ...previous,
+              [path]: { loading: false, error, text: '', eol: '\n' },
+            }
+          }
+          const raw = typeof payload.text === 'string' ? payload.text : ''
+          return {
+            ...previous,
+            [path]: {
+              loading: false,
+              error: null,
+              text: toLf(raw),
+              eol: eolOf(raw),
+              ...(typeof payload.bytes === 'number' ? { bytes: payload.bytes } : {}),
+              ...(typeof payload.version === 'string' ? { version: payload.version } : {}),
+            },
+          }
+        })
+      })
+    },
+    [sessionId, t],
+  )
+
+  /**
+   * Record the editor's text as the selected file's draft.
+   *
+   * A draft equal to the file as it was read is not a change, so it is dropped
+   * rather than kept as a dirty file the reader would have to save to clear.
+   *
+   * @param value - the textarea's complete value.
+   */
+  const editDocument = useCallback(
+    (value: string): void => {
+      if (selected === null) return
+      const doc = docs[selected]
+      if (doc === undefined) return
+      setSaveError(null)
+      setDrafts((previous) => {
+        if (value === doc.text) {
+          if (previous[selected] === undefined) return previous
+          const next = { ...previous }
+          delete next[selected]
+          return next
+        }
+        return { ...previous, [selected]: value }
+      })
+    },
+    [docs, selected],
+  )
+
+  /**
+   * Write the selected file's draft back to disk.
+   *
+   * The text goes out in the file's own line ending, under the token the read
+   * returned: a file the agent (or another editor) changed in between is refused
+   * as stale instead of being silently overwritten. The confirmation is put back
+   * into the preview too, so the two modes cannot disagree about what is on disk.
+   */
+  const save = useCallback((): void => {
+    if (selected === null || saving) return
+    const path = selected
+    const doc = docs[path]
+    const draft = drafts[path]
+    if (doc === undefined || doc.loading || doc.error !== null || draft === undefined) return
+
+    setSaving(true)
+    setSaveError(null)
+    void saveFile(sessionId, path, toEol(draft, doc.eol), doc.version).then((payload) => {
+      setSaving(false)
+      if (payload.ok !== true) {
+        setSaveError({
+          text: payload.reason === 'stale' ? t('editor.stale') : (payload.error ?? t('editor.saveFailed')),
+          stale: payload.reason === 'stale',
+        })
+        return
+      }
+      const bytes = typeof payload.bytes === 'number' ? payload.bytes : undefined
+      const lines = typeof payload.lines === 'number' ? payload.lines : lineCount(draft)
+      setDocs((previous) => {
+        const current = previous[path]
+        if (current === undefined) return previous
+        return {
+          ...previous,
+          [path]: {
+            ...current,
+            text: draft,
+            ...(bytes === undefined ? {} : { bytes }),
+            ...(typeof payload.version === 'string' ? { version: payload.version } : {}),
+          },
+        }
+      })
+      setDrafts((previous) => {
+        if (previous[path] === undefined) return previous
+        const next = { ...previous }
+        delete next[path]
+        return next
+      })
+      // The preview read the file before this save; a whole-file preview is
+      // brought forward, while a truncated one keeps its page rather than
+      // drawing the entire file into the tokenizer.
+      setPreview((current) =>
+        current === null || current.eof === false
+          ? current
+          : {
+              text: previewTextOf(toEol(draft, doc.eol)),
+              lines,
+              eof: true,
+              ...(bytes === undefined ? {} : { bytes }),
+            },
+      )
+    })
+  }, [docs, drafts, saving, selected, sessionId, t])
+
+  /**
+   * Throw the draft away and read the file as it is on disk again.
+   *
+   * Offered after a stale save, where the draft is based on a version that no
+   * longer exists: keeping the two apart without a merge tool is the honest
+   * choice, so the reader is told the draft is going and may decline by not
+   * pressing the button.
+   */
+  const reloadDocument = useCallback((): void => {
+    if (selected === null) return
+    const path = selected
+    setSaveError(null)
+    setDrafts((previous) => {
+      if (previous[path] === undefined) return previous
+      const next = { ...previous }
+      delete next[path]
+      return next
+    })
+    loadDocument(path)
+  }, [loadDocument, selected])
+
+  /** Switch between previewing and editing, and remember the choice. */
+  const changeMode = useCallback((next: FilesMode): void => {
+    setMode(next)
+    writeMode(next)
+  }, [])
+
+  // A file opened in editor mode needs its whole text; reading it here rather
+  // than in the menu keeps the choice instant and the read off the click path.
+  useEffect(() => {
+    if (mode !== 'editor' || selected === null) return
+    if (docs[selected] !== undefined) return
+    loadDocument(selected)
+  }, [docs, loadDocument, mode, selected])
+
+  // A new file is a new subject: a failure reported for the last one does not
+  // apply to it.
+  useEffect(() => {
+    setSaveError(null)
+  }, [selected])
 
   /**
    * Open one branch, or close it again.
@@ -447,8 +737,13 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     const open = expanded.filter((path) => directories[path] !== undefined)
     setDirectories({})
     for (const path of ['', ...open]) loadDirectory(path)
-    if (selected !== null) openFile(selected)
-  }, [directories, expanded, loadDirectory, openFile, selected])
+    if (selected !== null) {
+      openFile(selected)
+      // An open editor follows the disk too — unless it holds a draft, which a
+      // refresh must not throw away.
+      if (docs[selected] !== undefined && drafts[selected] === undefined) loadDocument(selected)
+    }
+  }, [directories, docs, drafts, expanded, loadDirectory, loadDocument, openFile, selected])
 
   /**
    * One directory's rows, and the rows of every open folder inside it.
@@ -527,9 +822,9 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               {isDirectory ? <IconFolder /> : <IconFile />}
             </span>
             <span className="dsh-cf-row-name">{entry.name}</span>
-            {entry.type === 'file' && entry.size !== undefined ? (
-              <span className="dsh-cf-row-size">{formatSize(entry.size)}</span>
-            ) : null}
+            {drafts[target] === undefined ? null : (
+              <span className="dsh-cf-row-dot" title={t('editor.unsaved')} aria-hidden="true" />
+            )}
           </button>
           {open ? <div className="dsh-cf-children">{drawLevel(target)}</div> : null}
         </div>
@@ -544,6 +839,32 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       )
     }
     return rows
+  }
+
+  const doc = selected === null ? undefined : docs[selected]
+  const draft = selected === null ? undefined : drafts[selected]
+  const editing = mode === 'editor' && selected !== null
+  // The text the editor would draw, once the file is open and readable; null
+  // while it is still loading, or when it cannot be edited at all.
+  const editorText = doc !== undefined && !doc.loading && doc.error === null ? draft ?? doc.text : null
+  // The editor redraws its rows on every keystroke. Past the budget that redraw
+  // would stall the field, so the rows go plain and the page says why, rather
+  // than leaving the reader to wonder where the colours went.
+  const plainEdit = editorText !== null && editorText.length > EDIT_HIGHLIGHT_CHARS
+
+  // The header's line/size note follows the mode: the preview's page while
+  // previewing, the whole document while editing, where the draft's own line
+  // count is what the reader is looking at.
+  let meta: { readonly lines: number; readonly bytes?: number } | null = null
+  if (editing) {
+    if (doc !== undefined && !doc.loading && doc.error === null) {
+      meta = {
+        lines: lineCount(draft ?? doc.text),
+        ...(draft !== undefined || doc.bytes === undefined ? {} : { bytes: doc.bytes }),
+      }
+    }
+  } else if (preview !== null) {
+    meta = { lines: preview.lines, ...(preview.bytes === undefined ? {} : { bytes: preview.bytes }) }
   }
 
   return (
@@ -616,23 +937,50 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               <span className="dsh-cf-file-path" title={selected}>
                 {selected}
               </span>
-              {preview !== null ? (
-                <span className="dsh-cf-row-size">
-                  {t('preview.lines', { count: preview.lines })}
-                  {preview.bytes === undefined ? '' : ` · ${formatSize(preview.bytes)}`}
+              {meta === null ? null : (
+                <span className="dsh-cf-file-meta">
+                  {t('preview.lines', { count: meta.lines })}
+                  {meta.bytes === undefined ? '' : ` · ${formatSize(meta.bytes)}`}
                 </span>
-              ) : null}
+              )}
+              <ModeMenu mode={mode} onSelect={changeMode} t={t} />
             </header>
 
-            {preview !== null && preview.eof === false ? (
+            {mode !== 'editor' && preview !== null && preview.eof === false ? (
               <div className="dsh-cf-truncated">{t('preview.truncated', { count: preview.lines })}</div>
             ) : null}
 
-            {/* Keyed by the selected file so a new file starts at its first
-                line and column: the two scrollers are reused otherwise, and
-                the reader would land wherever the previous file was left. */}
-            <div className="dsh-cf-body" key={selected}>
-              {fileLoading ? (
+            {plainEdit ? <div className="dsh-cf-truncated">{t('editor.plain')}</div> : null}
+
+            {saveError === null ? null : (
+              <div className="dsh-cf-save-error" role="alert">
+                <span className="dsh-cf-save-error-text">{saveError.text}</span>
+                {saveError.stale ? (
+                  <button type="button" className="dsh-cf-link" onClick={reloadDocument}>
+                    {t('editor.reload')}
+                  </button>
+                ) : null}
+              </div>
+            )}
+
+            {/* Keyed by the mode and the file: a new subject starts at its first
+                line, rather than wherever the previous one left its scroller. */}
+            <div className="dsh-cf-body" key={`${mode}:${selected}`} data-editor={editing ? '' : undefined}>
+              {editing ? (
+                doc === undefined || doc.loading ? (
+                  <div className="dsh-cf-note">{t('editor.loading')}</div>
+                ) : doc.error !== null ? (
+                  <div className="dsh-cf-error">{doc.error}</div>
+                ) : (
+                  <CodeEditor
+                    text={draft ?? doc.text}
+                    path={selected}
+                    onChange={editDocument}
+                    onSave={save}
+                    label={selected}
+                  />
+                )
+              ) : fileLoading ? (
                 <div className="dsh-cf-note">{t('preview.loading')}</div>
               ) : fileError !== null ? (
                 <div className="dsh-cf-error">{fileError}</div>
