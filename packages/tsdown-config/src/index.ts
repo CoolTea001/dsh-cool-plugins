@@ -18,7 +18,7 @@
 import { defineConfig, type UserConfig } from 'tsdown'
 
 /** Workspace scopes inlined into both halves rather than resolved at runtime. */
-const WORKSPACE_SCOPES = [/^@dsh-cool\//]
+const WORKSPACE_SCOPES: RegExp[] = [/^@dsh-cool\//]
 
 /**
  * Specifiers the browser module table answers. Mirrors `PLATFORM_MODULES` in
@@ -26,8 +26,11 @@ const WORKSPACE_SCOPES = [/^@dsh-cool\//]
  */
 const CLIENT_SEEDS = ['react', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives']
 
+/** Asset kinds tsdown can hand to the bundle as source text. */
+export type ClientLoader = NonNullable<UserConfig['loader']>
+
 /** Options a package may override per half. */
-export interface DshClientOptions {
+export interface DshPluginOptions {
   /**
    * Bundle id the loader registers. Defaults to the package name, which is what
    * every plugin should use: the loader resolves `<id>/client` and the bare id
@@ -36,22 +39,54 @@ export interface DshClientOptions {
   packageId: string
   /** Client entry, default `src/client/index.ts`. */
   clientEntry?: string
-  /** Host entry, default `src/host/index.ts`. Omit to build a client-only plugin. */
+  /** Host entry, default `src/host/index.ts`. */
   hostEntry?: string
-  /** Extra build-time constants for the client half. */
+  /** Additional build-time constants for the client half. */
   clientDefine?: Record<string, string>
-  /** Extra never-bundle specifiers beyond the seed table. */
+  /**
+   * Extra specifiers to keep as runtime `require` calls. Merged with the seed
+   * table; a package normally needs this only for a seed it does not restate.
+   */
   clientNeverBundle?: string[]
+  /**
+   * Extra specifiers to force into the bundle. Merged with the `@dsh-cool/`
+   * workspace scopes, which are always inlined.
+   */
+  clientAlwaysBundle?: (string | RegExp)[]
+  /**
+   * Turn off the advisory that lists a package's own `devDependencies` pulled
+   * into the bundle. Set it when inlining a large third-party library is the
+   * deliberate choice, so the warning is not read as an oversight.
+   */
+  quietBundledDeps?: boolean
+  /** Minify the client bundle. Worth it when it carries large data (grammars). */
+  clientMinify?: boolean
+  /**
+   * Import a non-JS asset as its source text, for example `{ '.svg': 'text' }`.
+   * The client half is a single file, so sibling assets would never be
+   * fetched; the artwork has to end up inside the bundle.
+   */
+  clientLoader?: ClientLoader
 }
 
 /**
  * Build the two tsdown configs a DSH plugin needs.
  *
- * @param options - package identity and optional entry overrides.
+ * @param options - package identity and optional overrides.
  * @returns the configs, ready to export as the default export.
  */
-export function dshPlugin(options: DshClientOptions): UserConfig[] {
-  const { packageId, clientEntry = 'src/client/index.ts', hostEntry = 'src/host/index.ts', clientDefine = {}, clientNeverBundle = [] } = options
+export function dshPlugin(options: DshPluginOptions): UserConfig[] {
+  const {
+    packageId,
+    clientEntry = 'src/client/index.ts',
+    hostEntry = 'src/host/index.ts',
+    clientDefine = {},
+    clientNeverBundle = [],
+    clientAlwaysBundle = [],
+    quietBundledDeps = false,
+    clientMinify = false,
+    clientLoader,
+  } = options
 
   return [
     {
@@ -73,10 +108,13 @@ export function dshPlugin(options: DshClientOptions): UserConfig[] {
       target: 'es2022',
       fixedExtension: false,
       dts: false,
+      minify: clientMinify,
+      ...(clientLoader === undefined ? {} : { loader: clientLoader }),
       define: clientDefine,
       deps: {
         neverBundle: [...CLIENT_SEEDS, ...clientNeverBundle],
-        alwaysBundle: WORKSPACE_SCOPES,
+        alwaysBundle: [...WORKSPACE_SCOPES, ...clientAlwaysBundle],
+        ...(quietBundledDeps ? { onlyBundle: false as const } : {}),
       },
       outputOptions: {
         entryFileNames: 'client.js',
