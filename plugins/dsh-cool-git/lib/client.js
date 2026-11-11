@@ -8,7 +8,7 @@ window.__ModuleLoader__.load({
 		let react_dom = require("react-dom");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region src/client/locales.ts
+		// src/client/locales.ts
 		/** The dictionary namespace this page owns. */
 		const NS = "coolGit";
 		/** The English copy, which is also the fallback every lookup ends at. */
@@ -593,8 +593,7 @@ window.__ModuleLoader__.load({
 			"error.no-plugin-manager": "插件管理器不可用，无法从这里安装该插件",
 			"error.bad-version": "该版本无法安装"
 		};
-		//#endregion
-		//#region src/shared/contract.ts
+		// src/shared/contract.ts
 		/**
 		* Longest custom message prompt the Settings route accepts.
 		*
@@ -660,8 +659,7 @@ window.__ModuleLoader__.load({
 			update: "/dsh-cool-git/api/update",
 			updateApply: "/dsh-cool-git/api/update-apply"
 		};
-		//#endregion
-		//#region src/shared/error.ts
+		// src/shared/error.ts
 		/**
 		* One caught value as the text a payload or a route reports.
 		*
@@ -679,8 +677,7 @@ window.__ModuleLoader__.load({
 		function errorMessage(error) {
 			return error instanceof Error ? error.message : String(error);
 		}
-		//#endregion
-		//#region src/client/api.ts
+		// src/client/api.ts
 		/**
 		* Client half of the package-private bridge to the Host routes.
 		*
@@ -1299,8 +1296,7 @@ window.__ModuleLoader__.load({
 		function applyUpdate(version) {
 			return postJson(ROUTES.updateApply, { version });
 		}
-		//#endregion
-		//#region src/client/cache.ts
+		// src/client/cache.ts
 		/**
 		* The prefix every entry this plugin writes carries.
 		*
@@ -1350,7 +1346,7 @@ window.__ModuleLoader__.load({
 		* memory, where the tab switch that needs it is served anyway; only a page
 		* reload loses it, and that reload re-reads the repository.
 		*/
-		const MAX_SNAPSHOT_CHARS = 512 * 1024;
+		const MAX_SNAPSHOT_CHARS = 524288;
 		/** The snapshots alive in this page, keyed by repository identity. */
 		const snapshots = /* @__PURE__ */ new Map();
 		/** Session identity to repository identity, as earlier mounts learned it. */
@@ -1769,8 +1765,7 @@ window.__ModuleLoader__.load({
 			snapshots.set(repository, snapshot);
 			persist(repository, snapshot);
 		}
-		//#endregion
-		//#region src/client/chrome.ts
+		// src/client/chrome.ts
 		/**
 		* Composer-seat suppression for the Git tab.
 		*
@@ -1820,8 +1815,7 @@ window.__ModuleLoader__.load({
 				hidden.clear();
 			};
 		}
-		//#endregion
-		//#region src/client/diff.ts
+		// src/client/diff.ts
 		/** Hunk header, `@@ -oldStart,oldCount +newStart,newCount @@ optional section`. */
 		const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 		/**
@@ -1959,8 +1953,7 @@ window.__ModuleLoader__.load({
 			if (file.oldPath !== "" && file.oldPath !== "/dev/null") return file.oldPath;
 			return file.header.replace(/^diff --git /, "");
 		}
-		//#endregion
-		//#region src/client/icons.tsx
+		// src/client/icons.tsx
 		/**
 		* The plugin's own icon set, rendered from the SVG artwork under
 		* `src/client/assets/`.
@@ -2140,8 +2133,7 @@ window.__ModuleLoader__.load({
 		* part of the mark, and a monochrome glyph at 16px would read as a generic box.
 		*/
 		const IconNpm = svgIcon("npm");
-		//#endregion
-		//#region src/client/layout.tsx
+		// src/client/layout.tsx
 		/**
 		* The Git page's two resizable boundaries, and the sizes they remember.
 		*
@@ -2392,8 +2384,7 @@ window.__ModuleLoader__.load({
 				onLostPointerCapture: onPointerCancel
 			});
 		}
-		//#endregion
-		//#region src/client/styles.ts
+		// src/client/styles.ts
 		/**
 		* Package-owned stylesheet for the Git tab.
 		*
@@ -2769,8 +2760,7 @@ window.__ModuleLoader__.load({
 				element.remove();
 			};
 		}
-		//#endregion
-		//#region src/client/git.tsx
+		// src/client/git.tsx
 		/**
 		* The Git conversation view.
 		*
@@ -5166,7 +5156,7 @@ window.__ModuleLoader__.load({
 					const trigger = modelField.current;
 					if (trigger === null) return;
 					const rect = trigger.getBoundingClientRect();
-					const width = Math.max(PICKER_WIDTH_MIN, Math.min(rect.width, window.innerWidth - PICKER_MARGIN * 2));
+					const width = Math.max(PICKER_WIDTH_MIN, Math.min(rect.width, window.innerWidth - 24));
 					const below = window.innerHeight - rect.bottom - PICKER_GAP - PICKER_MARGIN;
 					const above = rect.top - PICKER_GAP - PICKER_MARGIN;
 					const openUp = below < PICKER_HEIGHT && above > below;
@@ -7738,30 +7728,34 @@ window.__ModuleLoader__.load({
 				frame.current = 0;
 			}, []);
 			(0, react.useEffect)(() => halt, [halt]);
+			/** Walk the row from where it is to its right edge, one frame at a time. */
+			const walk = (0, react.useCallback)(() => {
+				const node = box.current;
+				if (node === null) return;
+				const from = node.scrollLeft;
+				const rest = node.scrollWidth - node.clientWidth - from;
+				if (rest <= 0) return;
+				let started = 0;
+				const step = (now) => {
+					if (started === 0) started = now;
+					const walked = (now - started) / 1e3 * REF_SCROLL_SPEED;
+					const done = walked >= rest;
+					node.scrollLeft = done ? from + rest : from + walked;
+					frame.current = done ? 0 : requestAnimationFrame(step);
+				};
+				halt();
+				frame.current = requestAnimationFrame(step);
+			}, [halt]);
+			/** Put the row back at its start, at once. */
+			const rewind = (0, react.useCallback)(() => {
+				halt();
+				if (box.current !== null) box.current.scrollLeft = 0;
+			}, [halt]);
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 				ref: box,
 				className: "dsh-cg-refs",
-				onMouseEnter: (0, react.useCallback)(() => {
-					const node = box.current;
-					if (node === null) return;
-					const from = node.scrollLeft;
-					const rest = node.scrollWidth - node.clientWidth - from;
-					if (rest <= 0) return;
-					let started = 0;
-					const step = (now) => {
-						if (started === 0) started = now;
-						const walked = (now - started) / 1e3 * REF_SCROLL_SPEED;
-						const done = walked >= rest;
-						node.scrollLeft = done ? from + rest : from + walked;
-						frame.current = done ? 0 : requestAnimationFrame(step);
-					};
-					halt();
-					frame.current = requestAnimationFrame(step);
-				}, [halt]),
-				onMouseLeave: (0, react.useCallback)(() => {
-					halt();
-					if (box.current !== null) box.current.scrollLeft = 0;
-				}, [halt]),
+				onMouseEnter: walk,
+				onMouseLeave: rewind,
 				children: refs.map((ref) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 					className: "dsh-cg-ref",
 					children: refLabel(ref)
@@ -8324,7 +8318,7 @@ window.__ModuleLoader__.load({
 				kind: "context",
 				text
 			}, offset)) });
-			const hidden = lines.length - CONFLICT_CONTEXT_EDGE * 2;
+			const hidden = lines.length - 6;
 			const fold = /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: "dsh-cg-conflict-fold",
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -8679,8 +8673,7 @@ window.__ModuleLoader__.load({
 				children: props.text
 			});
 		}
-		//#endregion
-		//#region src/client/update.tsx
+		// src/client/update.tsx
 		/**
 		* The plugin page's update row.
 		*
@@ -9004,8 +8997,7 @@ window.__ModuleLoader__.load({
 				current: own.version
 			});
 		}
-		//#endregion
-		//#region src/client/index.ts
+		// src/client/index.ts
 		/**
 		* Client entry for dsh-cool-git.
 		*
@@ -9060,7 +9052,6 @@ window.__ModuleLoader__.load({
 				locale: NS
 			}, UpdateSection));
 		}
-		//#endregion
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;

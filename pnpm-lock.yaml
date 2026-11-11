@@ -61,6 +61,28 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  plugins/dsh-cool-git:
+    dependencies:
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+    devDependencies:
+      '@dsh-cool/tsdown-config':
+        specifier: workspace:*
+        version: link:../../packages/tsdown-config
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   plugins/dsh-cool-session:
     dependencies:
       react:

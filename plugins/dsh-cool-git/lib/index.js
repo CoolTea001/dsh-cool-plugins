@@ -103,8 +103,7 @@ const ROUTES = {
 	update: "/dsh-cool-git/api/update",
 	updateApply: "/dsh-cool-git/api/update-apply"
 };
-//#endregion
-//#region src/shared/error.ts
+// src/shared/error.ts
 /**
 * One caught value as the text a payload or a route reports.
 *
@@ -122,8 +121,7 @@ const ROUTES = {
 function errorMessage(error) {
 	return error instanceof Error ? error.message : String(error);
 }
-//#endregion
-//#region src/host/conflict.ts
+// src/host/conflict.ts
 /**
 * Longest file this module will parse, in bytes.
 *
@@ -132,7 +130,7 @@ function errorMessage(error) {
 * as binary — no markers, so the whole-file choice is the only one offered —
 * which is honest and still leaves the reader a way through.
 */
-const MAX_CONFLICT_BYTES = 4 * 1024 * 1024;
+const MAX_CONFLICT_BYTES = 4194304;
 /** How much of a file is sniffed for a NUL byte, which is what makes it binary. */
 const BINARY_SNIFF_BYTES = 8e3;
 /** Shortest run of marker characters Git writes; a longer run is accepted too. */
@@ -511,8 +509,7 @@ function replacement(bytes, region, choice) {
 		case "both": return [...take(region.ours), ...take(region.theirs)];
 	}
 }
-//#endregion
-//#region src/host/refusal.ts
+// src/host/refusal.ts
 /**
 * One coded refusal, shaped as a payload carries it.
 *
@@ -526,8 +523,7 @@ function coded(code, params) {
 		params
 	} };
 }
-//#endregion
-//#region src/host/git.ts
+// src/host/git.ts
 /**
 * The Host half's Git reader, and its writers.
 *
@@ -600,7 +596,7 @@ const NOT_A_REPO = /not a git repository/i;
 */
 const GIT_NETWORK_TIMEOUT_MS = 18e4;
 /** Largest patch the Host collects; beyond this the answer is flagged truncated. */
-const MAX_STDOUT_BYTES = 4 * 1024 * 1024;
+const MAX_STDOUT_BYTES = 4194304;
 /** Upper bound on commits per request, so one call cannot walk a whole history. */
 const MAX_LOG_LIMIT = 300;
 /**
@@ -806,9 +802,9 @@ const GIT_ENV = {
 	...process.platform === "win32" ? {} : { TERM: "dumb" }
 };
 /** Largest stderr the direct path retains; a diagnosis is one short line. */
-const MAX_STDERR_BYTES = 64 * 1024;
+const MAX_STDERR_BYTES = 65536;
 /** Largest spill file one direct stream may leave behind, when truncated. */
-const MAX_SPILL_BYTES = 8 * 1024 * 1024;
+const MAX_SPILL_BYTES = 8388608;
 /**
 * Read one collected stream without letting a provider fault escape.
 *
@@ -4280,8 +4276,7 @@ const DEFAULT_MESSAGE_PROMPT = [
 	"Apply rule 2 before you write, whatever style you are following. When the check finds something the committer must look at first, put one line per finding after the message, each beginning with \"WARNING: \" and naming the path and what is wrong with it.",
 	"Answer with the commit message alone: no Markdown, no code fences, no quotation marks around the message, and no commentary of your own."
 ].join("\n");
-//#endregion
-//#region src/host/model.ts
+// src/host/model.ts
 /**
 * Read DSH's current default model selection.
 *
@@ -4398,8 +4393,7 @@ async function readModelEfforts(ctx, provider, model) {
 		};
 	}
 }
-//#endregion
-//#region src/host/settings.ts
+// src/host/settings.ts
 /**
 * Durable per-Workspace choices for generated commit messages.
 *
@@ -4700,8 +4694,7 @@ function readPromptChoice(value) {
 		value
 	};
 }
-//#endregion
-//#region src/host/workspace.ts
+// src/host/workspace.ts
 /**
 * Find the Workspace that owns this request's session, or its directory.
 *
@@ -4762,8 +4755,7 @@ function bySession(registry, sessionId) {
 		}
 	} catch {}
 }
-//#endregion
-//#region src/host/message.ts
+// src/host/message.ts
 /**
 * Longest answer the model may write.
 *
@@ -5053,8 +5045,7 @@ async function generateCommitMessage(ctx, target, sessionId, scope = "all") {
 		...warnings.length === 0 ? {} : { warnings }
 	};
 }
-//#endregion
-//#region src/host/update.ts
+// src/host/update.ts
 /**
 * What the plugin page's update row asks the Host, and what the Host does about
 * it.
@@ -5082,7 +5073,7 @@ async function generateCommitMessage(ctx, target, sessionId, scope = "all") {
 /** The registry the package publishes to, ending in the slash paths append to. */
 const REGISTRY = "https://registry.npmjs.org/";
 /** How long a successful read answers without asking the registry again. */
-const CACHE_TTL_MS = 5 * 6e4;
+const CACHE_TTL_MS = 3e5;
 /** How long a failed read is remembered, so a dead network is not retried per repaint. */
 const FAILURE_TTL_MS = 3e4;
 /** How long one registry request may take before it is treated as unreachable. */
@@ -5228,8 +5219,7 @@ async function installPublishedVersion(ctx, version) {
 		};
 	}
 }
-//#endregion
-//#region src/host/routes.ts
+// src/host/routes.ts
 /**
 * The Host half's HTTP surface.
 *
@@ -5943,8 +5933,7 @@ function registerRoutes(ctx) {
 		for (const dispose of disposers) dispose();
 	};
 }
-//#endregion
-//#region src/host/index.ts
+// src/host/index.ts
 /**
 * Host entry for dsh-cool-git.
 *
@@ -5964,5 +5953,4 @@ const inject = ["webServer", "subprocess"];
 function apply(ctx) {
 	ctx.effect(() => registerRoutes(ctx), "dsh-cool-git: git routes");
 }
-//#endregion
 export { ROUTES, apply, inject, name };
