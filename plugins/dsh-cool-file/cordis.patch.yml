@@ -1,0 +1,8 @@
+# dsh-cool-file bundle patch: mount the host half.
+#
+# The host half serves the workspace listing and text-read routes the Files tab
+# asks for; the browser half is loaded from this package's `dsh.client` manifest
+# and owns the session's Files tab.
+- insert:
+    - id: dsh-cool-file
+      name: dsh-cool-file
