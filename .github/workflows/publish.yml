@@ -21,12 +21,17 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.7.0
+          version: 11.28.9
 
+      # No `registry-url` here on purpose. It would write
+      # `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into .npmrc, and
+      # with no NPM_TOKEN secret that resolves to a placeholder, so pnpm sends
+      # bogus credentials and the registry answers 404 instead of the real
+      # auth error. Each package pins its registry in `publishConfig`, and
+      # OIDC is the only credential this workflow should use.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org/
           cache: pnpm
 
       - name: Install dependencies
