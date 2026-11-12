@@ -1,6 +1,7 @@
 {
   "name": "dsh-cool-file",
   "version": "0.1.0",
+  "private": true,
   "description": "DeepSeek Harness file plugin — adds a Files tab to the session tab bar for browsing the workspace and previewing text files.",
   "type": "module",
   "license": "MIT",
