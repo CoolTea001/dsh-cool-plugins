@@ -17,15 +17,3 @@ DeepSeek Harness theme plugin — supports dark/light appearance switching, ship
 3. **Sidebar transparency:** A switch controls the sidebar panel transparency on macOS
 4. **Custom themes:** Turn on custom themes to create your own, with custom colors (colors inherit from the currently selected preset), a background image/video, and CSS styles
 5. **Sharing themes:** Share custom themes you have created, or import custom themes shared by others — a theme's background image is exported and imported along with it
-
-## Installation
-
-Use DSH's add-plugin feature and enter the package name: dsh-cool-theme.
-
-## Contributing
-
-Contributions via Issues and PRs are welcome.
-
-## License
-
-MIT © CoolTea

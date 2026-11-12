@@ -11,45 +11,38 @@
     <tr>
       <th width="160">插件</th>
       <th>简介</th>
-      <th>文档</th>
       <th>已发布</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-theme"><code>dsh-cool-theme</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-theme/README.md"><code>dsh-cool-theme</code></a></td>
       <td>外观切换：预设主题、自定义主题与主题分享</td>
-      <td><a href="plugins/dsh-cool-theme/README.md"><code>README</code></a></td>
       <td>✅</td>
     </tr>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-terminal"><code>dsh-cool-terminal</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-terminal/README.md"><code>dsh-cool-terminal</code></a></td>
       <td>在会话标签栏中提供真实 shell，支持工作区同步与命令补全</td>
-      <td><a href="plugins/dsh-cool-terminal/README.md"><code>README</code></a></td>
       <td>✅</td>
     </tr>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-git"><code>dsh-cool-git</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-git/README.md"><code>dsh-cool-git</code></a></td>
       <td>Git 面板：查看改动、提交、历史与分支，同步远端，解决冲突</td>
-      <td><a href="plugins/dsh-cool-git/README.md"><code>README</code></a></td>
       <td>✅</td>
     </tr>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-file"><code>dsh-cool-file</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-file/README.md"><code>dsh-cool-file</code></a></td>
       <td>Files 标签页：浏览工作区并预览文本文件</td>
-      <td><a href="plugins/dsh-cool-file/README.md"><code>README</code></a></td>
       <td>❌</td>
     </tr>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-session"><code>dsh-cool-session</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-session/README.md"><code>dsh-cool-session</code></a></td>
       <td>设置中的 Sessions 页：搜索、筛选、归档与批量删除</td>
-      <td><a href="plugins/dsh-cool-session/README.md"><code>README</code></a></td>
       <td>✅</td>
     </tr>
     <tr>
-      <td width="160"><a href="plugins/dsh-cool-daily"><code>dsh-cool-daily</code></a></td>
+      <td width="160"><a href="plugins/dsh-cool-daily/README.md"><code>dsh-cool-daily</code></a></td>
       <td>按自定义提示词生成每日 AI 文章</td>
-      <td><a href="plugins/dsh-cool-daily/README.md"><code>README</code></a></td>
       <td>❌</td>
     </tr>
   </tbody>
@@ -57,30 +50,13 @@
 
 ## 安装插件
 
-使用 DSH 的新增插件功能，输入对应的包名即可安装，例如 `dsh-cool-theme`。表中尚未发布的插件，可按「链接到 profile」一节在本地安装。
+**npm 包名安装**
 
-## 开发
+使用 DSH 的新增插件功能，输入对应的包名即可安装，例如 `dsh-cool-theme`。
 
-```bash
-pnpm install
-pnpm run check     # 语言包守卫 → 各包的 check → 客户端产物守卫
-pnpm run build     # 构建全部包
-pnpm run dev       # 监听并重建全部包
-```
+**本地源码安装**
 
-环境要求：Node `^22.19.0 || >=24.0.0`，pnpm `11.28.9`（由 `packageManager` 字段锁定）。
-
-## 链接到 profile
-
-插件目录可以直接软链接到 DSH profile 中，本地开发也采用这种方式：
-
-```bash
-dsh plugin --profile desktop add link:<repo>/plugins/dsh-cool-git
-```
-
-软链接指向的是实时的工作副本，因此修改代码后必须重新构建 `lib/`。
-
-Host 端加载新代码需要重启 DSH；浏览器端在页面刷新时会读取重新构建后的 `client.js`。由于 `lib/` 同样提交到仓库，源码改动只有连同重新构建的产物一起提交才算完成。
+项目克隆至本地后，可以直接在新增插件面板输入框中输入插件路径安装。例如：`/Users/xxx/Desktop/dsh-cool-plugins/plugins/dsh-cool-theme`
 
 ## 参与贡献
 
