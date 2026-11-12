@@ -13,39 +13,39 @@ lives here.
     <tr>
       <th width="200">Package</th>
       <th>What it adds</th>
-      <th>Published</th>
+      <th align="center">Published</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-theme/README.md"><code>dsh-cool-theme</code></a></td>
       <td>Appearance switching: preset themes, custom themes, and theme sharing</td>
-      <td>✅</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-terminal/README.md"><code>dsh-cool-terminal</code></a></td>
       <td>A real shell in the session tab bar, with workspace sync and command completion</td>
-      <td>✅</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-git/README.md"><code>dsh-cool-git</code></a></td>
       <td>A Git panel: view changes, commit, browse history and branches, sync with the remote, resolve conflicts</td>
-      <td>✅</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-file/README.md"><code>dsh-cool-file</code></a></td>
       <td>A Files tab: browse the workspace and preview text files</td>
-      <td>❌</td>
+      <td align="center">❌</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-session/README.md"><code>dsh-cool-session</code></a></td>
       <td>A Sessions page in Settings: search, filter, archive, and batch delete</td>
-      <td>✅</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-daily/README.md"><code>dsh-cool-daily</code></a></td>
       <td>Daily AI-generated articles from a custom prompt</td>
-      <td>❌</td>
+      <td align="center">❌</td>
     </tr>
   </tbody>
 </table>
