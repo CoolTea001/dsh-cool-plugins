@@ -8,6 +8,12 @@
 
 1. Do not update the README (`README.md` / `README.zh.md`) without permission.
 
+## Icon Rules
+
+1. Use only the icon components exported by `@dsh-cool/icons` from `packages/icons`.
+2. Do not add ad-hoc inline SVG or import icons from another library.
+3. If a required icon is missing, ask the user to add it to `packages/icons` instead of creating a local substitute.
+
 ## Docs Language
 
 1. `.md` files default to English.
