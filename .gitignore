@@ -152,3 +152,6 @@ vite.config.ts.timestamp-*
 .tmp/
 .agents/
 .DS_Store
+
+# Written by `pnpm -r publish --report-summary`; read by publish-release.sh.
+pnpm-publish-summary.json

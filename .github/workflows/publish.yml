@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # push the release tags and create their GitHub releases
   id-token: write # npm provenance (OIDC trusted publisher)
 
 jobs:
@@ -40,5 +40,15 @@ jobs:
       - name: Build & typecheck
         run: pnpm run check
 
+      # `--report-summary` records exactly what this run published, which is what
+      # the next step needs: the registry is the only authority on what shipped,
+      # and `publishedPackages` is `[]` when nothing did.
       - name: Publish unpublished packages
-        run: pnpm -r publish --access public --no-git-checks --provenance
+        run: pnpm -r publish --access public --no-git-checks --provenance --report-summary
+
+      # Tagging comes after a successful publish, never before: a tag that exists
+      # and points at a failed publish claims a release that never shipped. Each
+      # package gets `<name>@<version>`, because one `vX.Y.Z` sequence cannot name
+      # two packages in this repository.
+      - name: Tag and release what was published
+        run: bash .github/scripts/publish-release.sh pnpm-publish-summary.json
