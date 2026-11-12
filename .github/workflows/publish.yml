@@ -51,4 +51,17 @@ jobs:
       # package gets `<name>@<version>`, because one `vX.Y.Z` sequence cannot name
       # two packages in this repository.
       - name: Tag and release what was published
+        env:
+          # `git tag -a` writes an annotated tag object, and writing a tag object
+          # needs a committer identity. The runner image ships no `user.name` /
+          # `user.email`, so the tag aborts with "empty ident name" (exit 128)
+          # even though the publish itself succeeded.
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          # `gh` has no implicit credential — GITHUB_TOKEN is only exported to
+          # the workflow, not to the CLI. Without GH_TOKEN every `gh release`
+          # call fails with "set the GH_TOKEN environment variable".
+          GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/publish-release.sh pnpm-publish-summary.json
