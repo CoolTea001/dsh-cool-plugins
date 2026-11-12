@@ -38,7 +38,7 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react'
-import { IconChevronRight, IconEye, IconEyeOff, IconFileText, IconFolder, IconRotateCw } from '@dsh-cool/icons'
+import { IconChevronRight, IconEye, IconEyeOff, IconFile, IconFolder, IconRotateCw } from '@dsh-cool/icons'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 import { suppressComposerSeat } from './chrome.js'
 import { CodePreview } from './code.js'
@@ -819,7 +819,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               {isDirectory ? <IconChevronRight /> : null}
             </span>
             <span className="dsh-cf-row-icon" aria-hidden="true">
-              {isDirectory ? <IconFolder size={15} /> : <IconFileText size={15} />}
+              {isDirectory ? <IconFolder size={15} /> : <IconFile size={15} />}
             </span>
             <span className="dsh-cf-row-name">{entry.name}</span>
             {drafts[target] === undefined ? null : (
