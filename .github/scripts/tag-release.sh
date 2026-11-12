@@ -4,13 +4,16 @@
 #
 # Usage: tag-release.sh <package-name> [--push]
 #
-# In a monorepo one `vX.Y.Z` tag cannot name two packages, and every plugin
-# already has its own version line (four of them shipped a v0.1.0 at different
-# commits). Tags are therefore `<package-name>@<version>`, the convention
-# changesets uses, plus a `v` alias only when the package is unambiguous.
+# One `vX.Y.Z` tag cannot name two packages here: theme, terminal and git each
+# shipped a v0.1.0, a v0.4.0 and a v0.5.0, so seven tag names would collide.
+# Tags are therefore `<package-name>@<version>`, the convention changesets uses.
+# No `v` alias is created — in a monorepo with independent version lines it would
+# be the ambiguous name it was meant to disambiguate.
 #
-# The version is read from the package's own manifest, never passed in, so a
-# tag cannot disagree with what npm received.
+# The version is read from the package's own manifest, never passed in, so a tag
+# cannot disagree with what npm received. Run this after the version is actually
+# on the registry: a tag that exists and points at a failed publish claims a
+# release that never shipped.
 set -euo pipefail
 
 NAME="${1:?usage: tag-release.sh <package-name> [--push]}"
