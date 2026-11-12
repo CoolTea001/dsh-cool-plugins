@@ -6,14 +6,54 @@
 
 ## 插件列表
 
-| 插件 | 简介 | 文档 | 已发布 |
-|---|---|---|---|
-| [`dsh-cool-theme`](plugins/dsh-cool-theme) | 外观切换：预设主题、自定义主题与主题分享 | [`README`](plugins/dsh-cool-theme/README.md) | 是 |
-| [`dsh-cool-terminal`](plugins/dsh-cool-terminal) | 在会话标签栏中提供真实 shell，支持工作区同步与命令补全 | [`README`](plugins/dsh-cool-terminal/README.md) | 是 |
-| [`dsh-cool-git`](plugins/dsh-cool-git) | Git 面板：查看改动、提交、历史与分支，同步远端，解决冲突 | [`README`](plugins/dsh-cool-git/README.md) | 是 |
-| [`dsh-cool-file`](plugins/dsh-cool-file) | Files 标签页：浏览工作区并预览文本文件 | [`README`](plugins/dsh-cool-file/README.md) | 否 |
-| [`dsh-cool-session`](plugins/dsh-cool-session) | 设置中的 Sessions 页：搜索、筛选、归档与批量删除 | [`README`](plugins/dsh-cool-session/README.md) | 否 |
-| [`dsh-cool-daily`](plugins/dsh-cool-daily) | 按自定义提示词生成每日 AI 文章 | [`README`](plugins/dsh-cool-daily/README.md) | 否 |
+<table>
+  <thead>
+    <tr>
+      <th width="160">插件</th>
+      <th>简介</th>
+      <th>文档</th>
+      <th>已发布</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-theme"><code>dsh-cool-theme</code></a></td>
+      <td>外观切换：预设主题、自定义主题与主题分享</td>
+      <td><a href="plugins/dsh-cool-theme/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-terminal"><code>dsh-cool-terminal</code></a></td>
+      <td>在会话标签栏中提供真实 shell，支持工作区同步与命令补全</td>
+      <td><a href="plugins/dsh-cool-terminal/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-git"><code>dsh-cool-git</code></a></td>
+      <td>Git 面板：查看改动、提交、历史与分支，同步远端，解决冲突</td>
+      <td><a href="plugins/dsh-cool-git/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-file"><code>dsh-cool-file</code></a></td>
+      <td>Files 标签页：浏览工作区并预览文本文件</td>
+      <td><a href="plugins/dsh-cool-file/README.md"><code>README</code></a></td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-session"><code>dsh-cool-session</code></a></td>
+      <td>设置中的 Sessions 页：搜索、筛选、归档与批量删除</td>
+      <td><a href="plugins/dsh-cool-session/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-daily"><code>dsh-cool-daily</code></a></td>
+      <td>按自定义提示词生成每日 AI 文章</td>
+      <td><a href="plugins/dsh-cool-daily/README.md"><code>README</code></a></td>
+      <td>❌</td>
+    </tr>
+  </tbody>
+</table>
 
 ## 安装插件
 

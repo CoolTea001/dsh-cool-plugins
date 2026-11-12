@@ -8,14 +8,54 @@ lives here.
 
 ## Packages
 
-| Package | What it adds | Docs | Published |
-|---|---|---|---|
-| [`dsh-cool-theme`](plugins/dsh-cool-theme) | Appearance switching: preset themes, custom themes, and theme sharing | [`README`](plugins/dsh-cool-theme/README.md) | Yes |
-| [`dsh-cool-terminal`](plugins/dsh-cool-terminal) | A real shell in the session tab bar, with workspace sync and command completion | [`README`](plugins/dsh-cool-terminal/README.md) | Yes |
-| [`dsh-cool-git`](plugins/dsh-cool-git) | A Git panel: view changes, commit, browse history and branches, sync with the remote, resolve conflicts | [`README`](plugins/dsh-cool-git/README.md) | Yes |
-| [`dsh-cool-file`](plugins/dsh-cool-file) | A Files tab: browse the workspace and preview text files | [`README`](plugins/dsh-cool-file/README.md) | No |
-| [`dsh-cool-session`](plugins/dsh-cool-session) | A Sessions page in Settings: search, filter, archive, and batch delete | [`README`](plugins/dsh-cool-session/README.md) | No |
-| [`dsh-cool-daily`](plugins/dsh-cool-daily) | Daily AI-generated articles from a custom prompt | [`README`](plugins/dsh-cool-daily/README.md) | No |
+<table>
+  <thead>
+    <tr>
+      <th width="160">Package</th>
+      <th>What it adds</th>
+      <th>Docs</th>
+      <th>Published</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-theme"><code>dsh-cool-theme</code></a></td>
+      <td>Appearance switching: preset themes, custom themes, and theme sharing</td>
+      <td><a href="plugins/dsh-cool-theme/README.md"><code>README</code></a></td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-terminal"><code>dsh-cool-terminal</code></a></td>
+      <td>A real shell in the session tab bar, with workspace sync and command completion</td>
+      <td><a href="plugins/dsh-cool-terminal/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-git"><code>dsh-cool-git</code></a></td>
+      <td>A Git panel: view changes, commit, browse history and branches, sync with the remote, resolve conflicts</td>
+      <td><a href="plugins/dsh-cool-git/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-file"><code>dsh-cool-file</code></a></td>
+      <td>A Files tab: browse the workspace and preview text files</td>
+      <td><a href="plugins/dsh-cool-file/README.md"><code>README</code></a></td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-session"><code>dsh-cool-session</code></a></td>
+      <td>A Sessions page in Settings: search, filter, archive, and batch delete</td>
+      <td><a href="plugins/dsh-cool-session/README.md"><code>README</code></a></td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td width="160"><a href="plugins/dsh-cool-daily"><code>dsh-cool-daily</code></a></td>
+      <td>Daily AI-generated articles from a custom prompt</td>
+      <td><a href="plugins/dsh-cool-daily/README.md"><code>README</code></a></td>
+      <td>❌</td>
+    </tr>
+  </tbody>
+</table>
 
 ## Installing a plugin
 
