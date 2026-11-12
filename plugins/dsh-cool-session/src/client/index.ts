@@ -99,7 +99,8 @@ export function apply(ctx: any): void {
     }, SessionsSection))
 
   // The shell derives a section's nav glyph from its id, so a plugin id gets the
-  // generic gear. Replace it with `assets/archive.svg` whenever the nav mounts.
+  // generic gear. Replace it with the package's archive glyph whenever the nav
+  // mounts.
   ctx.effect(() => installSessionNavIcon(t), 'dsh-cool-session: settings nav icon')
 
   // The native sidebar menu has two extension paths. Builds that ship

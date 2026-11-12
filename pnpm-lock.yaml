@@ -62,6 +62,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
@@ -75,6 +78,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: 0.2.1-rc.5
         version: 0.2.1-rc.5(@deepseek-ai/cordis@4.0.5)
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
@@ -100,6 +106,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
@@ -122,6 +131,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
@@ -132,6 +144,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
@@ -160,6 +175,9 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
     devDependencies:
+      '@dsh-cool/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config

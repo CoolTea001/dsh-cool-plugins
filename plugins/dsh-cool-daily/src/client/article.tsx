@@ -7,10 +7,10 @@
  */
 
 import * as React from 'react'
+import { IconArrowLeft } from '@dsh-cool/icons'
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { fetchArticle } from './api.js'
-import { BackIcon } from './icons.js'
 import type { Translate } from './locales.js'
 import { Markdown } from './markdown.js'
 import type { ArticleDetail } from '../shared/contract.js'
@@ -65,7 +65,7 @@ export function ArticleView({ t, id, onBack }: ArticleViewProps): React.ReactEle
         aria-label={t('article.back')}
         title={t('article.back')}
       >
-        <BackIcon size={16} />
+        <IconArrowLeft size={16} />
       </button>
 
       {loading && <p className="dsh-cd-state">{t('article.loading')}</p>}

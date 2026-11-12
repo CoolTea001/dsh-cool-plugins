@@ -16,8 +16,8 @@
  */
 
 import { useState, type ReactElement } from 'react'
+import { IconChevronDown } from '@dsh-cool/icons'
 import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconChevronDown } from './icons.js'
 import type { Translate } from './locales.js'
 
 /** What the page does with the open file. */
@@ -103,7 +103,7 @@ export function ModeMenu({ mode, onSelect, t }: ModeMenuProps): ReactElement {
           onClick={() => setOpen((was) => !was)}
         >
           <span>{labelOf(mode, t)}</span>
-          <IconChevronDown />
+          <IconChevronDown size={12} />
         </button>
       }
       items={items}

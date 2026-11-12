@@ -26,8 +26,8 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 
+import { IconCheck, IconChevronRight } from '@dsh-cool/icons'
 import { fetchModelEfforts } from './api.js'
-import { ArrowRightIcon, CheckIcon } from './icons.js'
 import type { Translate } from './locales.js'
 import type { DailyModel, ModelGroup } from '../shared/contract.js'
 
@@ -309,7 +309,7 @@ export function ModelPicker({
     : `${labelOf(effective, groups)} / ${effective.reasoningEffort ?? DEFAULT_EFFORT}`
 
   const rowCheck = (chosen: boolean): React.ReactElement | null => (
-    chosen ? <span className="dsh-cd-picker-row-check" aria-hidden="true"><CheckIcon size={12} /></span> : null
+    chosen ? <span className="dsh-cd-picker-row-check" aria-hidden="true"><IconCheck size={12} /></span> : null
   )
 
   /**
@@ -364,7 +364,7 @@ export function ModelPicker({
             >
               <span>{pinned ?? DEFAULT_EFFORT}</span>
               <span className="dsh-cd-picker-row-arrow" aria-hidden="true">
-                <ArrowRightIcon size={12} />
+                <IconChevronRight size={12} />
               </span>
             </button>
           )}
@@ -403,7 +403,7 @@ export function ModelPicker({
       >
         <span className="dsh-cd-picker-value">{triggerLabel}</span>
         <span className="dsh-cd-picker-chevron" data-open={open} aria-hidden="true">
-          <ArrowRightIcon size={14} />
+          <IconChevronRight size={14} />
         </span>
       </button>
 
@@ -461,7 +461,7 @@ export function ModelPicker({
                       >
                         <span className="dsh-cd-picker-group-name">{group.name}</span>
                         <span className="dsh-cd-picker-group-arrow" data-open={expanded} aria-hidden="true">
-                          <ArrowRightIcon size={12} />
+                          <IconChevronRight size={12} />
                         </span>
                       </button>
                     </div>

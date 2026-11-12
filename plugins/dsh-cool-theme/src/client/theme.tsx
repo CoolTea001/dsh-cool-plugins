@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { createRoot, type Root } from 'react-dom'
+import { IconPalette } from '@dsh-cool/icons'
 import {
   THEME_STORAGE_KEY,
   THEME_STORAGE_KEY_LEGACY,
@@ -35,7 +37,6 @@ import {
   type ResolvedBackground,
   type ResolvedBackgroundSide,
 } from './background.js'
-import { THEME_NAV_MARKUP } from './icons.js'
 import {
   fetchThemeCss,
   fetchThemes,
@@ -760,12 +761,19 @@ export function registerTheme(ctx: any) {
   })
 
   // Fix nav icon: the settings panel draws a gear for an unknown section id. The
-  // Theme section gets a palette from `assets/theme.svg` instead — as markup
-  // rather than as a component, because the seat being rewritten is the shell's
-  // own DOM (see THEME_NAV_MARKUP in icons.tsx).
+  // Theme section gets the package's palette glyph instead, rendered into the
+  // shell's own DOM seat.
   let paletteObs: MutationObserver | null = null
+  const paletteRoots = new Map<HTMLElement, Root>()
   function patchThemeNavIcon() {
     if (typeof document === 'undefined') return
+    // The shell can replace the nav cell while Settings is open; unmount any
+    // root whose holder left the document before mounting another one.
+    for (const [holder, root] of paletteRoots) {
+      if (holder.isConnected) continue
+      root.unmount()
+      paletteRoots.delete(holder)
+    }
     // Resolve current label in both locales — nav label is locale-sensitive
     let currentLabel = ''
     try {
@@ -800,8 +808,11 @@ export function registerTheme(ctx: any) {
       holder.style.display = 'inline-flex'
       holder.style.flex = 'none'
       holder.setAttribute('aria-hidden', 'true')
-      holder.innerHTML = THEME_NAV_MARKUP
       svg.parentNode?.insertBefore(holder, svg.nextSibling)
+
+      const root = createRoot(holder)
+      root.render(React.createElement(IconPalette, { size: 16 }))
+      paletteRoots.set(holder, root)
     }
   }
 
@@ -836,11 +847,15 @@ export function registerTheme(ctx: any) {
       }
       // Restore hidden gears on dispose
       if (typeof document !== 'undefined') {
+        for (const [holder, root] of paletteRoots) {
+          root.unmount()
+          holder.remove()
+        }
+        paletteRoots.clear()
         document.querySelectorAll('svg[data-palette-hidden="1"]').forEach((el) => {
           ;(el as unknown as HTMLElement).style.display = ''
           el.removeAttribute('data-palette-hidden')
         })
-        document.querySelectorAll('[data-palette-icon]').forEach((el) => el.remove())
       }
     })
   }

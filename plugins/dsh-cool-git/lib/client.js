@@ -1815,6 +1815,323 @@ window.__ModuleLoader__.load({
 				hidden.clear();
 			};
 		}
+		// ../../packages/icons/src/icon.tsx
+		/**
+		* Draw an icon's root `<svg>`.
+		*
+		* Icons own their artwork: their fills, strokes and stroke widths sit on the
+		* children, not here. This wrapper owns only the contract every icon shares —
+		* the namespace, the square size, the decorative/accessible default — so a
+		* plugin-specific glyph can use it too without copying the root attributes.
+		*/
+		function IconBase({ size = 16, className, title, viewBox, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				xmlns: "http://www.w3.org/2000/svg",
+				width: size,
+				height: size,
+				viewBox,
+				className,
+				role: title === void 0 ? void 0 : "img",
+				"aria-hidden": title === void 0 ? true : void 0,
+				focusable: "false",
+				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
+			});
+		}
+		// ../../packages/icons/src/alert-circle.tsx
+		function IconAlertCircle(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+						cx: "12",
+						cy: "12",
+						r: "10"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 8v4m0 4h.01" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/arrow-down.tsx
+		function IconArrowDown(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M12 5v14m7-7l-7 7l-7-7"
+				})
+			});
+		}
+		// ../../packages/icons/src/arrow-up.tsx
+		function IconArrowUp(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m5 12l7-7l7 7m-7 7V5" })
+				})
+			});
+		}
+		// ../../packages/icons/src/check.tsx
+		function IconCheck(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M20 6L9 17l-5-5"
+				})
+			});
+		}
+		// ../../packages/icons/src/chevron-right.tsx
+		function IconChevronRight(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "m9 18l6-6l-6-6"
+				})
+			});
+		}
+		// ../../packages/icons/src/cloud-upload.tsx
+		function IconCloudUpload(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 13v8m-8-6.101A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m8 17l4-4l4 4" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/copy.tsx
+		function IconCopy(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("rect", {
+						width: "14",
+						height: "14",
+						x: "8",
+						y: "8",
+						rx: "2",
+						ry: "2"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/folder.tsx
+		function IconFolder(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+				})
+			});
+		}
+		// ../../packages/icons/src/github.tsx
+		function IconGithub(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "currentColor",
+					fillRule: "evenodd",
+					clipRule: "evenodd",
+					d: "M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385c.6.105.825-.255.825-.57c0-.285-.015-1.23-.015-2.235c-3.015.555-3.795-.735-4.035-1.41c-.135-.345-.72-1.41-1.23-1.695c-.42-.225-1.02-.78-.015-.795c.945-.015 1.62.87 1.845 1.23c1.08 1.815 2.805 1.305 3.495.99c.105-.78.42-1.305.765-1.605c-2.67-.3-5.46-1.335-5.46-5.925c0-1.305.465-2.385 1.23-3.225c-.12-.3-.54-1.53.12-3.18c0 0 1.005-.315 3.3 1.23c.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23c.66 1.65.24 2.88.12 3.18c.765.84 1.23 1.905 1.23 3.225c0 4.605-2.805 5.625-5.475 5.925c.435.375.81 1.095.81 2.22c0 1.605-.015 2.895-.015 3.3c0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12"
+				})
+			});
+		}
+		// ../../packages/icons/src/git-branch.tsx
+		function IconGitBranch(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M15 6a9 9 0 0 0-9 9V3" }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "18",
+							cy: "6",
+							r: "3"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "6",
+							cy: "18",
+							r: "3"
+						})
+					]
+				})
+			});
+		}
+		// ../../packages/icons/src/loader-circle.tsx
+		function IconLoaderCircle(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M21 12a9 9 0 1 1-6.219-8.56"
+				})
+			});
+		}
+		// ../../packages/icons/src/minus.tsx
+		function IconMinus(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M5 12h14"
+				})
+			});
+		}
+		// ../../packages/icons/src/more-horizontal.tsx
+		function IconMoreHorizontal(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "12",
+							cy: "12",
+							r: "1"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "19",
+							cy: "12",
+							r: "1"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "5",
+							cy: "12",
+							r: "1"
+						})
+					]
+				})
+			});
+		}
+		// ../../packages/icons/src/npm.tsx
+		function IconNpm(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(IconBase, {
+				...props,
+				viewBox: "0 0 128 128",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "#cb3837",
+					d: "M0 7.062C0 3.225 3.225 0 7.062 0h113.88c3.838 0 7.063 3.225 7.063 7.062v113.88c0 3.838-3.225 7.063-7.063 7.063H7.062c-3.837 0-7.062-3.225-7.062-7.063zm23.69 97.518h40.395l.05-58.532h19.494l-.05 58.581h19.543l.05-78.075l-78.075-.1l-.1 78.126z"
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "#fff",
+					d: "M25.105 65.52V26.512H40.96c8.72 0 26.274.034 39.008.075l23.153.075v77.866H83.645v-58.54H64.057v58.54H25.105z"
+				})]
+			});
+		}
+		// ../../packages/icons/src/plus.tsx
+		function IconPlus(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M5 12h14m-7-7v14"
+				})
+			});
+		}
+		// ../../packages/icons/src/sparkles.tsx
+		function IconSparkles(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4m2-2h-4" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+						cx: "4",
+						cy: "20",
+						r: "2"
+					})]
+				})
+			});
+		}
+		// ../../packages/icons/src/undo-2.tsx
+		function IconUndo2(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M9 14L4 9l5-5" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" })]
+				})
+			});
+		}
 		// src/client/diff.ts
 		/** Hunk header, `@@ -oldStart,oldCount +newStart,newCount @@ optional section`. */
 		const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
@@ -1953,186 +2270,6 @@ window.__ModuleLoader__.load({
 			if (file.oldPath !== "" && file.oldPath !== "/dev/null") return file.oldPath;
 			return file.header.replace(/^diff --git /, "");
 		}
-		// src/client/icons.tsx
-		/**
-		* The plugin's own icon set, rendered from the SVG artwork under
-		* `src/client/assets/`.
-		*
-		* The client bundle is one JS file the platform's module loader evaluates, so
-		* sibling asset files would never be fetched; tsdown.config.ts reads the artwork
-		* at build time and exposes it as the `__DSH_CG_ICONS__` string map this module
-		* consumes, keyed by asset filename stem.
-		*
-		* The artwork is 24-unit stroke markup riding `currentColor`, so every glyph
-		* tints with the surrounding CSS, and none of it carries a size of its own: the
-		* seat that wraps the glyph decides that, which is what lets the same refresh
-		* mark sit at 13px in a toolbar button (see `.dsh-cg-icon svg` in `styles.ts`)
-		* and at 12px beside the branch (`…-branch-icon svg`).
-		*
-		* Every component here takes no props: a caller places it inside the span whose
-		* class owns the size, the color, and the spin.
-		*/
-		/**
-		* Parse one asset's raw SVG into the artwork its component renders.
-		*
-		* The root element is dropped rather than copied: its `width`/`height` belong to
-		* the asset, not to this seat, and the root's `xmlns` would be redundant once the
-		* markup is part of a larger document.
-		*
-		* @param name - the asset filename stem, e.g. `pull` for `assets/pull.svg`.
-		* @returns the viewBox and inner markup to render.
-		*/
-		function iconArtwork(name) {
-			const raw = {
-				"alert": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<circle cx=\"12\" cy=\"12\" r=\"10\" />\n		<path d=\"M12 8v4m0 4h.01\" />\n	</g>\n</svg>\n",
-				"arrow-right": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m9 18l6-6l-6-6\" />\n</svg>\n",
-				"branch": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M15 6a9 9 0 0 0-9 9V3\" />\n		<circle cx=\"18\" cy=\"6\" r=\"3\" />\n		<circle cx=\"6\" cy=\"18\" r=\"3\" />\n	</g>\n</svg>\n",
-				"check": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20 6L9 17l-5-5\" />\n</svg>\n",
-				"chevron-down": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m6 9l6 6l6-6\" />\n</svg>\n",
-				"copy": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" />\n		<path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" />\n	</g>\n</svg>\n",
-				"discard": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M9 14L4 9l5-5\" />\n		<path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\" />\n	</g>\n</svg>\n",
-				"folder": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\" />\n</svg>\n",
-				"generate": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4m2-2h-4\" />\n		<circle cx=\"4\" cy=\"20\" r=\"2\" />\n	</g>\n</svg>\n",
-				"github": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\">\n		<g clip-path=\"url(#SVGXv8lpc2Y)\">\n			<path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385c.6.105.825-.255.825-.57c0-.285-.015-1.23-.015-2.235c-3.015.555-3.795-.735-4.035-1.41c-.135-.345-.72-1.41-1.23-1.695c-.42-.225-1.02-.78-.015-.795c.945-.015 1.62.87 1.845 1.23c1.08 1.815 2.805 1.305 3.495.99c.105-.78.42-1.305.765-1.605c-2.67-.3-5.46-1.335-5.46-5.925c0-1.305.465-2.385 1.23-3.225c-.12-.3-.54-1.53.12-3.18c0 0 1.005-.315 3.3 1.23c.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23c.66 1.65.24 2.88.12 3.18c.765.84 1.23 1.905 1.23 3.225c0 4.605-2.805 5.625-5.475 5.925c.435.375.81 1.095.81 2.22c0 1.605-.015 2.895-.015 3.3c0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12\" clip-rule=\"evenodd\" />\n		</g>\n		<defs>\n			<clipPath id=\"SVGXv8lpc2Y\">\n				<path fill=\"#fff\" d=\"M0 0h24v24H0z\" />\n			</clipPath>\n		</defs>\n	</g>\n</svg>\n",
-				"minus": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 12h14\" />\n</svg>\n",
-				"more": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<circle cx=\"12\" cy=\"12\" r=\"1\" />\n		<circle cx=\"19\" cy=\"12\" r=\"1\" />\n		<circle cx=\"5\" cy=\"12\" r=\"1\" />\n	</g>\n</svg>\n",
-				"npm": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 128 128\">\n	<path d=\"M0 0h128v128H0z\" fill=\"none\" />\n	<path fill=\"#cb3837\" d=\"M0 7.062C0 3.225 3.225 0 7.062 0h113.88c3.838 0 7.063 3.225 7.063 7.062v113.88c0 3.838-3.225 7.063-7.063 7.063H7.062c-3.837 0-7.062-3.225-7.062-7.063zm23.69 97.518h40.395l.05-58.532h19.494l-.05 58.581h19.543l.05-78.075l-78.075-.1l-.1 78.126z\" />\n	<path fill=\"#fff\" d=\"M25.105 65.52V26.512H40.96c8.72 0 26.274.034 39.008.075l23.153.075v77.866H83.645v-58.54H64.057v58.54H25.105z\" />\n</svg>\n",
-				"plus": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 12h14m-7-7v14\" />\n</svg>\n",
-				"publish": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 13v8m-8-6.101A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" />\n		<path d=\"m8 17l4-4l4 4\" />\n	</g>\n</svg>\n",
-				"pull": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 5v14m7-7l-7 7l-7-7\" />\n</svg>\n",
-				"push": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m5 12l7-7l7 7m-7 7V5\" />\n</svg>\n",
-				"refresh": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\" />\n		<path d=\"M21 3v5h-5\" />\n	</g>\n</svg>\n"
-			}[name];
-			if (raw === void 0) throw new Error(`dsh-cool-git: missing icon asset '${name}.svg'`);
-			return {
-				viewBox: /viewBox="([^"]+)"/.exec(raw)?.[1] ?? "0 0 24 24",
-				inner: /<svg[^>]*>([\s\S]*)<\/svg>/.exec(raw)?.[1] ?? ""
-			};
-		}
-		/**
-		* Build one icon component from an asset's raw SVG markup.
-		*
-		* @param name - the asset filename stem.
-		* @returns a component rendering exactly that artwork.
-		*/
-		function svgIcon(name) {
-			const { viewBox, inner } = iconArtwork(name);
-			return () => (0, react.createElement)("svg", {
-				viewBox,
-				"aria-hidden": "true",
-				focusable: "false",
-				dangerouslySetInnerHTML: { __html: inner }
-			});
-		}
-		/** The Workspace glyph: the project directory the session's repository lives in (assets/folder.svg). */
-		const IconFolder = svgIcon("folder");
-		/** The branch glyph beside the branch name (assets/branch.svg). */
-		const IconBranch = svgIcon("branch");
-		/**
-		* The Pull glyph: an arrow pointing at this working tree (assets/pull.svg).
-		*
-		* Pull and push are one picture with the arrow reversed, which is what makes the
-		* pair readable at 13px beside their counts.
-		*/
-		const IconPull = svgIcon("pull");
-		/** The Push glyph: the same arrow leaving this working tree (assets/push.svg). */
-		const IconPush = svgIcon("push");
-		/**
-		* Publish this branch: send it to the remote and record the remote as its
-		* upstream (assets/publish.svg).
-		*
-		* A cloud with an arrow into it rather than the push arrow, because this is not
-		* the same act: Push sends what a branch and its upstream have between them,
-		* Publish decides that the two are related at all.
-		*/
-		const IconPublish = svgIcon("publish");
-		svgIcon("refresh");
-		/**
-		* The toolbar's overflow trigger: the mark that opens the More menu
-		* (assets/more.svg).
-		*
-		* One control for the operations the sidebar's first row cannot afford a button
-		* each — Refresh, Merge from — which is also why the glyph is a mark for a list
-		* rather than for any one of them.
-		*/
-		const IconMore = svgIcon("more");
-		/**
-		* Copy the patch on screen: the Diff pane header's copy control
-		* (assets/copy.svg).
-		*/
-		const IconCopy = svgIcon("copy");
-		/**
-		* The mark the copy control swaps to while it reports success (assets/check.svg).
-		*
-		* A state rather than a subject, and the one asset here that is: it is drawn from
-		* the same 24-unit set as the mark it replaces, which is what keeps the swap from
-		* changing the button's stroke weight.
-		*/
-		const IconCheck = svgIcon("check");
-		/**
-		* The disclosure mark on a file's title in a multi-file patch
-		* (assets/arrow-right.svg).
-		*
-		* Drawn pointing right — at the code when the file is closed — and turned a
-		* quarter by the stylesheet once the file is open, so one asset covers both
-		* states and the glyph reads as the same control either way.
-		*/
-		const IconArrowRight = svgIcon("arrow-right");
-		/**
-		* The warning on a branch Git will refuse to delete (assets/alert.svg).
-		*
-		* A ring with an exclamation rather than a filled triangle: the mark says this
-		* row cannot go through, not that the dialog has already failed, and the
-		* platform's tooltip beside it carries the reason. Only the rows that have
-		* something to refuse are drawn with one — a safe row is quiet.
-		*/
-		const IconAlert = svgIcon("alert");
-		/**
-		* The commit form's Generate control: the model writes the message that the
-		* Commit button beside it would otherwise be handed (assets/generate.svg).
-		*
-		* A spark rather than a pen or a wand, because what it asks for is not an edit
-		* of the text in the field but a reading of the changes behind it. It is the one
-		* glyph on the page that stands for a model call, and it sits at the field's own
-		* left edge so the pair reads as "write this, then commit it".
-		*/
-		const IconGenerate = svgIcon("generate");
-		/**
-		* Move a path into the index (assets/plus.svg).
-		*
-		* The changed-path row's trailing action, shown on the row's unstaged half. A
-		* bare plus rather than a filled button: the row is 24px tall and the action is
-		* about the row, not a control beside it, so the glyph is the whole of it.
-		*/
-		const IconPlus = svgIcon("plus");
-		/** Move a path out of the index (assets/minus.svg). */
-		const IconMinus = svgIcon("minus");
-		/**
-		* Discard a path's unstaged change (assets/discard.svg).
-		*
-		* The changed-path row's leading action on its unstaged half: the arrow turns
-		* back on itself, which is what "undo this edit" looks like without borrowing
-		* the trash can's promise of deletion — a tracked path is restored from the
-		* index rather than removed.
-		*/
-		const IconDiscard = svgIcon("discard");
-		svgIcon("chevron-down");
-		/**
-		* The GitHub mark (assets/github.svg).
-		*
-		* Drawn in the platform's own 24-unit set and riding `currentColor`, so it tints
-		* with the link that carries it. It is the repository's own brand rather than a
-		* generic "external link" arrow: on the plugin page the two marks beside it and
-		* this one are the plugin's paper trail, and each names a place by its mark.
-		*/
-		const IconGithub = svgIcon("github");
-		/**
-		* The npm mark (assets/npm.svg).
-		*
-		* The one asset here that keeps its own color: npm's red is the recognisable
-		* part of the mark, and a monochrome glyph at 16px would read as a generic box.
-		*/
-		const IconNpm = svgIcon("npm");
 		// src/client/layout.tsx
 		/**
 		* The Git page's two resizable boundaries, and the sizes they remember.
@@ -3448,37 +3585,13 @@ window.__ModuleLoader__.load({
 			return `${label} · ${count}`;
 		}
 		/**
-		* The busy glyph: an open ring, turned by the stylesheet.
+		* The busy glyph: the package's open ring, turned by the stylesheet.
 		*
 		* A control that can wait on the network for minutes cannot look the same as an
 		* idle one, and a disabled button alone does not say which control is working.
-		* It stands in for whichever glyph the wait belongs to, so it has to carry the
-		* same weight as the artwork it replaces rather than a stroke of its own.
-		*
-		* It is the last glyph drawn here rather than under `src/client/assets`: every
-		* subject the page shows — the Workspace, branch, pull, push, publish, refresh,
-		* copy and check marks — is an asset now, and this ring is alone in being a state
-		* with no picture of its own to be named after. See `icons.tsx` for the rest.
+		* It stands in for whichever glyph the wait belongs to.
 		*/
-		const SPINNER_ICON = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
-			viewBox: "0 0 16 16",
-			"aria-hidden": "true",
-			children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
-				cx: "8",
-				cy: "8",
-				r: "5.6",
-				fill: "none",
-				stroke: "currentColor",
-				strokeWidth: "1.5",
-				strokeOpacity: "0.25"
-			}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
-				d: "M8 2.4A5.6 5.6 0 0 1 13.6 8",
-				fill: "none",
-				stroke: "currentColor",
-				strokeWidth: "1.5",
-				strokeLinecap: "round"
-			})]
-		});
+		const SPINNER_ICON = /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconLoaderCircle, {});
 		/** Root style: fill the body the shell hands this View. */
 		const PAGE = {
 			height: "100%",
@@ -5403,7 +5516,7 @@ window.__ModuleLoader__.load({
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: pinned ?? DEFAULT_EFFORT }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 								className: "dsh-cg-settings-row-arrow",
 								"aria-hidden": "true",
-								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 							})]
 						}),
 						items,
@@ -5479,7 +5592,7 @@ window.__ModuleLoader__.load({
 										className: "dsh-cg-settings-picker-chevron",
 										"data-open": pickerOpen,
 										"aria-hidden": "true",
-										children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+										children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 									})]
 								})
 							}),
@@ -5537,7 +5650,7 @@ window.__ModuleLoader__.load({
 																className: "dsh-cg-settings-picker-group-arrow",
 																"data-open": expanded,
 																"aria-hidden": "true",
-																children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+																children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 															})]
 														})
 													}), expanded ? group.models.map((option) => renderRouteRow({
@@ -5881,7 +5994,7 @@ window.__ModuleLoader__.load({
 										className: "dsh-cg-branch-icon",
 										"data-busy": switching !== null,
 										"aria-hidden": "true",
-										children: switching === null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBranch, {}) : SPINNER_ICON
+										children: switching === null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconGitBranch, {}) : SPINNER_ICON
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 										className: "dsh-cg-branch-name",
@@ -5940,7 +6053,7 @@ window.__ModuleLoader__.load({
 										"data-busy": menuBusy,
 										disabled: refreshing || busy,
 										onClick: () => setMenuOpen((value) => !value),
-										children: menuBusy ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconMore, {})
+										children: menuBusy ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconMoreHorizontal, {})
 									})
 								})
 							}),
@@ -6059,7 +6172,7 @@ window.__ModuleLoader__.load({
 						"data-busy": running,
 						disabled,
 						onClick: onPublish,
-						children: running ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconPublish, {})
+						children: running ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconCloudUpload, {})
 					})
 				})
 			});
@@ -6104,7 +6217,7 @@ window.__ModuleLoader__.load({
 							"data-busy": pulling,
 							"data-pending": behind > 0,
 							"aria-hidden": "true",
-							children: [pulling ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconPull, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							children: [pulling ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowDown, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 								className: "dsh-cg-sync-count",
 								children: behind
 							})]
@@ -6113,7 +6226,7 @@ window.__ModuleLoader__.load({
 							"data-busy": pushing,
 							"data-pending": ahead > 0,
 							"aria-hidden": "true",
-							children: [pushing ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconPush, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							children: [pushing ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowUp, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 								className: "dsh-cg-sync-count",
 								children: ahead
 							})]
@@ -6723,7 +6836,7 @@ window.__ModuleLoader__.load({
 													className: "dsh-cg-delete-alert",
 													role: "img",
 													"aria-label": tip,
-													children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconAlert, {})
+													children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconAlertCircle, {})
 												})
 											})
 										})
@@ -7042,7 +7155,7 @@ window.__ModuleLoader__.load({
 							"data-busy": generating,
 							disabled: disabled || committing || generating || nothingToCommit || operation !== null,
 							onClick: generate,
-							children: generating ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconGenerate, {})
+							children: generating ? SPINNER_ICON : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconSparkles, {})
 						})]
 					}),
 					warning === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -7276,7 +7389,7 @@ window.__ModuleLoader__.load({
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: "dsh-cg-group-chevron",
 							"aria-hidden": "true",
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: "dsh-cg-group-label",
 							children: headText(t(GROUP_KEY[side]), count)
@@ -7296,7 +7409,7 @@ window.__ModuleLoader__.load({
 								busy: discardBusy,
 								disabled: count === 0 || actionsBusy,
 								onClick: () => onDiscardAll(count, untracked),
-								icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconDiscard, {})
+								icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconUndo2, {})
 							}) : null,
 							onStageAll === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RowAction, {
 								label: t(side === "staged" ? "stage.unstageAll" : "stage.stageAll"),
@@ -7433,7 +7546,7 @@ window.__ModuleLoader__.load({
 						onClick: () => onToggle(key),
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: "dsh-cg-folder-chevron",
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 							className: "dsh-cg-folder-name",
 							children: folder.segments.map((segment, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [index === 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
@@ -7450,7 +7563,7 @@ window.__ModuleLoader__.load({
 						busy: discardBusy,
 						disabled: actionsBusy,
 						onClick: () => onDiscardFolder(folder.path, files.length, untracked),
-						icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconDiscard, {})
+						icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconUndo2, {})
 					}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RowAction, {
 						label: t(side === "staged" ? "stage.unstage" : "stage.stage"),
 						ariaLabel: t(side === "staged" ? "stage.unstageFolder" : "stage.stageFolder", { path: folder.path }),
@@ -7612,7 +7725,7 @@ window.__ModuleLoader__.load({
 						busy: discardBusy,
 						disabled: actionsBusy,
 						onClick: () => onDiscard(file),
-						icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconDiscard, {})
+						icon: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconUndo2, {})
 					}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RowAction, {
 						label: actionTip,
 						ariaLabel: actionLabel,
@@ -8597,7 +8710,7 @@ window.__ModuleLoader__.load({
 						title: t(collapsed ? "diff.expand" : "diff.collapse"),
 						"aria-label": t(collapsed ? "diff.expand" : "diff.collapse"),
 						onClick: () => onToggle(id),
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconArrowRight, {})
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronRight, {})
 					}) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 						className: "dsh-cg-file-path",

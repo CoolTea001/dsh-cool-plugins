@@ -10,12 +10,12 @@
  */
 
 import * as React from 'react'
+import { IconArrowUp, IconFileText, IconLoaderCircle, IconSearch, IconSettings2, IconSparkles } from '@dsh-cool/icons'
 import { Pill, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import { deleteArticle, fetchState, markRead, startGeneration } from './api.js'
 import { ArticleView } from './article.js'
 import { DeleteDialog } from './delete-dialog.js'
-import { ArrowUpIcon, DocIcon, LoaderIcon, SearchIcon, SettingsIcon, SparkleIcon } from './icons.js'
 import type { Translate } from './locales.js'
 import { SettingsDialog } from './settings.js'
 import { notifyUnreadChanged } from './unread.js'
@@ -328,7 +328,7 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
                 onClick={() => { setSettingsOpen(true) }}
                 disabled={state === null}
               >
-                <SettingsIcon size={15} />
+                <IconSettings2 size={15} />
                 {t('settings.action')}
               </button>
               <button
@@ -338,8 +338,8 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
                 disabled={generating || busy || state === null}
               >
                 {generating
-                  ? <LoaderIcon size={15} className="dsh-cd-spin" />
-                  : <SparkleIcon size={15} />}
+                  ? <IconLoaderCircle size={15} className="dsh-cd-spin" />
+                  : <IconSparkles size={15} />}
                 {generating ? t('generate.running') : t('generate.action')}
               </button>
             </div>
@@ -360,7 +360,7 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
 
           <div className="dsh-cd-toolbar">
             <label className="dsh-cd-search">
-              <SearchIcon size={15} className="dsh-cd-search-icon" />
+              <IconSearch size={15} className="dsh-cd-search-icon" />
               <input
                 type="search"
                 value={query}
@@ -406,7 +406,7 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
                 {state !== null && articles.length === 0 && (
                   <div className="dsh-cd-empty">
                     <span className="dsh-cd-empty-icon">
-                      <DocIcon size={24} />
+                      <IconFileText size={24} />
                     </span>
                     <p className="dsh-cd-empty-title">
                       {state.articles.length === 0 ? t('list.emptyTitle') : t('list.noMatchTitle')}
@@ -445,7 +445,7 @@ export function DailyPage({ t }: DailyPageProps): React.ReactElement {
             aria-label={t('article.top')}
             title={t('article.top')}
           >
-            <ArrowUpIcon size={16} />
+            <IconArrowUp size={16} />
           </button>
         )}
       </div>

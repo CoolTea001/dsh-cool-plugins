@@ -3,13 +3,12 @@ import { dshPlugin } from '@dsh-cool/tsdown-config'
 const PACKAGE_ID = 'dsh-cool-daily'
 
 /**
- * The client reads `src/client/assets/*.svg` as source text through tsdown's
- * `.svg` loader, so the artwork is already inside the published `lib/client.js`
- * and the browser fetches nothing.
+ * The plugin's client half is bundled by the shared preset. Icons come from
+ * `@dsh-cool/icons`, whose components the preset inlines like every other
+ * workspace package, so no SVG assets are read here.
  */
 export default dshPlugin({
   packageId: PACKAGE_ID,
-  clientLoader: { '.svg': 'text' },
   clientDefine: {
     // The stylesheet's ownership tag has to name the id the loader registers
     // this bundle under, so the banner and the tag read the one constant.

@@ -27,7 +27,147 @@ window.__ModuleLoader__.load({
 		}) : target, mod));
 		let react = require("react");
 		react = __toESM(react, 1);
+		let react_dom = require("react-dom");
+		let react_jsx_runtime = require("react/jsx-runtime");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		// ../../packages/icons/src/icon.tsx
+		/**
+		* Draw an icon's root `<svg>`.
+		*
+		* Icons own their artwork: their fills, strokes and stroke widths sit on the
+		* children, not here. This wrapper owns only the contract every icon shares —
+		* the namespace, the square size, the decorative/accessible default — so a
+		* plugin-specific glyph can use it too without copying the root attributes.
+		*/
+		function IconBase({ size = 16, className, title, viewBox, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				xmlns: "http://www.w3.org/2000/svg",
+				width: size,
+				height: size,
+				viewBox,
+				className,
+				role: title === void 0 ? void 0 : "img",
+				"aria-hidden": title === void 0 ? true : void 0,
+				focusable: "false",
+				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
+			});
+		}
+		// ../../packages/icons/src/download.tsx
+		function IconDownload(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 15V3m9 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m7 10l5 5l5-5" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/edit.tsx
+		function IconEdit(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/palette.tsx
+		function IconPalette(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 22a1 1 0 0 1 0-20a10 9 0 0 1 10 9a5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "13.5",
+							cy: "6.5",
+							r: ".5",
+							fill: "currentColor"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "17.5",
+							cy: "10.5",
+							r: ".5",
+							fill: "currentColor"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "6.5",
+							cy: "12.5",
+							r: ".5",
+							fill: "currentColor"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "8.5",
+							cy: "7.5",
+							r: ".5",
+							fill: "currentColor"
+						})
+					]
+				})
+			});
+		}
+		// ../../packages/icons/src/plus.tsx
+		function IconPlus(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M5 12h14m-7-7v14"
+				})
+			});
+		}
+		// ../../packages/icons/src/trash.tsx
+		function IconTrash(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+				})
+			});
+		}
+		// ../../packages/icons/src/upload.tsx
+		function IconUpload(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+				})
+			});
+		}
 		// src/contract.ts
 		/**
 		* Shared contract for dsh-cool-theme.
@@ -4090,7 +4230,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				alpha: hex.length >= 8 ? byteToOpacity(hex.slice(6, 8)) : 100
 			};
 		}
-		// ../../node_modules/.pnpm/react-colorful@5.8.1_react-dom@19.3.1_react@18.3.1__react@18.3.1/node_modules/react-colorful/dist/index.mjs
+		// ../../node_modules/.pnpm/react-colorful@5.8.1_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/react-colorful/dist/index.mjs
 		function l() {
 			return (l = Object.assign || function(e) {
 				for (var r = 1; r < arguments.length; r++) {
@@ -4807,89 +4947,6 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				onChange: onToggle
 			}) : null)));
 		}
-		// src/client/assets/delete.svg
-		var delete_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />\n</svg>\n";
-		// src/client/assets/edit.svg
-		var edit_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7\" />\n		<path d=\"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z\" />\n	</g>\n</svg>\n";
-		// src/client/assets/export.svg
-		var export_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v12m5-7l-5-5l-5 5m14 7v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n</svg>\n";
-		// src/client/assets/import.svg
-		var import_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 15V3m9 12v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" />\n		<path d=\"m7 10l5 5l5-5\" />\n	</g>\n</svg>\n";
-		// src/client/assets/plus.svg
-		var plus_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 12h14m-7-7v14\" />\n</svg>\n";
-		// src/client/assets/theme.svg
-		var theme_default = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 22a1 1 0 0 1 0-20a10 9 0 0 1 10 9a5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z\" />\n		<circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\" />\n		<circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\" />\n	</g>\n</svg>\n";
-		// src/client/icons.tsx
-		/**
-		* The plugin's own icon set.
-		*
-		* Every glyph lives in `assets/` as an SVG, and that file is the source of
-		* truth for its artwork: `tsdown` inlines it as text (the `loader` map in
-		* tsdown.config.ts, described by assets.d.ts), and the wrapper below narrows the
-		* markup to the same `{ size, className }` surface the shell's icons expose, so
-		* a call site swaps one for the other without touching its layout.
-		*
-		* Two properties of the artwork the wrapper keeps: the strokes draw in
-		* `currentColor`, so whichever control owns an icon goes on painting it — hover,
-		* disabled and the danger face included — with no CSS here; and React owns the
-		* `<svg>` root, so `size` stays a real prop instead of riding on the asset's own
-		* `1em` box.
-		*/
-		/**
-		* Splits the root `<svg>` off an asset. The halves are needed separately because
-		* React draws the root — that is where `size` and `className` land — while the
-		* inside ships exactly as the file wrote it.
-		*
-		* A source that is not one `<svg>` carrying a `viewBox` is a mistake in this repo
-		* and not something a user can reach, so it throws instead of quietly drawing an
-		* empty box.
-		*/
-		function parseAsset(source, file) {
-			const match = /<svg\b[^>]*\bviewBox="([^"]+)"[^>]*>([\s\S]*)<\/svg>/.exec(source);
-			if (match === null) throw new Error(`dsh-cool-theme: assets/${file} is not a single <svg> with a viewBox`);
-			return {
-				viewBox: match[1],
-				inner: match[2]
-			};
-		}
-		/**
-		* Builds one icon component from an asset.
-		*
-		* The inner markup is this repo's own build-time text, never user input — which
-		* is what makes `dangerouslySetInnerHTML` safe here, and the only way to keep the
-		* paths byte-identical to the set's own drawing, `stroke-width` and all.
-		*/
-		function icon(displayName, file, source) {
-			const { viewBox, inner } = parseAsset(source, file);
-			const Icon = ({ size = 16, className }) => react.createElement("svg", {
-				xmlns: "http://www.w3.org/2000/svg",
-				width: size,
-				height: size,
-				viewBox,
-				className,
-				"aria-hidden": "true",
-				dangerouslySetInnerHTML: { __html: inner }
-			});
-			Icon.displayName = displayName;
-			return Icon;
-		}
-		const IconDelete = icon("IconDelete", "delete.svg", delete_default);
-		const IconEdit = icon("IconEdit", "edit.svg", edit_default);
-		const IconExport = icon("IconExport", "export.svg", export_default);
-		const IconImport = icon("IconImport", "import.svg", import_default);
-		const IconPlus = icon("IconPlus", "plus.svg", plus_default);
-		/** The palette is the one glyph whose seat belongs to the shell; see below. */
-		const THEME_ASSET = parseAsset(theme_default, "theme.svg");
-		const THEME_NAV_ICON_SIZE = 16;
-		/**
-		* The palette as markup instead of as a component, because its only consumer
-		* patches shell DOM rather than rendering it: `patchThemeNavIcon` in theme.tsx
-		* hides the gear the settings nav draws for an unknown section and writes this
-		* into the seat beside it. The string therefore travels whole, with width and
-		* height pinned to the shell's 16px icon slot — the asset's own `1em` would
-		* resolve against whatever font the nav happens to carry.
-		*/
-		const THEME_NAV_MARKUP = `<svg xmlns="http://www.w3.org/2000/svg" width="${THEME_NAV_ICON_SIZE}" height="${THEME_NAV_ICON_SIZE}" viewBox="${THEME_ASSET.viewBox}" aria-hidden="true">${THEME_ASSET.inner}</svg>`;
 		// src/client/components.tsx
 		/**
 		* Theme settings UI: scheme selector, preset picker, and the custom colour editor.
@@ -5157,7 +5214,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 			}, entry.name)), react.createElement("div", {
 				className: "ct-list-actions",
 				onClick: (e) => e.stopPropagation()
-			}, active ? react.createElement("span", { className: "ct-list-badge" }, t("custom.inUse")) : null, action(t("custom.edit"), react.createElement(IconEdit, { size: ICON_SIZE }), onEdit, { leave: true }), action(t("custom.export"), react.createElement(IconExport, { size: ICON_SIZE }), onExport), action(t("custom.delete"), react.createElement(IconDelete, { size: ICON_SIZE }), onDelete, { danger: true })));
+			}, active ? react.createElement("span", { className: "ct-list-badge" }, t("custom.inUse")) : null, action(t("custom.edit"), react.createElement(IconEdit, { size: ICON_SIZE }), onEdit, { leave: true }), action(t("custom.export"), react.createElement(IconUpload, { size: ICON_SIZE }), onExport), action(t("custom.delete"), react.createElement(IconTrash, { size: ICON_SIZE }), onDelete, { danger: true })));
 		}
 		/**
 		* Which appearance the colour dots edit. `system` resolves through the same
@@ -6207,7 +6264,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 					className: "ct-add-btn",
 					disabled: importing,
 					onClick: startImport
-				}, react.createElement(IconImport, { size: ICON_SIZE }), t("custom.import")), react.createElement("button", {
+				}, react.createElement(IconDownload, { size: ICON_SIZE }), t("custom.import")), react.createElement("button", {
 					key: "add",
 					type: "button",
 					className: "ct-add-btn",
@@ -7738,8 +7795,14 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 				}));
 			});
 			let paletteObs = null;
+			const paletteRoots = /* @__PURE__ */ new Map();
 			function patchThemeNavIcon() {
 				if (typeof document === "undefined") return;
+				for (const [holder, root] of paletteRoots) {
+					if (holder.isConnected) continue;
+					root.unmount();
+					paletteRoots.delete(holder);
+				}
 				let currentLabel = "";
 				try {
 					currentLabel = t("nav");
@@ -7764,8 +7827,10 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 					holder.style.display = "inline-flex";
 					holder.style.flex = "none";
 					holder.setAttribute("aria-hidden", "true");
-					holder.innerHTML = THEME_NAV_MARKUP;
 					svg.parentNode?.insertBefore(holder, svg.nextSibling);
+					const root = (0, react_dom.createRoot)(holder);
+					root.render(react.createElement(IconPalette, { size: 16 }));
+					paletteRoots.set(holder, root);
 				}
 			}
 			/**
@@ -7795,11 +7860,15 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 						release(() => observer.disconnect());
 					}
 					if (typeof document !== "undefined") {
+						for (const [holder, root] of paletteRoots) {
+							root.unmount();
+							holder.remove();
+						}
+						paletteRoots.clear();
 						document.querySelectorAll("svg[data-palette-hidden=\"1\"]").forEach((el) => {
 							el.style.display = "";
 							el.removeAttribute("data-palette-hidden");
 						});
-						document.querySelectorAll("[data-palette-icon]").forEach((el) => el.remove());
 					}
 				});
 			}

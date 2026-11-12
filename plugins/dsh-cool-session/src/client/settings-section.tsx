@@ -17,11 +17,11 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { IconChevronDown } from '@dsh-cool/icons'
 import {
   Button, Input, Menu, Modal, type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deleteSessions } from './api.js'
-import { ARROW_DOWN_MARKUP } from './icons.js'
 import { failureText, reasonOf } from './reason.js'
 import type { ArchiveActivity, ArchiveResult } from './archive.js'
 import { countKey, type MessageKey, type Translate } from './locales.js'
@@ -252,11 +252,9 @@ function FilterMenu({
           onClick={() => { setOpen(value => !value) }}
         >
           <span className="dsh-cs-filter-label">{label}</span>
-          <span
-            className="dsh-cs-caret"
-            aria-hidden="true"
-            dangerouslySetInnerHTML={{ __html: ARROW_DOWN_MARKUP }}
-          />
+          <span className="dsh-cs-caret" aria-hidden="true">
+            <IconChevronDown size={12} />
+          </span>
         </button>
       )}
     />

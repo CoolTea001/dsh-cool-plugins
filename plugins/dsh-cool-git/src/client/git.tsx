@@ -119,23 +119,24 @@ import {
   writeRepositorySnapshot,
 } from './cache.js'
 import { suppressComposerSeat } from './chrome.js'
-import { displayPath, parsePatch, type DiffDoc, type DiffFile, type DiffLine } from './diff.js'
 import {
-  IconAlert,
-  IconArrowRight,
-  IconBranch,
+  IconAlertCircle as IconAlert,
+  IconArrowDown as IconPull,
+  IconArrowUp as IconPush,
   IconCheck,
+  IconChevronRight as IconArrowRight,
+  IconCloudUpload as IconPublish,
   IconCopy,
-  IconDiscard,
   IconFolder,
-  IconGenerate,
+  IconGitBranch as IconBranch,
+  IconLoaderCircle,
   IconMinus,
-  IconMore,
+  IconMoreHorizontal as IconMore,
   IconPlus,
-  IconPublish,
-  IconPull,
-  IconPush,
-} from './icons.js'
+  IconSparkles as IconGenerate,
+  IconUndo2 as IconDiscard,
+} from '@dsh-cool/icons'
+import { displayPath, parsePatch, type DiffDoc, type DiffFile, type DiffLine } from './diff.js'
 import {
   clampFilesHeight,
   clampSideWidth,
@@ -1011,24 +1012,13 @@ function headText(label: string, count: number): string {
 }
 
 /**
- * The busy glyph: an open ring, turned by the stylesheet.
+ * The busy glyph: the package's open ring, turned by the stylesheet.
  *
  * A control that can wait on the network for minutes cannot look the same as an
  * idle one, and a disabled button alone does not say which control is working.
- * It stands in for whichever glyph the wait belongs to, so it has to carry the
- * same weight as the artwork it replaces rather than a stroke of its own.
- *
- * It is the last glyph drawn here rather than under `src/client/assets`: every
- * subject the page shows — the Workspace, branch, pull, push, publish, refresh,
- * copy and check marks — is an asset now, and this ring is alone in being a state
- * with no picture of its own to be named after. See `icons.tsx` for the rest.
+ * It stands in for whichever glyph the wait belongs to.
  */
-const SPINNER_ICON = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.25" />
-    <path d="M8 2.4A5.6 5.6 0 0 1 13.6 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-)
+const SPINNER_ICON = <IconLoaderCircle />
 
 /** Root style: fill the body the shell hands this View. */
 const PAGE: CSSProperties = {

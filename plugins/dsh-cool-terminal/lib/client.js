@@ -29,6 +29,7 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		react = __toESM(react, 1);
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		let react_jsx_runtime = require("react/jsx-runtime");
 		// ../../node_modules/.pnpm/@xterm+xterm@6.0.0/node_modules/@xterm/xterm/lib/xterm.js
 		var require_xterm = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			(function(e, t) {
@@ -13061,73 +13062,251 @@ window.__ModuleLoader__.load({
 				})(), e;
 			})()));
 		}));
+		// ../../packages/icons/src/icon.tsx
+		/**
+		* Draw an icon's root `<svg>`.
+		*
+		* Icons own their artwork: their fills, strokes and stroke widths sit on the
+		* children, not here. This wrapper owns only the contract every icon shares —
+		* the namespace, the square size, the decorative/accessible default — so a
+		* plugin-specific glyph can use it too without copying the root attributes.
+		*/
+		function IconBase({ size = 16, className, title, viewBox, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				xmlns: "http://www.w3.org/2000/svg",
+				width: size,
+				height: size,
+				viewBox,
+				className,
+				role: title === void 0 ? void 0 : "img",
+				"aria-hidden": title === void 0 ? true : void 0,
+				focusable: "false",
+				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
+			});
+		}
+		// ../../packages/icons/src/copy.tsx
+		function IconCopy$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("rect", {
+						width: "14",
+						height: "14",
+						x: "8",
+						y: "8",
+						rx: "2",
+						ry: "2"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/edit.tsx
+		function IconEdit$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" })]
+				})
+			});
+		}
+		// ../../packages/icons/src/folder.tsx
+		function IconFolder(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"
+				})
+			});
+		}
+		// ../../packages/icons/src/folder-opened.tsx
+		function IconFolderOpened$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "m6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
+				})
+			});
+		}
+		// ../../packages/icons/src/list.tsx
+		function IconList$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13"
+				})
+			});
+		}
+		// ../../packages/icons/src/more-horizontal.tsx
+		function IconMoreHorizontal(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "12",
+							cy: "12",
+							r: "1"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "19",
+							cy: "12",
+							r: "1"
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: "5",
+							cy: "12",
+							r: "1"
+						})
+					]
+				})
+			});
+		}
+		// ../../packages/icons/src/plus.tsx
+		function IconPlus$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M5 12h14m-7-7v14"
+				})
+			});
+		}
+		// ../../packages/icons/src/refresh-cw.tsx
+		function IconRefreshCw(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8" }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16" }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M8 16H3v5" })
+					]
+				})
+			});
+		}
+		// ../../packages/icons/src/square-terminal.tsx
+		function IconSquareTerminal(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m7 11l2-2l-2-2m4 6h4" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("rect", {
+						width: "18",
+						height: "18",
+						x: "3",
+						y: "3",
+						rx: "2",
+						ry: "2"
+					})]
+				})
+			});
+		}
+		// ../../packages/icons/src/trash.tsx
+		function IconTrash$1(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+				})
+			});
+		}
 		// src/client/icons.tsx
 		var import_xterm = require_xterm();
 		var import_addon_fit = require_addon_fit();
 		/**
-		* The plugin's own icon set, rendered from the SVG artwork under
-		* `src/client/assets/`. The client bundle is one JS file the platform's
-		* module loader evaluates, so sibling asset files would never be fetched;
-		* tsdown.config.ts inlines the artwork at build time as the `__DSH_CT_ICONS__`
-		* string map this module consumes (keyed by asset filename stem).
+		* The plugin's icon seats.
 		*
-		* The artwork is 24-unit Feather-style stroke markup riding `currentColor`,
-		* so every glyph tints with the surrounding CSS. `.dsh-ct-svg` keeps a glyph
-		* on the 16px square the action buttons, the menu icon slot, and the sidebar
-		* markers all expect; pass `className` to override that seat.
+		* Every glyph comes from `@dsh-cool/icons`; these wrappers only add the shared
+		* `.dsh-ct-svg` seat when a caller does not supply its own class, so existing
+		* menu and toolbar layouts keep their 16px square.
 		*/
-		const h$3 = react.createElement;
-		/** Parse one asset's raw SVG into the artwork its component renders. */
-		function iconArtwork(name) {
-			const raw = {
-				"autostart": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8\" />\n		<path d=\"M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16\" />\n		<path d=\"M8 16H3v5\" />\n	</g>\n</svg>\n",
-				"copy": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" />\n		<path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" />\n	</g>\n</svg>\n",
-				"edit": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7\" />\n		<path d=\"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z\" />\n	</g>\n</svg>\n",
-				"folder-closed": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\" />\n</svg>\n",
-				"folder-opened": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\" />\n</svg>\n",
-				"list": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13\" />\n</svg>\n",
-				"more": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<circle cx=\"12\" cy=\"12\" r=\"1\" />\n		<circle cx=\"19\" cy=\"12\" r=\"1\" />\n		<circle cx=\"5\" cy=\"12\" r=\"1\" />\n	</g>\n</svg>\n",
-				"plus": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 12h14m-7-7v14\" />\n</svg>\n",
-				"terminal": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<path d=\"m7 11l2-2l-2-2m4 6h4\" />\n		<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\" />\n	</g>\n</svg>\n",
-				"trash": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10 11v6m4-6v6m5-11v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />\n</svg>\n"
-			}[name];
-			if (raw === void 0) throw new Error(`dsh-cool-terminal: missing icon asset '${name}.svg'`);
-			return {
-				viewBox: /viewBox="([^"]+)"/.exec(raw)?.[1] ?? "0 0 24 24",
-				inner: /<svg[^>]*>([\s\S]*)<\/svg>/.exec(raw)?.[1] ?? ""
+		/** Build one icon that defaults to the terminal's shared 16px seat. */
+		function seat(Icon) {
+			return function SeatedIcon(props) {
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Icon, {
+					...props,
+					className: props.className ?? "dsh-ct-svg"
+				});
 			};
 		}
-		/** Build one icon component from an asset's raw SVG markup. */
-		function svgIcon(name) {
-			const { viewBox, inner } = iconArtwork(name);
-			return ({ className }) => h$3("svg", {
-				className: className ?? "dsh-ct-svg",
-				viewBox,
-				"aria-hidden": "true",
-				focusable: "false",
-				dangerouslySetInnerHTML: { __html: inner }
-			});
-		}
-		/** A console's leading mark (assets/terminal.svg). */
-		const IconTerminal = svgIcon("terminal");
-		/** Sidebar group marker when a Workspace is collapsed (assets/folder-closed.svg). */
-		const IconFolderClosed = svgIcon("folder-closed");
-		/** Sidebar group marker when a Workspace is expanded (assets/folder-opened.svg). */
-		const IconFolderOpened = svgIcon("folder-opened");
-		/** Row overflow trigger glyph (assets/more.svg). */
-		const IconMore = svgIcon("more");
-		/** Add a console (assets/plus.svg). */
-		const IconPlus = svgIcon("plus");
-		/** Rename a console (the menu's row glyph, assets/edit.svg). */
-		const IconEdit = svgIcon("edit");
-		/** Command autostart (the menu's row glyph, assets/autostart.svg). */
-		const IconAutostart = svgIcon("autostart");
-		/** Delete a console (the menu's destructive row glyph, assets/trash.svg). */
-		const IconTrash = svgIcon("trash");
-		/** Common-commands entry (assets/list.svg). */
-		const IconList = svgIcon("list");
-		/** Copy a command to the clipboard (assets/copy.svg). */
-		const IconCopy = svgIcon("copy");
+		/** A console's leading mark. */
+		const IconTerminal = seat(IconSquareTerminal);
+		/** Sidebar group marker when a Workspace is collapsed. */
+		const IconFolderClosed = seat(IconFolder);
+		/** Sidebar group marker when a Workspace is expanded. */
+		const IconFolderOpened = seat(IconFolderOpened$1);
+		/** Row overflow trigger glyph. */
+		const IconMore = seat(IconMoreHorizontal);
+		/** Add a console. */
+		const IconPlus = seat(IconPlus$1);
+		/** Rename a console. */
+		const IconEdit = seat(IconEdit$1);
+		/** Command autostart. */
+		const IconAutostart = seat(IconRefreshCw);
+		/** Delete a console. */
+		const IconTrash = seat(IconTrash$1);
+		/** Common-commands entry. */
+		const IconList = seat(IconList$1);
+		/** Copy a command to the clipboard. */
+		const IconCopy = seat(IconCopy$1);
 		// src/client/api.ts
 		/**
 		* Client half of the package-private bridge to the Host routes.

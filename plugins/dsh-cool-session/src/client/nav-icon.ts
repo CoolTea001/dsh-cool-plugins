@@ -5,8 +5,8 @@
  * shell picks its navigation glyph from the section id (`navIcon(row.id)` in
  * ui-settings-general), and every id it does not know — a plugin's id included —
  * gets the generic gear. The entry therefore owns its glyph the only way a
- * plugin can: after the cell renders, hide the shell's gear and put the parsed
- * `assets/archive.svg` artwork in the seat beside the label. dsh-cool-theme
+ * plugin can: after the cell renders, hide the shell's gear and render
+ * `@dsh-cool/icons`' archive glyph in the seat beside the label. dsh-cool-theme
  * patches its palette into the same seat for the same reason.
  *
  * Matching is by the rendered label rather than by class hash, because the
@@ -16,8 +16,13 @@
  * trigger a scan.
  */
 
-import { ARCHIVE_NAV_MARKUP } from './icons.js'
+import { createElement } from 'react'
+import { createRoot, type Root } from 'react-dom'
+import { IconArchive } from '@dsh-cool/icons'
 import { navLabels, type Translate } from './locales.js'
+
+/** The shell draws its own navigation glyphs at 16px. */
+const NAV_ICON_SIZE = 16
 
 /** Marks the span this module inserts, so re-patching stays idempotent. */
 const ICON_ATTRIBUTE = 'data-dsh-cs-nav-icon'
@@ -58,11 +63,20 @@ function navCells(): readonly HTMLElement[] {
 }
 
 /**
- * Replace the gear on the Sessions cell with the plugin's archive glyph.
+ * Replace the gear on the Sessions cell with the package's archive glyph.
  *
  * @param labels - the label spellings that identify this section's cell.
+ * @param roots - the mounted icon roots, kept so disposal can unmount them.
  */
-function patch(labels: ReadonlySet<string>): void {
+function patch(labels: ReadonlySet<string>, roots: Map<HTMLElement, Root>): void {
+  // The shell can replace the nav cell while Settings is open; unmount any root
+  // whose holder left the document before mounting another one.
+  for (const [holder, root] of roots) {
+    if (holder.isConnected) continue
+    root.unmount()
+    roots.delete(holder)
+  }
+
   for (const cell of navCells()) {
     const label = cell.querySelector('[class*="navLabel"]')?.textContent ?? cell.textContent ?? ''
     if (!labels.has(label.trim())) continue
@@ -77,8 +91,11 @@ function patch(labels: ReadonlySet<string>): void {
     holder.className = 'dsh-cs-nav-icon'
     holder.setAttribute(ICON_ATTRIBUTE, '1')
     holder.setAttribute('aria-hidden', 'true')
-    holder.innerHTML = ARCHIVE_NAV_MARKUP
     svg.after(holder)
+
+    const root = createRoot(holder)
+    root.render(createElement(IconArchive, { size: NAV_ICON_SIZE }))
+    roots.set(holder, root)
   }
 }
 
@@ -95,7 +112,8 @@ function patch(labels: ReadonlySet<string>): void {
 export function installSessionNavIcon(t: Translate): () => void {
   if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return () => {}
   const labels = new Set(settingsLabels(t).filter((label) => label.length > 0))
-  const apply = (): void => { patch(labels) }
+  const roots = new Map<HTMLElement, Root>()
+  const apply = (): void => { patch(labels, roots) }
 
   apply()
   let frame: number | undefined
@@ -116,7 +134,11 @@ export function installSessionNavIcon(t: Translate): () => void {
   return () => {
     observer.disconnect()
     if (frame !== undefined) cancelAnimationFrame(frame)
-    for (const holder of document.querySelectorAll(`[${ICON_ATTRIBUTE}]`)) holder.remove()
+    for (const [holder, root] of roots) {
+      root.unmount()
+      holder.remove()
+    }
+    roots.clear()
     for (const svg of document.querySelectorAll<SVGElement>(`svg[${HIDDEN_ATTRIBUTE}]`)) {
       svg.style.display = ''
       svg.removeAttribute(HIDDEN_ATTRIBUTE)

@@ -20,8 +20,8 @@
  */
 
 import * as React from 'react'
+import { IconFileAttachment } from '@dsh-cool/icons'
 
-import { DocIcon } from './icons.js'
 import type { Translate } from './locales.js'
 import { useUnreadCount } from './unread.js'
 
@@ -136,7 +136,7 @@ export function DailyPanelIcon({ size, t }: DailyPanelIconProps): React.ReactEle
 
   return (
     <span className="dsh-cd-glyph" ref={glyphRef}>
-      <DocIcon size={size} />
+      <IconFileAttachment size={size} />
       {unread > 0 ? (
         <>
           <span className="dsh-cd-mark" aria-hidden="true">{t('card.new')}</span>

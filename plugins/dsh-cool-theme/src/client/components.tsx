@@ -66,13 +66,19 @@ import {
   cssTemplate,
   type SeedDot,
 } from './custom-editor.js'
-import { IconDelete, IconEdit, IconExport, IconImport, IconPlus } from './icons.js'
+import {
+  IconDownload as IconImport,
+  IconEdit,
+  IconPlus,
+  IconTrash as IconDelete,
+  IconUpload as IconExport,
+} from '@dsh-cool/icons'
 // The shell's own controls, resolved at runtime from the frozen platform module
 // table (see ui-primitives.d.ts and tsdown's `deps.neverBundle`). Reusing them
 // rather than restyling a copy is the package's own rule, and it is what keeps
 // this panel tracking DSH's menu, switch, segmented and tooltip changes without
 // a plugin release. The one glyph still taken from the shell is the select's
-// chevron: every action icon is this plugin's own (see icons.tsx).
+// chevron: every action icon comes from `@dsh-cool/icons`.
 import {
   Button,
   IconChevronDownOutlineRegular,

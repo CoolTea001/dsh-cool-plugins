@@ -38,11 +38,11 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react'
+import { IconChevronRight, IconEye, IconEyeOff, IconFileText, IconFolder, IconRotateCw } from '@dsh-cool/icons'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 import { suppressComposerSeat } from './chrome.js'
 import { CodePreview } from './code.js'
 import { CodeEditor, EDIT_HIGHLIGHT_CHARS } from './editor.js'
-import { IconArrow, IconFile, IconFolder, IconHide, IconRefresh, IconShow } from './icons.js'
 import { clampSideWidth, readLayout, ResizeHandle, writeLayout, type FileLayout } from './layout.js'
 import type { Translate } from './locales.js'
 import { ModeMenu, readMode, writeMode, type FilesMode } from './mode.js'
@@ -816,10 +816,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             }}
           >
             <span className="dsh-cf-twist" aria-hidden="true">
-              {isDirectory ? <IconArrow /> : null}
+              {isDirectory ? <IconChevronRight /> : null}
             </span>
             <span className="dsh-cf-row-icon" aria-hidden="true">
-              {isDirectory ? <IconFolder /> : <IconFile />}
+              {isDirectory ? <IconFolder size={15} /> : <IconFileText size={15} />}
             </span>
             <span className="dsh-cf-row-name">{entry.name}</span>
             {drafts[target] === undefined ? null : (
@@ -896,7 +896,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             title={t('action.toggleHidden')}
             onClick={toggleHidden}
           >
-            {showHidden ? <IconShow /> : <IconHide />}
+            {showHidden ? <IconEye /> : <IconEyeOff />}
           </button>
           <button
             type="button"
@@ -906,7 +906,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             onClick={refresh}
             disabled={directories['']?.loading === true}
           >
-            <IconRefresh />
+            <IconRotateCw />
           </button>
         </div>
 

@@ -68,8 +68,9 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "devDependencies": {
-    "@dsh-cool/tsdown-config": "workspace:*",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-rc.5",
+    "@dsh-cool/icons": "workspace:*",
+    "@dsh-cool/tsdown-config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
     "shiki": "^4.5.0",

@@ -1,23 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { dshPlugin } from '@dsh-cool/tsdown-config'
 
 const PACKAGE_ID = 'dsh-cool-file'
-
-/**
- * Icons are drawn from `src/client/assets/*.svg`.
- *
- * The browser half is loaded by the platform's module loader as one JS file, so
- * a sibling asset would never be fetched at runtime. The artwork is read here at
- * build time and exposed as a `__DSH_CF_ICONS__` string map that
- * `src/client/icons.tsx` consumes. The map is keyed by asset filename stem:
- * adding an asset means adding its entry here and its component there.
- */
-const icons: Record<string, string> = {
-  refresh: readFileSync(new URL('./src/client/assets/refresh.svg', import.meta.url), 'utf8'),
-  show: readFileSync(new URL('./src/client/assets/show.svg', import.meta.url), 'utf8'),
-  hide: readFileSync(new URL('./src/client/assets/hide.svg', import.meta.url), 'utf8'),
-  arrow: readFileSync(new URL('./src/client/assets/arrow.svg', import.meta.url), 'utf8'),
-}
 
 export default dshPlugin({
   packageId: PACKAGE_ID,
@@ -31,9 +14,4 @@ export default dshPlugin({
   // transitive packages are its implementation detail, not dependencies this
   // package should enumerate.
   quietBundledDeps: true,
-  clientDefine: {
-    // The icon map is built from the assets above rather than imported, so the
-    // bundle carries its own artwork and fetches nothing at runtime.
-    __DSH_CF_ICONS__: JSON.stringify(icons),
-  },
 })

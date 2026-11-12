@@ -7,6 +7,7 @@ window.__ModuleLoader__.load({
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		let react = require("react");
 		let react_jsx_runtime = require("react/jsx-runtime");
+		let react_dom = require("react-dom");
 		// src/client/api.ts
 		const BASE = "/dsh-cool-session/api";
 		/**
@@ -310,52 +311,64 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		// src/client/icons.ts
+		// ../../packages/icons/src/icon.tsx
 		/**
-		* Parse one asset's raw SVG into the artwork the nav patch inserts.
+		* Draw an icon's root `<svg>`.
 		*
-		* The root element is dropped rather than copied: its `width`/`height` belong to
-		* the asset, not to the shell's 16px icon seat, and the root's `xmlns` would be
-		* redundant once the markup is part of the page.
-		*
-		* @param name - the asset filename stem, e.g. `archive` for `assets/archive.svg`.
-		* @returns the viewBox and inner markup to render.
+		* Icons own their artwork: their fills, strokes and stroke widths sit on the
+		* children, not here. This wrapper owns only the contract every icon shares —
+		* the namespace, the square size, the decorative/accessible default — so a
+		* plugin-specific glyph can use it too without copying the root attributes.
 		*/
-		function iconArtwork(name) {
-			const raw = {
-				"archive": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\">\n		<rect width=\"20\" height=\"5\" x=\"2\" y=\"3\" rx=\"1\" />\n		<path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8m-10 4h4\" />\n	</g>\n</svg>\n",
-				"arrow-down": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\">\n	<path d=\"M0 0h24v24H0z\" fill=\"none\" />\n	<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m6 9l6 6l6-6\" />\n</svg>\n"
-			}[name];
-			if (raw === void 0) throw new Error(`dsh-cool-session: missing icon asset '${name}.svg'`);
-			return {
-				viewBox: /viewBox="([^"]+)"/.exec(raw)?.[1] ?? "0 0 24 24",
-				inner: /<svg[^>]*>([\s\S]*)<\/svg>/.exec(raw)?.[1] ?? ""
-			};
+		function IconBase({ size = 16, className, title, viewBox, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				xmlns: "http://www.w3.org/2000/svg",
+				width: size,
+				height: size,
+				viewBox,
+				className,
+				role: title === void 0 ? void 0 : "img",
+				"aria-hidden": title === void 0 ? true : void 0,
+				focusable: "false",
+				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
+			});
 		}
-		/** Complete SVG markup for one asset at a fixed square size. */
-		function iconMarkup(name, size) {
-			const artwork = iconArtwork(name);
-			return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${artwork.viewBox}" aria-hidden="true" focusable="false">${artwork.inner}</svg>`;
+		// ../../packages/icons/src/archive.tsx
+		function IconArchive(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("g", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("rect", {
+						width: "20",
+						height: "5",
+						x: "2",
+						y: "3",
+						rx: "1"
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8m-10 4h4" })]
+				})
+			});
 		}
-		/** The Settings navigation's icon seat: the shell draws its own glyphs at 16px. */
-		const NAV_ICON_SIZE = 16;
-		/** The filter triggers' caret, sized to sit inside a 32px control. */
-		const CARET_SIZE = 12;
-		/**
-		* The Sessions glyph as complete markup for the shell's navigation seat.
-		*
-		* It carries its own 16px size because the asset's `1em` would resolve against
-		* the nav cell's 14px text, and the stroke is `currentColor`, so the glyph takes
-		* the label's color in both appearances.
-		*/
-		const ARCHIVE_NAV_MARKUP = iconMarkup("archive", NAV_ICON_SIZE);
-		/**
-		* The caret beside the panel's two filter triggers.
-		*
-		* `assets/arrow-down.svg` strokes with `currentColor`, so the trigger's label
-		* color reaches it; the fixed 12px keeps it clear of the control's 13px text.
-		*/
-		const ARROW_DOWN_MARKUP = iconMarkup("arrow-down", CARET_SIZE);
+		// ../../packages/icons/src/chevron-down.tsx
+		function IconChevronDown(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "m6 9l6 6l6-6"
+				})
+			});
+		}
 		// src/client/locales/zh.ts
 		const zh = {
 			"action.delete": "删除会话",
@@ -1176,7 +1189,7 @@ window.__ModuleLoader__.load({
 					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 						className: "dsh-cs-caret",
 						"aria-hidden": "true",
-						dangerouslySetInnerHTML: { __html: ARROW_DOWN_MARKUP }
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconChevronDown, { size: 12 })
 					})]
 				})
 			});
@@ -1854,8 +1867,8 @@ window.__ModuleLoader__.load({
 		* shell picks its navigation glyph from the section id (`navIcon(row.id)` in
 		* ui-settings-general), and every id it does not know — a plugin's id included —
 		* gets the generic gear. The entry therefore owns its glyph the only way a
-		* plugin can: after the cell renders, hide the shell's gear and put the parsed
-		* `assets/archive.svg` artwork in the seat beside the label. dsh-cool-theme
+		* plugin can: after the cell renders, hide the shell's gear and render
+		* `@dsh-cool/icons`' archive glyph in the seat beside the label. dsh-cool-theme
 		* patches its palette into the same seat for the same reason.
 		*
 		* Matching is by the rendered label rather than by class hash, because the
@@ -1864,6 +1877,8 @@ window.__ModuleLoader__.load({
 		* while typing elsewhere in the page usually edits text nodes and must not
 		* trigger a scan.
 		*/
+		/** The shell draws its own navigation glyphs at 16px. */
+		const NAV_ICON_SIZE = 16;
 		/** Marks the span this module inserts, so re-patching stays idempotent. */
 		const ICON_ATTRIBUTE = "data-dsh-cs-nav-icon";
 		/** Marks the gear this module hid, so disposal can restore it. */
@@ -1896,11 +1911,17 @@ window.__ModuleLoader__.load({
 			return [...panel.querySelectorAll("[class*=\"nav\"] button")];
 		}
 		/**
-		* Replace the gear on the Sessions cell with the plugin's archive glyph.
+		* Replace the gear on the Sessions cell with the package's archive glyph.
 		*
 		* @param labels - the label spellings that identify this section's cell.
+		* @param roots - the mounted icon roots, kept so disposal can unmount them.
 		*/
-		function patch(labels) {
+		function patch(labels, roots) {
+			for (const [holder, root] of roots) {
+				if (holder.isConnected) continue;
+				root.unmount();
+				roots.delete(holder);
+			}
 			for (const cell of navCells()) {
 				const label = cell.querySelector("[class*=\"navLabel\"]")?.textContent ?? cell.textContent ?? "";
 				if (!labels.has(label.trim())) continue;
@@ -1913,8 +1934,10 @@ window.__ModuleLoader__.load({
 				holder.className = "dsh-cs-nav-icon";
 				holder.setAttribute(ICON_ATTRIBUTE, "1");
 				holder.setAttribute("aria-hidden", "true");
-				holder.innerHTML = ARCHIVE_NAV_MARKUP;
 				svg.after(holder);
+				const root = (0, react_dom.createRoot)(holder);
+				root.render((0, react.createElement)(IconArchive, { size: NAV_ICON_SIZE }));
+				roots.set(holder, root);
 			}
 		}
 		/**
@@ -1930,8 +1953,9 @@ window.__ModuleLoader__.load({
 		function installSessionNavIcon(t) {
 			if (typeof document === "undefined" || typeof MutationObserver === "undefined") return () => {};
 			const labels = new Set(settingsLabels(t).filter((label) => label.length > 0));
+			const roots = /* @__PURE__ */ new Map();
 			const apply = () => {
-				patch(labels);
+				patch(labels, roots);
 			};
 			apply();
 			let frame;
@@ -1954,7 +1978,11 @@ window.__ModuleLoader__.load({
 			return () => {
 				observer.disconnect();
 				if (frame !== void 0) cancelAnimationFrame(frame);
-				for (const holder of document.querySelectorAll(`[${ICON_ATTRIBUTE}]`)) holder.remove();
+				for (const [holder, root] of roots) {
+					root.unmount();
+					holder.remove();
+				}
+				roots.clear();
 				for (const svg of document.querySelectorAll(`svg[${HIDDEN_ATTRIBUTE}]`)) {
 					svg.style.display = "";
 					svg.removeAttribute(HIDDEN_ATTRIBUTE);

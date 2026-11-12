@@ -28,8 +28,8 @@ import {
   PACKAGE_REPOSITORY,
   type UpdateApplyPayload,
 } from '../shared/contract.js'
+import { IconGithub, IconNpm } from '@dsh-cool/icons'
 import { applyUpdate, checkUpdate } from './api.js'
-import { IconGithub, IconNpm } from './icons.js'
 import type { Translate } from './locales.js'
 
 /** What this bundle's page hands the section: the page's subject and its `t`. */
