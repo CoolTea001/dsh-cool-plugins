@@ -14,15 +14,3 @@ DeepSeek Harness session management plugin — adds a delete-session action to t
 
 - **Delete session:** adds a **Delete session** option to the workspace session list action menu
 - **Batch management:** manage sessions in bulk from the Settings panel (archive, delete)
-
-## Installation
-
-Use DSH's add-plugin feature and enter the package name: `dsh-cool-session`.
-
-## Contributing
-
-Contributions via Issues and PRs are welcome.
-
-## License
-
-MIT © CoolTea
