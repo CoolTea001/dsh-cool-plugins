@@ -605,8 +605,8 @@ window.__ModuleLoader__.load({
 		* approximated: the trigger repeats the dialog's field material, and the list is
 		* a fixed-height popover with a search row, provider groups that fold away, and
 		* the plugin's own overlay scrollbar. The platform has no `Popover` primitive,
-		* so the panel is assembled from the pieces its own menus use —
-		* `useAnchoredPosition` keeps it against the trigger, `useModalLayer` puts it on
+		* so the panel is assembled from the pieces its own menus use — CSS anchor
+		* positioning keeps it against the trigger, `useModalLayer` puts it on
 		* the dialog's layer stack so Escape closes the list before the card and Tab
 		* stays inside it, and the panel is portaled to `document.body` because the
 		* dialog body is a scrollport that would clip a child.
@@ -672,6 +672,16 @@ window.__ModuleLoader__.load({
 			const panelRef = react.useRef(null);
 			const listRef = react.useRef(null);
 			const panelId = react.useId();
+			/**
+			* The CSS anchor the field and the portaled panel share.
+			*
+			* `useId` returns a value containing colons, which an `anchor-name` value may
+			* not hold, so they are dropped. One custom property carries the name into the
+			* trigger's `anchor-name` and the panel's `position-anchor`; see the
+			* v0.2.2-alpha.2 "CSS-anchored menus" upgrade guide for why the platform's
+			* JavaScript position hook is no longer an option.
+			*/
+			const anchorStyle = { "--dsh-cd-picker-anchor": `--dsh-cd-picker-${panelId.replaceAll(":", "")}` };
 			/** Routes whose effort list has been asked for, so one row asks once. */
 			const effortsAsked = react.useRef(/* @__PURE__ */ new Set());
 			const close = react.useCallback(() => {
@@ -737,14 +747,6 @@ window.__ModuleLoader__.load({
 					window.removeEventListener("scroll", followScroll, true);
 				};
 			}, [open]);
-			const placement = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
-				open,
-				anchorRef: fieldRef,
-				panelRef,
-				side: layout.side,
-				gap: PICKER_GAP,
-				margin: PICKER_MARGIN
-			});
 			(0, _deepseek_ai_dsh_client_ui_primitives.useModalLayer)(panelRef, open, close);
 			react.useEffect(() => {
 				if (!open) return;
@@ -923,6 +925,7 @@ window.__ModuleLoader__.load({
 					id: `${panelId}-field`,
 					type: "button",
 					className: "dsh-cd-picker-trigger",
+					style: anchorStyle,
 					"aria-expanded": open,
 					"aria-controls": panelId,
 					"aria-haspopup": "dialog",
@@ -946,9 +949,10 @@ window.__ModuleLoader__.load({
 					className: "dsh-cd-picker-popover",
 					role: "group",
 					"aria-label": t("settings.model"),
+					"data-side": layout.side,
 					style: {
-						left: placement?.left ?? 0,
-						top: placement?.top ?? 0,
+						...anchorStyle,
+						"--dsh-cd-picker-gap": `${PICKER_GAP}px`,
 						width: layout.width,
 						height: PICKER_HEIGHT,
 						zIndex: layout.zIndex
@@ -2076,6 +2080,9 @@ window.__ModuleLoader__.load({
 			".dsh-cd-picker-chevron svg{display:block;width:14px;height:14px;transform:rotate(90deg);transition:transform .12s ease}",
 			".dsh-cd-picker-chevron[data-open=true] svg{transform:rotate(-90deg)}",
 			".dsh-cd-picker-popover{position:fixed;box-sizing:border-box;display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-module-platform);box-shadow:var(--dsw-shadow-lv3,0 12px 32px rgba(0,0,0,.18));overflow:hidden}",
+			".dsh-cd-picker-popover{position-anchor:var(--dsh-cd-picker-anchor);left:anchor(left);top:calc(anchor(bottom) + var(--dsh-cd-picker-gap,6px));margin:0}",
+			".dsh-cd-picker-popover[data-side=top]{top:auto;bottom:calc(anchor(top) + var(--dsh-cd-picker-gap,6px))}",
+			".dsh-cd-picker-trigger{anchor-name:var(--dsh-cd-picker-anchor)}",
 			".dsh-cd-picker-search{flex:none;display:flex;align-items:center;height:40px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l4)}",
 			".dsh-cd-picker-input{box-sizing:border-box;width:100%;height:100%;padding:0;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px}",
 			".dsh-cd-picker-input::placeholder{color:var(--dsw-alias-label-tertiary)}",

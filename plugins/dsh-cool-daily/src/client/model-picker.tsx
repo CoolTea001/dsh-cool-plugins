@@ -5,8 +5,8 @@
  * approximated: the trigger repeats the dialog's field material, and the list is
  * a fixed-height popover with a search row, provider groups that fold away, and
  * the plugin's own overlay scrollbar. The platform has no `Popover` primitive,
- * so the panel is assembled from the pieces its own menus use —
- * `useAnchoredPosition` keeps it against the trigger, `useModalLayer` puts it on
+ * so the panel is assembled from the pieces its own menus use — CSS anchor
+ * positioning keeps it against the trigger, `useModalLayer` puts it on
  * the dialog's layer stack so Escape closes the list before the card and Tab
  * stays inside it, and the panel is portaled to `document.body` because the
  * dialog body is a scrollport that would clip a child.
@@ -21,7 +21,6 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import {
   Menu,
-  useAnchoredPosition,
   useModalLayer,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -129,6 +128,18 @@ export function ModelPicker({
   const panelRef = React.useRef<HTMLDivElement | null>(null)
   const listRef = React.useRef<HTMLDivElement | null>(null)
   const panelId = React.useId()
+  /**
+   * The CSS anchor the field and the portaled panel share.
+   *
+   * `useId` returns a value containing colons, which an `anchor-name` value may
+   * not hold, so they are dropped. One custom property carries the name into the
+   * trigger's `anchor-name` and the panel's `position-anchor`; see the
+   * v0.2.2-alpha.2 "CSS-anchored menus" upgrade guide for why the platform's
+   * JavaScript position hook is no longer an option.
+   */
+  const anchorStyle: React.CSSProperties & Record<'--dsh-cd-picker-anchor', string> = {
+    '--dsh-cd-picker-anchor': `--dsh-cd-picker-${panelId.replaceAll(':', '')}`,
+  }
   /** Routes whose effort list has been asked for, so one row asks once. */
   const effortsAsked = React.useRef<Set<string>>(new Set())
 
@@ -211,14 +222,13 @@ export function ModelPicker({
     }
   }, [open])
 
-  const placement = useAnchoredPosition({
-    open,
-    anchorRef: fieldRef,
-    panelRef,
-    side: layout.side,
-    gap: PICKER_GAP,
-    margin: PICKER_MARGIN,
-  })
+  // The platform's layer hook answers Escape, keeps Tab inside the open panel,
+  // and returns focus when it closes. The panel's position is CSS anchor
+  // positioning's job now: the trigger declares `anchor-name` and the portaled
+  // panel follows it through `position-anchor`, so the browser keeps the two
+  // together across scrolling and resizing. `useAnchoredPosition`, which used to
+  // do that work in JavaScript, was removed from
+  // `@deepseek-ai/dsh-client-ui-primitives` in this DSH version.
   useModalLayer(panelRef, open, close)
 
   // A click anywhere but the field or the panel closes the list.
@@ -392,6 +402,7 @@ export function ModelPicker({
         id={`${panelId}-field`}
         type="button"
         className="dsh-cd-picker-trigger"
+        style={anchorStyle}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
@@ -414,13 +425,16 @@ export function ModelPicker({
           className="dsh-cd-picker-popover"
           role="group"
           aria-label={t('settings.model')}
+          data-side={layout.side}
           style={{
-            left: placement?.left ?? 0,
-            top: placement?.top ?? 0,
+            ...anchorStyle,
+            // The stylesheet draws the gap the side decision above measured
+            // with, so PICKER_GAP stays the single source.
+            '--dsh-cd-picker-gap': `${PICKER_GAP}px`,
             width: layout.width,
             height: PICKER_HEIGHT,
             zIndex: layout.zIndex,
-          }}
+          } as React.CSSProperties}
         >
           <div className="dsh-cd-picker-search">
             <input

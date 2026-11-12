@@ -71,7 +71,6 @@ import {
   Menu,
   Modal,
   Tooltip,
-  useAnchoredPosition,
   useModalLayer,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -2557,8 +2556,10 @@ const PICKER_Z_STEP = 10
 /**
  * The parts of the Settings picker's placement this plugin owns.
  *
- * The position itself is the platform's (`useAnchoredPosition`); this is the
- * rest of the panel's geometry: how wide the trigger made it, which side of the
+ * The position itself is CSS anchor positioning's: the trigger declares
+ * `anchor-name` and the panel follows it through `position-anchor`, so the
+ * browser keeps the two together while the page scrolls or resizes. This is the
+ * rest of the panel's geometry — how wide the trigger made it, which side of the
  * field it opens on, and the layer that keeps it above the modal's mask and card.
  */
 interface PickerLayout {
@@ -2618,7 +2619,7 @@ function modelLabel(selection: MessageModel, groups: readonly MessageModelGroup[
  * away, and a per-row effort control do not exist in the platform's select.
  *
  * The platform has no `Popover` component to hand, but it does expose the parts
- * its own menus are built from, and the panel uses them: `useAnchoredPosition`
+ * its own menus are built from, and the panel uses them: CSS anchor positioning
  * keeps it against the field while the page scrolls or resizes, the platform's
  * outside-pointer rule closes it on a click elsewhere (restated below, because
  * the effort menu's portaled rows are the panel's own business), and
@@ -2706,6 +2707,18 @@ function SettingsDialog(props: {
   const modelId = `${id}-model`
   const pickerId = `${id}-model-picker`
   const promptId = `${id}-prompt`
+  /**
+   * The CSS anchor the field and the portaled panel share.
+   *
+   * `useId` returns a value containing colons, which an `anchor-name` value may
+   * not hold, so they are dropped. The declared names are read from this pair
+   * rather than written twice: one custom property carries the name into the
+   * trigger's `anchor-name` and the panel's `position-anchor`.
+   */
+  const anchorName = `--dsh-cg-model-${id.replaceAll(':', '')}`
+  const pickerAnchorStyle: CSSProperties & Record<'--dsh-cg-model-anchor', string> = {
+    '--dsh-cg-model-anchor': anchorName,
+  }
   const modelField = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -2861,20 +2874,18 @@ function SettingsDialog(props: {
     }
   }, [open, pickerOpen])
 
-  // The platform's own popover plumbing. Its position hook follows scrolling,
-  // resizing, and the panel's own size changes; its layer hook answers
-  // Escape, keeps Tab inside the open panel, and returns focus when it closes —
-  // the same layer stack the dialog under it registered in, which is why Escape
-  // closes the list first instead of the dialog. Its outside-pointer rule is
-  // kept below, with one addition for the menu the list opens.
-  const placement = useAnchoredPosition({
-    open: pickerOpen,
-    anchorRef: modelField,
-    panelRef,
-    side: pickerLayout.side,
-    gap: PICKER_GAP,
-    margin: PICKER_MARGIN,
-  })
+  // The platform's own popover plumbing, minus the position hook it used to
+  // expose: `useAnchoredPosition` was removed from
+  // `@deepseek-ai/dsh-client-ui-primitives`, and this DSH version places portaled
+  // panels with CSS anchor positioning instead (see the v0.2.2-alpha.2
+  // "CSS-anchored menus" upgrade guide). The trigger names itself through
+  // `anchor-name` and the portaled panel follows it through `position-anchor`,
+  // both fed from `pickerAnchorStyle` so the panel escapes the dialog's
+  // scrollport and still hangs off the field. Its layer hook answers Escape,
+  // keeps Tab inside the open panel, and returns focus when it closes — the same
+  // layer stack the dialog under it registered in, which is why Escape closes the
+  // list first instead of the dialog. Its outside-pointer rule is kept below,
+  // with one addition for the menu the list opens.
   useModalLayer(panelRef, pickerOpen, closePicker)
 
   /**
@@ -3152,6 +3163,7 @@ function SettingsDialog(props: {
                   id={modelId}
                   type="button"
                   className="dsh-cg-settings-picker-trigger"
+                  style={pickerAnchorStyle}
                   aria-expanded={pickerOpen}
                   aria-controls={pickerId}
                   disabled={saving}
@@ -3175,13 +3187,16 @@ function SettingsDialog(props: {
                       className="dsh-cg-settings-popover"
                       role="group"
                       aria-label={t('settings.model')}
+                      data-side={pickerLayout.side}
                       style={{
-                        left: placement?.left ?? 0,
-                        top: placement?.top ?? 0,
+                        ...pickerAnchorStyle,
+                        // The stylesheet draws the gap the side decision above
+                        // measured with, so PICKER_GAP stays the single source.
+                        '--dsh-cg-picker-gap': `${PICKER_GAP}px`,
                         width: pickerLayout.width,
                         height: PICKER_HEIGHT,
                         zIndex: pickerLayout.zIndex,
-                      }}
+                      } as CSSProperties}
                     >
                       <div className="dsh-cg-settings-picker-search">
                         <input

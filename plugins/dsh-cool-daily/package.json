@@ -1,6 +1,6 @@
 {
   "name": "dsh-cool-daily",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "DeepSeek Harness Daily plugin — use custom prompts to have AI generate daily articles on topics like learning, news, or anything else you choose.",
   "type": "module",

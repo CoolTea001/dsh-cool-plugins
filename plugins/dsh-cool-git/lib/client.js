@@ -2661,7 +2661,7 @@ window.__ModuleLoader__.load({
 			".dsh-cg-settings-field{display:flex;flex-direction:column;gap:8px;min-width:0}",
 			".dsh-cg-settings-label{color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600;line-height:18px}",
 			".dsh-cg-settings-picker{display:flex;flex-direction:column;min-width:0}",
-			".dsh-cg-settings-picker-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;height:36px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:34px;text-align:left;cursor:pointer}",
+			".dsh-cg-settings-picker-trigger{anchor-name:var(--dsh-cg-model-anchor);display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;height:36px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:34px;text-align:left;cursor:pointer}",
 			".dsh-cg-settings-picker-trigger:hover:not(:disabled){border-color:var(--dsw-alias-border-l3)}",
 			".dsh-cg-settings-picker-trigger:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary)}",
 			".dsh-cg-settings-picker-trigger:disabled{opacity:.6;cursor:default}",
@@ -2670,6 +2670,8 @@ window.__ModuleLoader__.load({
 			".dsh-cg-settings-picker-chevron svg{display:block;width:14px;height:14px;transform:rotate(90deg);transition:transform .12s ease}",
 			".dsh-cg-settings-picker-chevron[data-open=true] svg{transform:rotate(-90deg)}",
 			".dsh-cg-settings-popover{position:fixed;box-sizing:border-box;display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-module-platform);box-shadow:var(--dsw-shadow-lv3,0 12px 32px rgba(0,0,0,.18));overflow:hidden}",
+			".dsh-cg-settings-popover{position-anchor:var(--dsh-cg-model-anchor);left:anchor(left);top:calc(anchor(bottom) + var(--dsh-cg-picker-gap,6px));margin:0}",
+			".dsh-cg-settings-popover[data-side=top]{top:auto;bottom:calc(anchor(top) + var(--dsh-cg-picker-gap,6px))}",
 			".dsh-cg-settings-picker-search{flex:none;display:flex;align-items:center;height:40px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l4)}",
 			".dsh-cg-settings-picker-input{box-sizing:border-box;width:100%;height:100%;padding:0;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px}",
 			".dsh-cg-settings-picker-input::placeholder{color:var(--dsw-alias-label-tertiary)}",
@@ -5091,7 +5093,7 @@ window.__ModuleLoader__.load({
 		* away, and a per-row effort control do not exist in the platform's select.
 		*
 		* The platform has no `Popover` component to hand, but it does expose the parts
-		* its own menus are built from, and the panel uses them: `useAnchoredPosition`
+		* its own menus are built from, and the panel uses them: CSS anchor positioning
 		* keeps it against the field while the page scrolls or resizes, the platform's
 		* outside-pointer rule closes it on a click elsewhere (restated below, because
 		* the effort menu's portaled rows are the panel's own business), and
@@ -5173,6 +5175,7 @@ window.__ModuleLoader__.load({
 			const modelId = `${id}-model`;
 			const pickerId = `${id}-model-picker`;
 			const promptId = `${id}-prompt`;
+			const pickerAnchorStyle = { "--dsh-cg-model-anchor": `--dsh-cg-model-${id.replaceAll(":", "")}` };
 			const modelField = (0, react.useRef)(null);
 			const panelRef = (0, react.useRef)(null);
 			const listRef = (0, react.useRef)(null);
@@ -5299,14 +5302,6 @@ window.__ModuleLoader__.load({
 					window.removeEventListener("scroll", followScroll, true);
 				};
 			}, [open, pickerOpen]);
-			const placement = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
-				open: pickerOpen,
-				anchorRef: modelField,
-				panelRef,
-				side: pickerLayout.side,
-				gap: PICKER_GAP,
-				margin: PICKER_MARGIN
-			});
 			(0, _deepseek_ai_dsh_client_ui_primitives.useModalLayer)(panelRef, pickerOpen, closePicker);
 			/**
 			* Close the panel on a click anywhere but the field, the panel, or a menu row.
@@ -5579,6 +5574,7 @@ window.__ModuleLoader__.load({
 									id: modelId,
 									type: "button",
 									className: "dsh-cg-settings-picker-trigger",
+									style: pickerAnchorStyle,
 									"aria-expanded": pickerOpen,
 									"aria-controls": pickerId,
 									disabled: saving,
@@ -5604,9 +5600,10 @@ window.__ModuleLoader__.load({
 								className: "dsh-cg-settings-popover",
 								role: "group",
 								"aria-label": t("settings.model"),
+								"data-side": pickerLayout.side,
 								style: {
-									left: placement?.left ?? 0,
-									top: placement?.top ?? 0,
+									...pickerAnchorStyle,
+									"--dsh-cg-picker-gap": `${PICKER_GAP}px`,
 									width: pickerLayout.width,
 									height: PICKER_HEIGHT,
 									zIndex: pickerLayout.zIndex

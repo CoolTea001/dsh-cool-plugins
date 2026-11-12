@@ -1434,15 +1434,13 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           // Escape, or a window blur -- not merely because the pointer wandered
           // off it, which made the list flicker away while aiming at a row.
           align: 'start',
-          // Anchor the list at the trigger's bottom-RIGHT corner: the
-          // zero-width rect makes `align: start` hang the card off that
-          // corner instead of the button's left edge.
-          getAnchorRect: (): DOMRect | null => {
-            const element = menuAnchor.current
-            if (element === null) return null
-            const rect = element.getBoundingClientRect()
-            return new DOMRect(rect.right, rect.top, 0, rect.height)
-          },
+          // The card hangs off the trigger's right edge. `Menu` used to take a
+          // `getAnchorRect` callback returning a zero-width rect at that corner;
+          // this DSH version replaced it with `anchorRef` and CSS anchor
+          // positioning (see the v0.2.2-alpha.2 "CSS-anchored menus" upgrade
+          // guide), which names the trigger as the anchor itself and lets the
+          // stylesheet align against it.
+          anchorRef: menuAnchor,
           onSelect: (id: string) => {
             setMenuId(null)
             if (id === 'rename') toggleRename(terminal)

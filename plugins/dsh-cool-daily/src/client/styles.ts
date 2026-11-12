@@ -223,8 +223,18 @@ const PLUGIN_CSS = [
   '.dsh-cd-picker-chevron svg{display:block;width:14px;height:14px;transform:rotate(90deg);transition:transform .12s ease}',
   '.dsh-cd-picker-chevron[data-open=true] svg{transform:rotate(-90deg)}',
   // The panel is portaled to the body: the dialog body scrolls, and a panel
-  // inside that scrollport would be clipped by it.
+  // inside that scrollport would be clipped by it. Its position comes from CSS
+  // anchor positioning — the trigger declares `anchor-name`, this panel names the
+  // same anchor through `position-anchor` — instead of the removed
+  // `useAnchoredPosition` hook (see the v0.2.2-alpha.2 "CSS-anchored menus"
+  // upgrade guide).
   '.dsh-cd-picker-popover{position:fixed;box-sizing:border-box;display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-module-platform);box-shadow:var(--dsw-shadow-lv3,0 12px 32px rgba(0,0,0,.18));overflow:hidden}',
+  // Left edges line up because the trigger is the dialog's full-width field; the
+  // gap is the `PICKER_GAP` the page passes in, so the distance drawn here and
+  // the one the side decision measured with are the same number.
+  '.dsh-cd-picker-popover{position-anchor:var(--dsh-cd-picker-anchor);left:anchor(left);top:calc(anchor(bottom) + var(--dsh-cd-picker-gap,6px));margin:0}',
+  '.dsh-cd-picker-popover[data-side=top]{top:auto;bottom:calc(anchor(top) + var(--dsh-cd-picker-gap,6px))}',
+  '.dsh-cd-picker-trigger{anchor-name:var(--dsh-cd-picker-anchor)}',
   '.dsh-cd-picker-search{flex:none;display:flex;align-items:center;height:40px;padding:0 12px;border-bottom:.5px solid var(--dsw-alias-border-l4)}',
   '.dsh-cd-picker-input{box-sizing:border-box;width:100%;height:100%;padding:0;border:0;outline:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px}',
   '.dsh-cd-picker-input::placeholder{color:var(--dsw-alias-label-tertiary)}',

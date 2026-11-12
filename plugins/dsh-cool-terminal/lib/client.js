@@ -15957,12 +15957,7 @@ window.__ModuleLoader__.load({
 						items: menuItems,
 						portal: true,
 						align: "start",
-						getAnchorRect: () => {
-							const element = menuAnchor.current;
-							if (element === null) return null;
-							const rect = element.getBoundingClientRect();
-							return new DOMRect(rect.right, rect.top, 0, rect.height);
-						},
+						anchorRef: menuAnchor,
 						onSelect: (id) => {
 							setMenuId(null);
 							if (id === "rename") toggleRename(terminal);

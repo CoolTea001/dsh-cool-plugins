@@ -9,7 +9,7 @@
  */
 
 declare module '@deepseek-ai/dsh-client-ui-primitives' {
-  import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode, ReactPortal } from 'react'
+  import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactElement, ReactNode, ReactPortal, RefObject } from 'react'
 
   /** Selectable menu row, optionally with a nested submenu. */
   export interface MenuItem {
@@ -56,11 +56,14 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
     /** Render into `document.body` with fixed positioning, escaping ancestor clipping. */
     portal?: boolean
     /**
-     * Portal mode only: supply the anchor rect instead of measuring the
-     * `Menu`'s own wrapper span. Called on open and on every scroll/resize;
-     * return null to skip placement for that frame.
+     * Portal mode only: the external trigger element the card anchors to.
+     *
+     * `Menu` gives this element an `anchor-name` and the card follows it through
+     * CSS anchor positioning, so no anchor rectangle is measured in JavaScript.
+     * It replaced `getAnchorRect` in this DSH version (see the
+     * v0.2.2-alpha.2 "CSS-anchored menus" upgrade guide).
      */
-    getAnchorRect?: () => DOMRect | null
+    anchorRef?: RefObject<HTMLElement | null>
     /** Focus the first item on open and enable arrow-key navigation. */
     autoFocus?: boolean
   }

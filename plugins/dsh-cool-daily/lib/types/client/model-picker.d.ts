@@ -5,8 +5,8 @@
  * approximated: the trigger repeats the dialog's field material, and the list is
  * a fixed-height popover with a search row, provider groups that fold away, and
  * the plugin's own overlay scrollbar. The platform has no `Popover` primitive,
- * so the panel is assembled from the pieces its own menus use —
- * `useAnchoredPosition` keeps it against the trigger, `useModalLayer` puts it on
+ * so the panel is assembled from the pieces its own menus use — CSS anchor
+ * positioning keeps it against the trigger, `useModalLayer` puts it on
  * the dialog's layer stack so Escape closes the list before the card and Tab
  * stays inside it, and the panel is portaled to `document.body` because the
  * dialog body is a scrollport that would clip a child.

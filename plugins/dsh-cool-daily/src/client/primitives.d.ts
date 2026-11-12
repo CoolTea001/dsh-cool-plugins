@@ -122,30 +122,6 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
 
   export function Menu(props: MenuProps): ReactElement
 
-  /** Where an anchored panel sits, as a viewport corner. */
-  export interface AnchoredPosition {
-    readonly left: number
-    readonly top: number
-  }
-
-  /** Inputs of {@link useAnchoredPosition}. */
-  export interface AnchoredPositionOptions {
-    readonly open: boolean
-    /** The control the panel hangs from. */
-    readonly anchorRef: RefObject<HTMLElement | null>
-    /** The panel itself, measured so it can be clamped inside the viewport. */
-    readonly panelRef: RefObject<HTMLElement | null>
-    readonly side?: 'bottom' | 'top'
-    readonly align?: 'start' | 'end'
-    /** Anchor-to-panel distance in pixels. */
-    readonly gap?: number
-    /** Distance the panel keeps from the viewport's edges. */
-    readonly margin?: number
-  }
-
-  /** Track the viewport position of a panel anchored to a control. */
-  export function useAnchoredPosition(options: AnchoredPositionOptions): AnchoredPosition | null
-
   /**
    * Put a panel on the platform's modal layer stack: Escape closes it before the
    * dialog under it, Tab stays inside it, and focus returns to the anchor.

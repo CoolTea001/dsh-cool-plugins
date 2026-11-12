@@ -502,7 +502,7 @@ const GIT_CSS = [
   // layer fill, and the business token on focus — because the two are the
   // dialog's two fields. The value is the part that gives ground to the chevron.
   '.dsh-cg-settings-picker{display:flex;flex-direction:column;min-width:0}',
-  '.dsh-cg-settings-picker-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;height:36px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:34px;text-align:left;cursor:pointer}',
+  '.dsh-cg-settings-picker-trigger{anchor-name:var(--dsh-cg-model-anchor);display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;width:100%;height:36px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:34px;text-align:left;cursor:pointer}',
   '.dsh-cg-settings-picker-trigger:hover:not(:disabled){border-color:var(--dsw-alias-border-l3)}',
   '.dsh-cg-settings-picker-trigger:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary)}',
   '.dsh-cg-settings-picker-trigger:disabled{opacity:.6;cursor:default}',
@@ -515,11 +515,23 @@ const GIT_CSS = [
   '.dsh-cg-settings-picker-chevron[data-open=true] svg{transform:rotate(-90deg)}',
   // The panel is a popover at the body's own level rather than a child of the
   // card: the dialog body scrolls, and a panel inside that scrollport would be
-  // clipped by it. Its `left`/`top` come from the platform's anchored-position
-  // hook, which is also what re-clamps it when the panel's own size changes.
+  // clipped by it. Its position comes from CSS anchor positioning — the trigger
+  // declares `anchor-name`, this panel names the same anchor through
+  // `position-anchor` — because `useAnchoredPosition` was removed from
+  // `@deepseek-ai/dsh-client-ui-primitives` in favour of exactly this (see the
+  // v0.2.2-alpha.2 "CSS-anchored menus" upgrade guide). The browser then keeps
+  // the panel against the field across scrolling and resizing on its own, which
+  // is what the removed hook used to do in JavaScript.
   // `--dsw-alias-bg-overlay` is the theme's popover surface, and the shadow is
   // what lifts the panel off the mask behind it.
   '.dsh-cg-settings-popover{position:fixed;box-sizing:border-box;display:flex;flex-direction:column;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm,6px);background:var(--dsw-alias-bg-module-platform);box-shadow:var(--dsw-shadow-lv3,0 12px 32px rgba(0,0,0,.18));overflow:hidden}',
+  // Left edges line up because the trigger is the dialog's full-width field; the
+  // gap is the `PICKER_GAP` the page passes in as a custom property, so the
+  // distance drawn here and the one `measure()` decides the side with are the
+  // same number.
+  '.dsh-cg-settings-popover{position-anchor:var(--dsh-cg-model-anchor);left:anchor(left);top:calc(anchor(bottom) + var(--dsh-cg-picker-gap,6px));margin:0}',
+  // The side the field has room for, decided by `measure()` from the viewport.
+  '.dsh-cg-settings-popover[data-side=top]{top:auto;bottom:calc(anchor(top) + var(--dsh-cg-picker-gap,6px))}',
   // The search row is the panel's fixed head: the catalog scrolls under it, so a
   // query does not move the field the reader is typing into. It is a flat field
   // — the row's hairline is the only chrome — because the panel is itself the
