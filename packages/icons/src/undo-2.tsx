@@ -1,15 +1,15 @@
 /**
- * A ring with an exclamation mark: something needs attention.
+ * An arrow curving back to the left: undo.
  */
 import type { ReactElement } from 'react'
 import { IconBase, type IconProps } from './icon.js'
 
-export function IconAlert(props: IconProps): ReactElement {
+export function IconUndo2(props: IconProps): ReactElement {
   return (
     <IconBase {...props} viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 8v4m0 4h.01" />
+        <path d="M9 14L4 9l5-5" />
+        <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
       </g>
     </IconBase>
   )

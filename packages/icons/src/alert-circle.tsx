@@ -1,15 +1,15 @@
 /**
- * A circular arrow: reload.
+ * A circle with an exclamation mark: something needs attention.
  */
 import type { ReactElement } from 'react'
 import { IconBase, type IconProps } from './icon.js'
 
-export function IconRefresh(props: IconProps): ReactElement {
+export function IconAlertCircle(props: IconProps): ReactElement {
   return (
     <IconBase {...props} viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
-        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-        <path d="M21 3v5h-5" />
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v4m0 4h.01" />
       </g>
     </IconBase>
   )
