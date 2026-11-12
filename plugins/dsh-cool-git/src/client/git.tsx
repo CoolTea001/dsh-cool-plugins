@@ -4871,6 +4871,7 @@ function CommitBar(props: {
   const [generating, setGenerating] = useState(false)
   const [warning, setWarning] = useState('')
   const field = useRef<HTMLTextAreaElement | null>(null)
+  const note = useRef<HTMLParagraphElement | null>(null)
 
   /** Whether this form is the one that records a merge in progress. */
   const merging = operation === 'merge'
@@ -5008,6 +5009,30 @@ function CommitBar(props: {
   }, [disabled, committing, generating, nothingToCommit, onGenerate])
 
   /**
+   * Make the note a keyboard stop while it hides a line.
+   *
+   * The note scrolls once the check runs past its five lines, and a scrollport
+   * that cannot take focus is a pointer-only one: the sixth finding and every one
+   * after it would be unreachable without a wheel. A paragraph is not in the tab
+   * order, so the stop is written onto the node when the content passes the cap
+   * and taken off when it does not — a two-line warning has nothing to scroll, and
+   * a stop there would be a stop that does nothing. Measured rather than rendered:
+   * this is the box's own answer to its width, not state the page needs, and the
+   * observer is what follows a dragged sidebar.
+   */
+  useEffect(() => {
+    const node = note.current
+    if (node === null) return
+    const update = (): void => {
+      node.tabIndex = node.scrollHeight - node.clientHeight > 1 ? 0 : -1
+    }
+    update()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update)
+    observer?.observe(node)
+    return () => observer?.disconnect()
+  }, [warning])
+
+  /**
    * What the field says while it holds no text of the reader's.
    *
    * Only two states answer here: the ordinary commit's own prompt, and the one
@@ -5082,7 +5107,9 @@ function CommitBar(props: {
         </button>
       </span>
       {warning === '' ? null : (
-        <p className="dsh-cg-commit-note" role="status">{t('commit.warning', { text: warning })}</p>
+        <p ref={note} className="dsh-cg-commit-note" role="status">
+          {t('commit.warning', { text: warning })}
+        </p>
       )}
       {/* The one action the form has, at the row's whole width. Which half it
           commits is chosen in the toolbar's More menu — the commit rows there

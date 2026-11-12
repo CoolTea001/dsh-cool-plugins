@@ -2583,8 +2583,9 @@ window.__ModuleLoader__.load({
 			".dsh-cg-head{flex:none;display:flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 12px}",
 			".dsh-cg-head-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;letter-spacing:.02em}",
 			".dsh-cg-list{flex:1 1 auto;min-height:0;overflow:auto;padding:0 8px 8px 8px}",
-			".dsh-cg-list,.dsh-cg-branch-list,.dsh-cg-diff,.dsh-cg-file-body{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}",
-			".dsh-cg-list:hover,.dsh-cg-branch-list:hover,.dsh-cg-diff:hover,.dsh-cg-file-body:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}",
+			".dsh-cg-list,.dsh-cg-branch-list,.dsh-cg-diff,.dsh-cg-file-body,.dsh-cg-commit-note{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}",
+			".dsh-cg-list:hover,.dsh-cg-branch-list:hover,.dsh-cg-diff:hover,.dsh-cg-file-body:hover,.dsh-cg-commit-note:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}",
+			".dsh-cg-commit-note:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}",
 			".dsh-cg-icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;cursor:pointer}",
 			".dsh-cg-icon:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-cg-icon:disabled{opacity:.45;cursor:default}",
@@ -2723,7 +2724,8 @@ window.__ModuleLoader__.load({
 			".dsh-cg-commit-send:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}",
 			".dsh-cg-commit-send:disabled{opacity:.4;cursor:not-allowed}",
 			".dsh-cg-commit-label{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-			".dsh-cg-commit-note{margin:0;white-space:pre-line;color:var(--dsw-alias-state-warn-primary);font-size:12px;line-height:1.45}",
+			".dsh-cg-commit-note{flex:none;margin:0;max-height:calc(5 * 1.45em);overflow-y:auto;overscroll-behavior:contain;padding-right:calc(var(--dsh-scrollbar-width,5px) + 4px);white-space:pre-line;overflow-wrap:anywhere;color:var(--dsw-alias-state-warn-primary);font-size:12px;line-height:1.45}",
+			".dsh-cg-commit-note:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px;border-radius:var(--dsw-radius-sm)}",
 			".dsh-cg-group{display:flex;flex-direction:column}",
 			".dsh-cg-group+.dsh-cg-group{margin-top:4px}",
 			".dsh-cg-group-head{position:relative;display:flex;align-items:center;height:24px;border-radius:var(--dsw-radius-sm,6px)}",
@@ -6991,6 +6993,7 @@ window.__ModuleLoader__.load({
 			const [generating, setGenerating] = (0, react.useState)(false);
 			const [warning, setWarning] = (0, react.useState)("");
 			const field = (0, react.useRef)(null);
+			const note = (0, react.useRef)(null);
 			/** Whether this form is the one that records a merge in progress. */
 			const merging = operation === "merge";
 			/**
@@ -7116,6 +7119,29 @@ window.__ModuleLoader__.load({
 				onGenerate
 			]);
 			/**
+			* Make the note a keyboard stop while it hides a line.
+			*
+			* The note scrolls once the check runs past its five lines, and a scrollport
+			* that cannot take focus is a pointer-only one: the sixth finding and every one
+			* after it would be unreachable without a wheel. A paragraph is not in the tab
+			* order, so the stop is written onto the node when the content passes the cap
+			* and taken off when it does not — a two-line warning has nothing to scroll, and
+			* a stop there would be a stop that does nothing. Measured rather than rendered:
+			* this is the box's own answer to its width, not state the page needs, and the
+			* observer is what follows a dragged sidebar.
+			*/
+			(0, react.useEffect)(() => {
+				const node = note.current;
+				if (node === null) return;
+				const update = () => {
+					node.tabIndex = node.scrollHeight - node.clientHeight > 1 ? 0 : -1;
+				};
+				update();
+				const observer = typeof ResizeObserver === "undefined" ? void 0 : new ResizeObserver(update);
+				observer?.observe(node);
+				return () => observer?.disconnect();
+			}, [warning]);
+			/**
 			* What the field says while it holds no text of the reader's.
 			*
 			* Only two states answer here: the ordinary commit's own prompt, and the one
@@ -7159,6 +7185,7 @@ window.__ModuleLoader__.load({
 						})]
 					}),
 					warning === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						ref: note,
 						className: "dsh-cg-commit-note",
 						role: "status",
 						children: t("commit.warning", { text: warning })

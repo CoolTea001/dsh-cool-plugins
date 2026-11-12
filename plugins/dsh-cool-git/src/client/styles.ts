@@ -148,8 +148,12 @@ const GIT_CSS = [
   // looks like every other one; a scroller that styles `::-webkit-scrollbar`
   // itself does not, which is what made the diff pane's bar a different width,
   // shape and colour from the lists beside it.
-  '.dsh-cg-list,.dsh-cg-branch-list,.dsh-cg-diff,.dsh-cg-file-body{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}',
-  '.dsh-cg-list:hover,.dsh-cg-branch-list:hover,.dsh-cg-diff:hover,.dsh-cg-file-body:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}',
+  '.dsh-cg-list,.dsh-cg-branch-list,.dsh-cg-diff,.dsh-cg-file-body,.dsh-cg-commit-note{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}',
+  '.dsh-cg-list:hover,.dsh-cg-branch-list:hover,.dsh-cg-diff:hover,.dsh-cg-file-body:hover,.dsh-cg-commit-note:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}',
+  // The note is the one scroller here the keyboard can reach, and a keyboard
+  // reader cannot hover it: the bar is shown for the length of that focus, or a
+  // note scrolled to its sixth line would be a bar nobody can see or grab.
+  '.dsh-cg-commit-note:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}',
 
   // Toolbar buttons are plain buttons rather than the shared primitive: the tab
   // needs a few of them, and the token-driven states below are the whole of what
@@ -613,7 +617,8 @@ const GIT_CSS = [
   // sidebar's rows start and end on the same two edges. The field owns the first
   // row — with the Generate square held inside its own frame, which is narrow
   // enough to share the row with the message — and Commit owns the second; what
-  // the model's check found, when it found anything, is the line between them.
+  // the model's check found, when it found anything, sits between them, capped
+  // at five lines (see the note's own rule below).
   //
   // The button is the platform's own primitive, so its fill, radius, type scale,
   // and focus colour are the platform's and follow the theme without a rule here.
@@ -700,14 +705,26 @@ const GIT_CSS = [
   // The label elides rather than wraps: the button is the platform's 28px tall,
   // and a second line would spill out of a box that does not grow with it.
   '.dsh-cg-commit-label{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-  // What the model's own pre-commit check found: one line under the field, in
+  // What the model's own pre-commit check found: one block under the field, in
   // the warning colour, because it is about the commit rather than about the
-  // message — the message above it is written either way. It wraps rather than
-  // scrolling: the sidebar has no room for a second scroller, and the sentence is
-  // short enough to read as two or three lines when it has to. `pre-line` is what
-  // puts each finding the model reported on a line of its own, since the findings
-  // travel as one sentence separated by newlines.
-  '.dsh-cg-commit-note{margin:0;white-space:pre-line;color:var(--dsw-alias-state-warn-primary);font-size:12px;line-height:1.45}',
+  // message — the message above it is written either way. The findings arrive as
+  // one block whose length the model decides, so the note is capped at five lines
+  // and scrolls past them: left to grow, a long check pushed the Commit button
+  // and both lists out of the column, and five lines is what the check can state
+  // without taking the commit action away. The cap is five of the note's own line
+  // boxes, so it cuts on a line boundary rather than through one, and it is a
+  // `max-height` rather than a share of the column because the form's rows are
+  // fixed: a shorter column must not shorten the warning, only scroll the page.
+  // `pre-line` puts each finding the model reported on a line of its own, since
+  // they travel as one sentence separated by newlines; `anywhere` breaks a long
+  // path rather than letting it run under the bar — which the right padding also
+  // holds the text clear of, the way the lists' 8px gutter holds their rows clear
+  // of theirs — and `overscroll-behavior` keeps the wheel from moving the shell
+  // once the note is at its end. Focus is the component's: the scroller is a
+  // paragraph, which the tab order skips, so it becomes a stop while, and only
+  // while, it hides a line (see `CommitBar`).
+  '.dsh-cg-commit-note{flex:none;margin:0;max-height:calc(5 * 1.45em);overflow-y:auto;overscroll-behavior:contain;padding-right:calc(var(--dsh-scrollbar-width,5px) + 4px);white-space:pre-line;overflow-wrap:anywhere;color:var(--dsw-alias-state-warn-primary);font-size:12px;line-height:1.45}',
+  '.dsh-cg-commit-note:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px;border-radius:var(--dsw-radius-sm)}',
 
   // The changed-path pane is one tree: the two halves are its roots, and the
   // folders and files under them are its branches. A group header is a row of
