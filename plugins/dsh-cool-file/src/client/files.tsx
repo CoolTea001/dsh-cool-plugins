@@ -15,6 +15,17 @@
  * selected, whether the reader is previewing or editing, what drafts they hold,
  * and which request is in flight.
  *
+ * Two of those facts — which folders are open and which file is on screen — are
+ * the shape of a workspace's browsing rather than a statement about a file, so
+ * they are saved per workspace root and drawn again on the next mount (see
+ * `viewstate.ts`). The shell renders one View at a time, which means switching
+ * tabs unmounts this page; without that memory a return to it would start from a
+ * bare root however carefully the tree had been arranged. Only paths are saved:
+ * every branch and the selected file are read again from the Host, so the tree
+ * that comes back is the workspace as it is now, in the shape it was left in.
+ * Unsaved drafts are not saved — an edit the reader has not written to disk
+ * belongs to the page holding it.
+ *
  * The page reads by default and writes only when asked. It lists entries,
  * expands them, and shows the first page of a text file; the editor — reached
  * through the header's Preview/Editor menu — replaces one file's complete text
@@ -33,6 +44,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -47,6 +59,7 @@ import { clampSideWidth, readLayout, ResizeHandle, writeLayout, type FileLayout 
 import type { Translate } from './locales.js'
 import { ModeMenu, readMode, writeMode, type FilesMode } from './mode.js'
 import { FILES_ROOT_CLASS } from './styles.js'
+import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
 import type { FileEntry, ListPayload } from '../shared/contract.js'
 
 /** The root is the whole conversation body, sized the way the shell hands it over. */
@@ -263,6 +276,17 @@ function childPath(parent: string, name: string): string {
 }
 
 /**
+ * The workspace path of the directory holding one path.
+ *
+ * @param path - a `/`-joined workspace path.
+ * @returns the parent's path, or the empty string (the root) for a top-level name.
+ */
+function parentOf(path: string): string {
+  const at = path.lastIndexOf('/')
+  return at === -1 ? '' : path.slice(0, at)
+}
+
+/**
  * Render the Files tab's body.
  *
  * @param props - the standard conversation-View props; the session id is used,
@@ -278,6 +302,27 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const side = useRef<HTMLElement | null>(null)
 
   /**
+   * The browsing shape this session's workspace was left in, read once during
+   * the first render so a return to this tab paints the tree the reader left
+   * rather than a bare root that fills in a frame later. It is also the source
+   * of the root an early snapshot is written under, before the Host has named
+   * the directory.
+   */
+  const restored = useMemo(() => readViewState(sessionId), [sessionId])
+  /** The workspace root the page is browsing; '' until the Host or the memory names one. */
+  const [workspaceRoot, setWorkspaceRoot] = useState(() => restored?.root ?? '')
+  /**
+   * The session the tree on screen belongs to.
+   *
+   * A session switch is one render in which the id is already the new one while
+   * `expanded` and `selected` still hold the old session's tree; the effect that
+   * resets them runs after that render. The save effect below is held to this
+   * instead, so the old tree is never attributed to the new session — which
+   * would hand the next mount of that session the wrong workspace's shape.
+   */
+  const [shapeSession, setShapeSession] = useState<string | undefined>(sessionId)
+
+  /**
    * The workspace's own display name, which titles the sidebar.
    *
    * Kept beside the tree rather than derived from it on every render: a reload
@@ -288,14 +333,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   /** Every directory whose children have been asked for, by workspace path. */
   const [directories, setDirectories] = useState<Readonly<Record<string, DirectoryState>>>({})
   /** The directories whose children are drawn, by workspace path. */
-  const [expanded, setExpanded] = useState<readonly string[]>([])
+  const [expanded, setExpanded] = useState<readonly string[]>(() => restored?.expanded ?? [])
   /** Whether entries whose names start with a dot are drawn. */
   const [showHidden, setShowHidden] = useState(readShowHidden)
   /** The selected file path, or null while the empty state is showing. */
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(() => restored?.selected ?? null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
-  const [fileLoading, setFileLoading] = useState(false)
+  // A restored file is already being read by the time the first frame is drawn,
+  // so the pane says it is reading rather than showing an empty body for a beat.
+  const [fileLoading, setFileLoading] = useState(() => restored?.selected != null)
   /** What the page does with the open file: preview it, or edit it. */
   const [mode, setMode] = useState<FilesMode>(readMode)
   /** Every file opened for editing, by workspace path. */
@@ -409,6 +456,15 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * A request already in flight for the same path is not repeated, and an answer
    * from before the tree was replaced is dropped.
    *
+   * Two flows lean on the answers here. A branch that answered opens the restored
+   * children inside it, which is what walks a saved shape down from the root: only
+   * folders the workspace actually still holds are asked for, and a saved branch
+   * that has since been deleted is never requested at all. A saved branch that
+   * failed is folded away, because a shape restored against a changed workspace
+   * must not leave an error standing where a folder used to be; a branch the
+   * reader opened by hand keeps the error, since that click is exactly what they
+   * need answered.
+   *
    * @param path - the directory as a workspace path; empty for the root.
    */
   const loadDirectory = useCallback(
@@ -434,15 +490,73 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 ? workspaceNameOf(payload.root)
                 : ''
           if (name !== '') setWorkspaceName(name)
+          // The absolute root is what this page's saved shape is keyed by, so a
+          // first visit learns it here and can start remembering from now on. A
+          // relative path whose root the memory did not name is that first visit:
+          // the workspace's own shape — shared by every session in it — is
+          // adopted here, before anything of the reader's is drawn. A root that
+          // disagrees with the one the memory restored means the session moved,
+          // so the shape read for the old directory is dropped rather than drawn
+          // over the new one.
+          const root = typeof payload.root === 'string' ? payload.root : ''
+          /** The branches drawn open once this answer has been taken in. */
+          let open: readonly string[] = expandedRef.current
+          if (root !== '' && restoredRoot.current !== '' && root !== restoredRoot.current) {
+            restoredRoot.current = ''
+            restoredBranches.current.clear()
+            open = []
+            setExpanded([])
+            setSelected(null)
+            setPreview(null)
+          } else if (path === '' && root !== '' && restoredRoot.current === '') {
+            const saved = readWorkspaceViewState(root)
+            if (saved !== null) {
+              restoredRoot.current = root
+              restoredBranches.current = new Set(saved.expanded)
+              open = saved.expanded
+              setExpanded(saved.expanded)
+              if (saved.selected !== null) {
+                setSelected(saved.selected)
+                openFileRef.current(saved.selected, true)
+              }
+            }
+          }
+          if (root !== '') setWorkspaceRoot(root)
+          const entries = payload.entries ?? []
           setDirectories((previous) => ({
             ...previous,
             [path]: {
               loading: false,
               error: null,
-              entries: payload.entries ?? [],
+              entries,
               truncated: payload.truncated === true,
             },
           }))
+          // A restored branch inside this one is opened by the same walk that
+          // draws the tree, so the request order follows the shape rather than
+          // one burst of paths the reader may not even have in view. Only a
+          // branch with no answer yet is asked for: a Refresh asks for every open
+          // path itself, and walking into those again would read them twice.
+          const folders = new Set<string>()
+          const known = directoriesRef.current
+          for (const entry of entries) {
+            if (entry.type !== 'directory') continue
+            const child = childPath(path, entry.name)
+            folders.add(child)
+            if (known[child] === undefined && open.includes(child)) loadRef.current(child)
+          }
+          // An open branch this listing does not hold is a folder the workspace
+          // no longer has: the parent has now answered, so its children are
+          // known exactly, and keeping a dead path would leave the saved shape
+          // carrying entries that can never be drawn again. A truncated answer
+          // is not exact — the Host dropped children past its cap — so nothing
+          // is pruned against one.
+          if (payload.truncated !== true) {
+            setExpanded((previous) => {
+              const next = previous.filter((item) => parentOf(item) !== path || folders.has(item))
+              return next.length === previous.length ? previous : next
+            })
+          }
           return
         }
         setDirectories((previous) => ({
@@ -454,36 +568,42 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             truncated: false,
           },
         }))
+        if (path === '') return
+        // Only a branch the memory opened is folded here, and only once.
+        if (!restoredBranches.current.delete(path)) return
+        setExpanded((previous) => (previous.includes(path) ? previous.filter((item) => item !== path) : previous))
       })
     },
     [sessionId],
   )
 
-  // One tree per session: switching sessions drops every cached directory, every
-  // open branch and the file being previewed, then reads the new root. The
-  // generation bump is what keeps an answer for the old session out of the new
-  // tree.
-  useEffect(() => {
-    generation.current += 1
-    docGeneration.current += 1
-    inFlight.current.clear()
-    previewToken.current += 1
-    setWorkspaceName('')
-    setDirectories({})
-    setExpanded([])
-    setSelected(null)
-    setPreview(null)
-    setFileError(null)
-    setFileLoading(false)
-    setDocs({})
-    setDrafts({})
-    setSaving(false)
-    setSaveError(null)
-    loadDirectory('')
-  }, [sessionId, loadDirectory])
+  // The walk above calls back into itself through a ref: a `useCallback` cannot
+  // name itself, and a dependency on the callback's own identity would recreate
+  // it on every render — and every effect that loads through it with it.
+  const loadRef = useRef(loadDirectory)
+  loadRef.current = loadDirectory
+  /** The open branches as the walk reads them, without recreating `loadDirectory`. */
+  const expandedRef = useRef(expanded)
+  expandedRef.current = expanded
+  /** The directory answers the walk reads, for the same reason. */
+  const directoriesRef = useRef(directories)
+  directoriesRef.current = directories
+  /** The branches the memory restored, which a failed answer may still fold away. */
+  const restoredBranches = useRef<Set<string>>(new Set())
+  /** The workspace root the restored shape belongs to, or '' when none was drawn. */
+  const restoredRoot = useRef(restored?.root ?? '')
 
+  /**
+   * Read one file for the preview pane and draw it.
+   *
+   * @param path - the file as a workspace path.
+   * @param restoring - whether this read is the memory putting a file back, in
+   *   which case a file that has since gone is dropped rather than drawn as a
+   *   failure: nothing the reader did on this mount caused it, and an empty pane
+   *   is the honest answer to "the file you were reading is not there".
+   */
   const openFile = useCallback(
-    (path: string): void => {
+    (path: string, restoring = false): void => {
       const token = previewToken.current + 1
       previewToken.current = token
       setSelected(path)
@@ -494,7 +614,8 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
         if (previewToken.current !== token) return
         setFileLoading(false)
         if (payload.ok !== true) {
-          setFileError(payload.error ?? t('error.read'))
+          if (restoring) setSelected(null)
+          else setFileError(payload.error ?? t('error.read'))
           return
         }
         setPreview({
@@ -507,6 +628,58 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     },
     [sessionId, t],
   )
+
+  /** The opening read of a restored file, for the reset effect below. */
+  const openFileRef = useRef(openFile)
+  openFileRef.current = openFile
+
+  // One tree per session: switching sessions drops every cached directory, every
+  // open branch and the file being previewed, then reads the new root and draws
+  // the shape that workspace was left in — or a bare root when it has none. The
+  // generation bump is what keeps an answer for the old session out of the new
+  // tree.
+  //
+  // The two reads go through refs rather than through the callbacks' identities:
+  // both are recreated when the language changes (their copy comes through `t`),
+  // and a reset keyed on that would throw away a tree nobody asked to reload.
+  useEffect(() => {
+    generation.current += 1
+    docGeneration.current += 1
+    inFlight.current.clear()
+    previewToken.current += 1
+    setWorkspaceName('')
+    setDirectories({})
+    setWorkspaceRoot(restored?.root ?? '')
+    // The root this mount's shape belongs to, and the branches it restored:
+    // both are what tells a later answer whether it may prune or must adopt.
+    restoredRoot.current = restored?.root ?? ''
+    restoredBranches.current = new Set(restored?.expanded ?? [])
+    setShapeSession(sessionId)
+    setExpanded(restored?.expanded ?? [])
+    setSelected(restored?.selected ?? null)
+    setPreview(null)
+    setFileError(null)
+    setFileLoading(restored?.selected != null)
+    setDocs({})
+    setDrafts({})
+    setSaving(false)
+    setSaveError(null)
+    loadRef.current('')
+    // The file is read again rather than remembered: only its path was saved, so
+    // what comes back is the file as it is now.
+    if (restored?.selected != null) openFileRef.current(restored.selected, true)
+  }, [restored, sessionId])
+
+  // Save the shape of the browsing whenever it changes, so what the next mount
+  // draws is what this one was left showing. Nothing is written before the
+  // workspace root is known — a shape stored under a guessed key would hand
+  // another workspace this one's tree — and nothing is written while the states
+  // still hold a previous session's tree, which is the render before the reset
+  // effect above runs.
+  useEffect(() => {
+    if (workspaceRoot === '' || shapeSession !== sessionId) return
+    writeViewState(sessionId, workspaceRoot, { expanded, selected })
+  }, [expanded, selected, sessionId, shapeSession, workspaceRoot])
 
   /**
    * Read one file whole, for the editor.
@@ -697,11 +870,22 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * A folder's children are asked for the first time it opens, and asked again
    * when the last answer was an error — closing and reopening is the reader's
    * retry for one branch, without reloading the tree around it.
+   *
+   * Closing a folder closes everything under it as well: a descendant is only
+   * drawable while its parent is open, so keeping one open would leave the saved
+   * shape holding branches the tree cannot show until the reader reopens the
+   * parent — and then they would spring back open, which is not what closing
+   * means.
    */
   const toggleDirectory = useCallback(
     (path: string): void => {
+      // The reader is now arranging this branch themselves, so an answer that
+      // fails is theirs to see and retry rather than one the memory folds away.
+      restoredBranches.current.delete(path)
       if (expanded.includes(path)) {
-        setExpanded(expanded.filter((item) => item !== path))
+        const prefix = `${path}/`
+        for (const item of expanded) if (item.startsWith(prefix)) restoredBranches.current.delete(item)
+        setExpanded(expanded.filter((item) => item !== path && !item.startsWith(prefix)))
         return
       }
       setExpanded([...expanded, path])

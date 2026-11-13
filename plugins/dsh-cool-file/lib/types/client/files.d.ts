@@ -15,6 +15,17 @@
  * selected, whether the reader is previewing or editing, what drafts they hold,
  * and which request is in flight.
  *
+ * Two of those facts — which folders are open and which file is on screen — are
+ * the shape of a workspace's browsing rather than a statement about a file, so
+ * they are saved per workspace root and drawn again on the next mount (see
+ * `viewstate.ts`). The shell renders one View at a time, which means switching
+ * tabs unmounts this page; without that memory a return to it would start from a
+ * bare root however carefully the tree had been arranged. Only paths are saved:
+ * every branch and the selected file are read again from the Host, so the tree
+ * that comes back is the workspace as it is now, in the shape it was left in.
+ * Unsaved drafts are not saved — an edit the reader has not written to disk
+ * belongs to the page holding it.
+ *
  * The page reads by default and writes only when asked. It lists entries,
  * expands them, and shows the first page of a text file; the editor — reached
  * through the header's Preview/Editor menu — replaces one file's complete text
