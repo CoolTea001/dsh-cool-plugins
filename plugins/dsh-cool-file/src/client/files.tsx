@@ -350,6 +350,19 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   /** The unsaved drafts, by workspace path: a path present here is dirty. */
   const [drafts, setDrafts] = useState<Readonly<Record<string, string>>>({})
   const [saving, setSaving] = useState(false)
+  /**
+   * Whether a write is actually in flight.
+   *
+   * A separate ref from {@link saving} on purpose: the state is what the retry
+   * effect below watches for a committed set of answers, while this is the guard
+   * a second ⌘S in the same render has to meet. Reading the state in the guard
+   * would let two presses of one keystroke both pass — React has not committed
+   * the first `setSaving(true)` yet — and two writes quoting the same freshness
+   * token means the second one is refused as stale by the Host.
+   */
+  const savingRef = useRef(false)
+  /** A save the reader asked for while one was already in flight. */
+  const [pendingSave, setPendingSave] = useState(false)
   const [saveError, setSaveError] = useState<{ readonly text: string; readonly stale: boolean } | null>(null)
   /** Guards the preview against an answer for a file that is no longer selected. */
   const previewToken = useRef(0)
@@ -767,27 +780,57 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * returned: a file the agent (or another editor) changed in between is refused
    * as stale instead of being silently overwritten. The confirmation is put back
    * into the preview too, so the two modes cannot disagree about what is on disk.
+   *
+   * Two things about timing are deliberate.
+   *
+   * A second request from the same page never runs beside the first. The Host
+   * takes one write at a time per file and refuses the loser as stale — its
+   * guard compares the freshness token, and the first write changes it — so two
+   * presses of ⌘S would report "changed on disk" about a change this page made
+   * itself. The in-flight flag is a ref rather than the `saving` state because
+   * two presses of one keystroke are handled before React commits the first
+   * `setSaving(true)`; a state read would let both through.
+   *
+   * A save must also not throw away what the reader typed while it was in
+   * flight. The answer confirms the text that was sent, not the draft on screen,
+   * so the draft is only cleared when it still equals what went out; otherwise it
+   * stays dirty and is written by the queued save this press asked for.
    */
+  const saveRef = useRef<() => void>(() => {})
   const save = useCallback((): void => {
-    if (selected === null || saving) return
+    if (selected === null) return
+    // A write is already running: remember the request and let its completion
+    // run it against the answers that write returns.
+    if (savingRef.current) {
+      setPendingSave(true)
+      return
+    }
     const path = selected
     const doc = docs[path]
     const draft = drafts[path]
     if (doc === undefined || doc.loading || doc.error !== null || draft === undefined) return
 
+    savingRef.current = true
     setSaving(true)
     setSaveError(null)
-    void saveFile(sessionId, path, toEol(draft, doc.eol), doc.version).then((payload) => {
+    // The draft this request is responsible for. Anything typed after it is not
+    // in the text below and must survive the answer.
+    const sent = draft
+    void saveFile(sessionId, path, toEol(sent, doc.eol), doc.version).then((payload) => {
+      savingRef.current = false
       setSaving(false)
       if (payload.ok !== true) {
         setSaveError({
           text: payload.reason === 'stale' ? t('editor.stale') : (payload.error ?? t('editor.saveFailed')),
           stale: payload.reason === 'stale',
         })
+        // A refused write wrote nothing, so a queued request has no new token to
+        // quote: asking again would be refused the same way. The reader decides.
+        setPendingSave(false)
         return
       }
       const bytes = typeof payload.bytes === 'number' ? payload.bytes : undefined
-      const lines = typeof payload.lines === 'number' ? payload.lines : lineCount(draft)
+      const lines = typeof payload.lines === 'number' ? payload.lines : lineCount(sent)
       setDocs((previous) => {
         const current = previous[path]
         if (current === undefined) return previous
@@ -795,14 +838,19 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
           ...previous,
           [path]: {
             ...current,
-            text: draft,
+            // The file on disk is the text that was sent; the reader's newer
+            // keystrokes, if any, live in the draft rather than here.
+            text: sent,
             ...(bytes === undefined ? {} : { bytes }),
             ...(typeof payload.version === 'string' ? { version: payload.version } : {}),
           },
         }
       })
+      // Clear the draft only when it is still what was written. A draft that
+      // moved on keeps its text — and its unsaved marker — so the queued save
+      // picks it up instead of the page silently dropping it.
       setDrafts((previous) => {
-        if (previous[path] === undefined) return previous
+        if (previous[path] !== sent) return previous
         const next = { ...previous }
         delete next[path]
         return next
@@ -814,14 +862,24 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
         current === null || current.eof === false
           ? current
           : {
-              text: previewTextOf(toEol(draft, doc.eol)),
+              text: previewTextOf(toEol(sent, doc.eol)),
               lines,
               eof: true,
               ...(bytes === undefined ? {} : { bytes }),
             },
       )
     })
-  }, [docs, drafts, saving, selected, sessionId, t])
+  }, [docs, drafts, selected, sessionId, t])
+  saveRef.current = save
+
+  // Run a save the reader asked for while one was in flight. Declared after the
+  // answers above have been committed, so the queued write quotes the token and
+  // the draft this write just settled rather than the ones it started from.
+  useEffect(() => {
+    if (!pendingSave || savingRef.current) return
+    setPendingSave(false)
+    saveRef.current()
+  }, [pendingSave, saving, docs, drafts, selected])
 
   /**
    * Throw the draft away and read the file as it is on disk again.
