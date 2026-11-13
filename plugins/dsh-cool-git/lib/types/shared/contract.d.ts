@@ -30,7 +30,7 @@
  * The set is closed on purpose: a refusal that is not one of these is Git's
  * own words and travels as `error` text instead.
  */
-export type FailureCode = 'not-ready' | 'no-workdir' | 'no-subprocess' | 'missing-path' | 'bad-hash' | 'missing-message' | 'missing-branch' | 'missing-name' | 'git-exit' | 'no-root' | 'no-commits' | 'unparsable-commit' | 'unknown-branch' | 'remote-local-name' | 'checkout-dirty' | 'checkout-dirty-paths' | 'branch-exists' | 'branch-not-merged' | 'branch-in-use' | 'unknown-remote' | 'merge-dirty' | 'merge-conflict' | 'merge-same-branch' | 'merge-detached' | 'merge-no-commits' | 'not-conflicted' | 'stale-conflict' | 'resolve-unsafe' | 'bad-choice' | 'no-operation' | 'complete-conflict' | 'pull-no-commits' | 'push-no-commits' | 'pull-detached' | 'push-detached' | 'pull-no-upstream' | 'pull-dirty' | 'push-dirty' | 'auth' | 'pull-diverged' | 'pull-conflict' | 'push-behind' | 'push-no-remote' | 'push-ambiguous-remote' | 'commit-clean' | 'commit-nothing-staged' | 'commit-conflict' | 'commit-identity' | 'commit-undo-root' | 'commit-undo-operation' | 'no-llm' | 'no-model' | 'model-timeout' | 'model-truncated' | 'empty-message' | 'no-plugin-manager' | 'bad-version';
+export type FailureCode = 'not-ready' | 'no-workdir' | 'no-subprocess' | 'missing-path' | 'bad-hash' | 'missing-message' | 'missing-branch' | 'missing-name' | 'git-exit' | 'no-root' | 'no-commits' | 'unparsable-commit' | 'unknown-branch' | 'remote-local-name' | 'checkout-dirty' | 'checkout-dirty-paths' | 'branch-exists' | 'branch-not-merged' | 'branch-in-use' | 'unknown-remote' | 'merge-dirty' | 'merge-conflict' | 'merge-same-branch' | 'merge-detached' | 'merge-no-commits' | 'not-conflicted' | 'stale-conflict' | 'resolve-unsafe' | 'bad-choice' | 'no-operation' | 'complete-conflict' | 'pull-no-commits' | 'push-no-commits' | 'pull-detached' | 'push-detached' | 'pull-no-upstream' | 'pull-dirty' | 'push-dirty' | 'auth' | 'pull-diverged' | 'pull-conflict' | 'push-behind' | 'push-no-remote' | 'push-ambiguous-remote' | 'commit-clean' | 'commit-nothing-staged' | 'commit-conflict' | 'commit-identity' | 'commit-undo-root' | 'commit-undo-operation' | 'no-llm' | 'no-model' | 'model-timeout' | 'model-truncated' | 'empty-message';
 /**
  * One coded refusal, with the values its sentence interpolates.
  *
@@ -912,67 +912,6 @@ export interface SaveSettingsPayload {
  */
 export declare function classifyChange(index: string, worktree: string): ChangeKind;
 /**
- * This bundle's own package name.
- *
- * The update row on the plugin's detail page is about one package and installs
- * that package, so the name is stated once here rather than read back from the
- * page's subject: the subject names whichever bundle the reader opened, and only
- * the package itself may be upgraded from its own page.
- */
-export declare const PACKAGE_NAME = "dsh-cool-git";
-/**
- * Where this plugin is published and where its source lives.
- *
- * The plugin page's update row links to both: the package is what an update
- * installs, and the repository is what an issue or a changelog is read in. They
- * restate `package.json`'s `homepage` and `repository` because the browser half
- * never reads that file — the bundle carries its own constants.
- */
-export declare const PACKAGE_NPM_PAGE = "https://www.npmjs.com/package/dsh-cool-git";
-export declare const PACKAGE_REPOSITORY = "https://github.com/CoolTea001/dsh-cool-git";
-/**
- * `POST /update`: the newest published version of this plugin.
- *
- * `latest` is what the public registry answers for `PACKAGE_NAME`; it is absent
- * when the registry could not be read, and the row then says so instead of
- * guessing. `installed` and `source` are the profile's own record, read from the
- * plugin manager, so the row can tell a registry install (which the button can
- * replace) from a `link:` or `file:` development install.
- */
-export interface UpdateCheckPayload {
-    readonly ok: boolean;
-    /** Raw diagnostic text: a transport or seam message. */
-    readonly error?: string;
-    /** The coded refusal, which the page words in the active locale. */
-    readonly failure?: Failure;
-    /** The newest version the registry names, absent when it could not be read. */
-    readonly latest?: string;
-    /** The version the profile records, when the manager lists this bundle. */
-    readonly installed?: string;
-    /** How the profile installs it: a registry spec, or a `link:`/`file:` path. */
-    readonly source?: string;
-}
-/**
- * `POST /update-apply`: the outcome of installing one published version.
- *
- * The manager's own answer is passed through: `applied` means the profile now
- * runs the new version (a composition with HMR recomposes at once), while
- * `restart-required` means the files changed but the running process still holds
- * the old code. `changed: false` is a success too — the requested version was
- * already what the profile records.
- */
-export interface UpdateApplyPayload {
-    readonly ok: boolean;
-    /** Raw diagnostic text: a transport or seam message, or the manager's own. */
-    readonly error?: string;
-    /** The coded refusal, which the page words in the active locale. */
-    readonly failure?: Failure;
-    /** How the manager applied the change. */
-    readonly application?: 'applied' | 'restart-required';
-    /** Why a restart is needed, as the manager stated it. */
-    readonly restartReason?: string;
-}
-/**
  * The routes both halves address, in one table.
  *
  * The browser half posts to these paths and the Host half registers them, so the
@@ -1016,7 +955,5 @@ export declare const ROUTES: {
     readonly fetchUpstream: "/dsh-cool-git/api/fetch-upstream";
     readonly pull: "/dsh-cool-git/api/pull";
     readonly push: "/dsh-cool-git/api/push";
-    readonly update: "/dsh-cool-git/api/update";
-    readonly updateApply: "/dsh-cool-git/api/update-apply";
 };
 //# sourceMappingURL=contract.d.ts.map

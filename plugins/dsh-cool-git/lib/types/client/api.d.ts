@@ -5,7 +5,7 @@
  * `{ ok: false }` result the caller reports in the error dialog, so the page has
  * exactly one failure shape to render no matter how the answer went wrong.
  */
-import { type BranchDeleteTarget, type BranchReportPayload, type BranchesPayload, type CheckoutPayload, type CommitAllPayload, type CommitPayload, type CommitScope, type ConflictPayload, type CreateBranchPayload, type DeleteBranchesPayload, type DiffPayload, type DiffSide, type FetchPayload, type FetchUpstreamPayload, type IndexPayload, type LogPayload, type MergePayload, type MessageModel, type MessagePayload, type ModelEffortsPayload, type OperationPayload, type ResolveChoice, type ResolveDonePayload, type ResolvePayload, type SaveSettingsPayload, type SettingsPayload, type StatusPayload, type SyncPayload, type UpdateApplyPayload, type UpdateCheckPayload, type UndoCommitPayload } from '../shared/contract.js';
+import { type BranchDeleteTarget, type BranchReportPayload, type BranchesPayload, type CheckoutPayload, type CommitAllPayload, type CommitPayload, type CommitScope, type ConflictPayload, type CreateBranchPayload, type DeleteBranchesPayload, type DiffPayload, type DiffSide, type FetchPayload, type FetchUpstreamPayload, type IndexPayload, type LogPayload, type MergePayload, type MessageModel, type MessagePayload, type ModelEffortsPayload, type OperationPayload, type ResolveChoice, type ResolveDonePayload, type ResolvePayload, type SaveSettingsPayload, type SettingsPayload, type StatusPayload, type SyncPayload, type UndoCommitPayload } from '../shared/contract.js';
 /**
  * Ask the Host for the session's repository state and changed paths.
  *
@@ -421,28 +421,4 @@ export declare function pullBranch(sessionId: string | undefined): Promise<SyncP
  * @returns the sync payload.
  */
 export declare function pushBranch(sessionId: string | undefined): Promise<SyncPayload>;
-/**
- * Ask the Host which version of this plugin is published.
- *
- * The question belongs to the plugin's own page rather than to any session: the
- * registry and the profile are the Host's to read, and neither has anything to
- * do with the repository a Git tab is showing, so no session id travels with the
- * request. An answer that could not reach the registry is `ok: false` with text,
- * which the row states quietly under itself.
- *
- * @returns the version payload.
- */
-export declare function checkUpdate(): Promise<UpdateCheckPayload>;
-/**
- * Ask the Host to install one published version of this plugin.
- *
- * The version is the one the row was shown, never one the reader typed; the Host
- * refuses anything that is not a plain release version before the manager is
- * asked, and the manager itself performs the same install the Plugins panel
- * performs.
- *
- * @param version - the version to install.
- * @returns the install payload, carrying how the manager applied it.
- */
-export declare function applyUpdate(version: string): Promise<UpdateApplyPayload>;
 //# sourceMappingURL=api.d.ts.map

@@ -106,9 +106,7 @@ type UiKey =
 /** The operations this page cannot finish, and the merge the form can. */
  | 'operation.rebase' | 'operation.cherryPick' | 'commit.finishMerge' | 'commit.operationBlocked'
 /** The conflict pane: its header, its per-block choices, and its states. */
- | 'conflict.block' | 'conflict.current' | 'conflict.incoming' | 'conflict.base' | 'conflict.takeOurs' | 'conflict.takeTheirs' | 'conflict.takeBoth' | 'conflict.takeBase' | 'conflict.takeAllOurs' | 'conflict.takeAllTheirs' | 'conflict.noLines' | 'conflict.binaryTitle' | 'conflict.binaryText' | 'conflict.missingTitle' | 'conflict.missingText' | 'conflict.keepOurs' | 'conflict.keepTheirs' | 'conflict.keepOursGone' | 'conflict.keepTheirsGone' | 'conflict.cleanTitle' | 'conflict.cleanText' | 'conflict.showContext' | 'conflict.hideContext'
-/** The plugin page's update row: the published version, and installing it. */
- | 'update.published' | 'update.upgrade' | 'update.confirm' | 'update.confirmLink' | 'update.confirmYes' | 'update.cancel' | 'update.applying' | 'update.done' | 'update.restart' | 'update.failed' | 'update.unavailable' | 'update.retry' | 'update.npm' | 'update.github';
+ | 'conflict.block' | 'conflict.current' | 'conflict.incoming' | 'conflict.base' | 'conflict.takeOurs' | 'conflict.takeTheirs' | 'conflict.takeBoth' | 'conflict.takeBase' | 'conflict.takeAllOurs' | 'conflict.takeAllTheirs' | 'conflict.noLines' | 'conflict.binaryTitle' | 'conflict.binaryText' | 'conflict.missingTitle' | 'conflict.missingText' | 'conflict.keepOurs' | 'conflict.keepTheirs' | 'conflict.keepOursGone' | 'conflict.keepTheirsGone' | 'conflict.cleanTitle' | 'conflict.cleanText' | 'conflict.showContext' | 'conflict.hideContext';
 /** Every key in the namespace: the page's own, and one sentence per refusal. */
 export type MessageKey = UiKey | `error.${FailureCode}`;
 /**
@@ -337,20 +335,6 @@ export declare const en: {
     'conflict.cleanText': string;
     'conflict.showContext': string;
     'conflict.hideContext': string;
-    'update.published': string;
-    'update.upgrade': string;
-    'update.confirm': string;
-    'update.confirmLink': string;
-    'update.confirmYes': string;
-    'update.cancel': string;
-    'update.applying': string;
-    'update.done': string;
-    'update.restart': string;
-    'update.failed': string;
-    'update.unavailable': string;
-    'update.retry': string;
-    'update.npm': string;
-    'update.github': string;
     'error.not-ready': string;
     'error.no-workdir': string;
     'error.no-subprocess': string;
@@ -406,8 +390,6 @@ export declare const en: {
     'error.model-timeout': string;
     'error.model-truncated': string;
     'error.empty-message': string;
-    'error.no-plugin-manager': string;
-    'error.bad-version': string;
 };
 /** The Chinese copy, key for key the same page. */
 export declare const zh: typeof en;
