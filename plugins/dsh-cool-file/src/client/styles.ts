@@ -126,7 +126,14 @@ const FILES_CSS = [
   // depth. The arrow is the branch's own disclosure: it points right while
   // closed and turns down while open, and it keeps its 12px seat on files so
   // every name in a level starts on the same axis.
-  '.dsh-cf-list{flex:1 1 auto;min-height:0;overflow:auto;padding:4px 6px 10px}',
+  // The tree's scrollport is `@dsh-cool/ui`'s `PanelScroll`: the bar belongs to
+  // the pointer, and the axis is stated by the component rather than inferred
+  // from an `overflow` value here. What stays is this pane's own box and inset —
+  // the scroll region must keep filling the sidebar, and its rows keep the same
+  // 6–10px breathing room they had. `overflow` is deliberately absent: the
+  // shared rules own it, and a second declaration here would be a peer the
+  // cascade could pick on the wrong side.
+  '.dsh-cf-list{flex:1 1 auto;min-height:0;padding:4px 6px 10px}',
   '.dsh-cf-node{display:block}',
   '.dsh-cf-row{display:flex;align-items:center;gap:6px;width:100%;padding:4px 6px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}',
   '.dsh-cf-row:hover{background:var(--dsw-alias-interactive-bg-hover)}',
@@ -206,11 +213,12 @@ const FILES_CSS = [
   '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
   '.dsh-cf-save-error-text{flex:1 1 auto;min-width:0}',
   '.dsh-cf-link{flex:none;padding:0;border:0;background:transparent;color:var(--dsw-alias-brand-primary);font:inherit;font-size:11.5px;text-decoration:underline;cursor:pointer}',
-  // The editor is the preview with a caret in it, so the body stops scrolling:
-  // the field inside owns both axes and the artwork follows it (see
-  // `editor.tsx`). A page scrollbar beside the field's own would be a second,
-  // empty one.
-  '.dsh-cf-body[data-editor]{display:flex;overflow:hidden}',
+  // The editor is the preview with a caret in it, so the body stops being a
+  // scroll container: the field inside owns both axes and the artwork follows it
+  // (see `editor.tsx`). A page scrollbar beside the field's own would be a
+  // second, empty one. The component reaches this through `direction="none"`
+  // when editing; what stays here is the flex box that lets the field fill it.
+  '.dsh-cf-body[data-editor]{display:flex}',
   // Every metric here is declared twice — once for the painted rows, once for
   // the transparent field over them — and the two must agree to the pixel, or
   // the caret drifts away from the glyph it sits on. That includes the ligature
@@ -234,7 +242,12 @@ const FILES_CSS = [
   // horizontal one, so a long line slides sideways under the pointer. The number
   // column is a sibling of that block, never inside it: that is what leaves the
   // numbers still while the source moves.
-  '.dsh-cf-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}',
+  //
+  // The scrollport itself is `PanelScroll` (`direction="y"`), which owns the
+  // axis; this rule keeps the flex box it is, and nothing else. Declaring
+  // `overflow` here would compete with the component's `data-scroll` rule for no
+  // gain — the two would always have to agree.
+  '.dsh-cf-body{flex:1 1 auto;min-height:0}',
   // The row is the one place the code metrics are declared, and both columns
   // inherit them: the gutter and the code cannot disagree about how tall a line
   // is, because there is only one height. The file sizes its own gutter in `ch`.

@@ -56,7 +56,7 @@ import {
   type ReactElement,
 } from 'react'
 import { IconChevronRight, IconEye, IconEyeOff, IconFile, IconFolder, IconRotateCw } from '@dsh-cool/icons'
-import { ResizeHandle, useComposerSeatSuppression } from '@dsh-cool/ui'
+import { ResizeHandle, PanelScroll, useComposerSeatSuppression } from '@dsh-cool/ui'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 
 import { CodePreview } from './code.js'
@@ -77,6 +77,30 @@ const PAGE: CSSProperties = {
   height: '100%',
   width: '100%',
 }
+
+/**
+ * How strong the panels' scrollbar is.
+ *
+ * One value for both panes rather than two literals at the call sites: the tree
+ * and the preview are read together, and a bar that is darker in one than the
+ * other reads as a different kind of surface.
+ *
+ * A third strength, not half: at this alpha the thumb reads as a quiet cue that
+ * the pane continues rather than a stripe competing with the rows beside it, and
+ * it stays legible against the canvas on both light and dark appearances — below
+ * roughly a quarter the thumb all but disappears into a white pane. It is still
+ * the platform's own colour — only lighter — so it follows a theme that retints
+ * its scrollbars, and `--dsh-ui-panel-bar-alpha` keeps its box, so the layout
+ * does not move whether the bar is painted or not.
+ *
+ * Note what this alpha does to the hover state: the platform's
+ * `::-webkit-scrollbar-thumb:hover` swaps in the hover colour token but keeps
+ * this same alpha, so hovering gives a slightly stronger tint rather than a
+ * solid one. That is the intended reading here — the bar stays quiet even under
+ * the pointer — but it does mean the thumb is not meant to be hunted by eye
+ * alone.
+ */
+const PANEL_BAR_OPACITY = 0.3
 
 /** What one open preview holds. */
 interface Preview {
@@ -1443,7 +1467,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
           </button>
         </div>
 
-        <div className="dsh-cf-list">{drawLevel('')}</div>
+        {/* The tree is a `PanelScroll` rather than a plain box: the bar belongs to
+            the pointer, and it keeps its own width whether shown or hidden, so
+            the rows do not shift as the pointer crosses the edge. Only `y` is
+            allowed — a name is elided, never reached by scrolling sideways, so a
+            horizontal bar here would advertise a gesture with nothing behind it.
+
+            The alpha is the pane's own: a tree bar sits among rows it would
+            otherwise cut, so it is held at `PANEL_BAR_OPACITY` in both preview
+            and tree. */}
+        <PanelScroll className="dsh-cf-list" direction="y" barOpacity={PANEL_BAR_OPACITY}>
+          {drawLevel('')}
+        </PanelScroll>
 
         {/* The sidebar's own right edge, which is the boundary its width is
             measured to. */}
@@ -1524,9 +1559,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 content the two tabs swap, which is why both tabs name this same
                 id. A file with no switch has no panel role either: a tabpanel
                 nothing points at would be a lie about the page's structure. */}
-            <div
+            <PanelScroll
               className="dsh-cf-body"
               key={`${mode}:${selected}:${imageEpoch}`}
+              // The preview scrolls down; a long line is slid by the code block
+              // inside it, not by the page. The editor is the exception: its own
+              // field owns both axes and the artwork follows it, so the page must
+              // not be a scroll container there at all — a second, empty bar
+              // beside the field's would be one scroll gesture too many.
+              direction={editing ? 'none' : 'y'}
+              barOpacity={PANEL_BAR_OPACITY}
               data-editor={editing ? '' : undefined}
               {...(editable
                 ? {
@@ -1581,7 +1623,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               ) : (
                 <CodePreview text={preview.text} path={selected} line={revealLine} />
               )}
-            </div>
+            </PanelScroll>
           </>
         )}
       </section>
