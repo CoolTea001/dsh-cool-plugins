@@ -9,7 +9,7 @@
  */
 
 import * as React from 'react'
-import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal } from '@dsh-cool/ui'
 
 import type { Translate } from './locales.js'
 

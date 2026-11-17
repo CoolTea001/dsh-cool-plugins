@@ -11,7 +11,7 @@
  */
 
 import * as React from 'react'
-import { Button, Modal, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, SettingsValueField } from '@dsh-cool/ui'
 
 import { fetchModels, saveSettings } from './api.js'
 import type { Translate } from './locales.js'
@@ -170,11 +170,26 @@ export function SettingsDialog({
         </div>
 
         <div className="dsh-cd-count">
+          {/* The shell's field draws a whole form control: the label, the hint,
+              the invalid message, and — for a value a composition layer could
+              override — the badge and its reset. This plugin has no composition
+              layer under its settings, so nothing here is ever overridden and
+              `overridden` stays false; the three labels are still stated because
+              they are part of the control's contract, not because this page
+              draws them. `onReset` returns the draft to the saved value, which is
+              the only reset this form has. */}
           <SettingsValueField
             id="dsh-cd-count"
             label={t('settings.count')}
             text={count}
             numeric
+            hint={t('settings.countHint')}
+            invalid={count === ''}
+            invalidLabel={t('settings.countInvalid')}
+            overridden={false}
+            overriddenLabel=""
+            resetLabel={t('settings.countReset')}
+            onReset={() => { setCount(String(settings.count)) }}
             disabled={saving}
             onEdit={(value) => { setCount(limitCount(value)) }}
           />

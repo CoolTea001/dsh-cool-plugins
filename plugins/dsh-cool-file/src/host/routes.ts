@@ -5,16 +5,18 @@
  * every question it asks the Host crosses a same-origin route registered on the
  * `webServer` carrier. Each route answers JSON and never rejects: a transport or
  * service failure becomes an `{ ok: false }` result the page draws in its own
- * error state.
+ * error state. The one exception is the raw route, which answers bytes rather
+ * than JSON because its caller is an `<img>` that cannot read either.
  *
  * The Host stays authoritative about *which* workspace is browsed. A request may
  * name the session it belongs to, but never a directory: the root is read from
  * that session's own header, so a page cannot point the plugin at a tree the
- * session does not own. Three routes read; the fourth is the editor's save, and
+ * session does not own. Four routes read; the fifth is the editor's save, and
  * it accepts nothing but the text of one file already inside that workspace.
  */
 
-import { listDirectory, readFile, readWholeFile, saveFile } from './files.js'
+import { RAW_ROUTE } from '../shared/kinds.js'
+import { listDirectory, readFile, readImage, readWholeFile, saveFile } from './files.js'
 import type { ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 /** Route table, kept in one place so the two halves cannot drift. */
@@ -23,6 +25,7 @@ export const ROUTES = {
   read: '/dsh-cool-file/api/read',
   text: '/dsh-cool-file/api/text',
   write: '/dsh-cool-file/api/write',
+  raw: RAW_ROUTE,
 } as const
 
 /** Longest body the read routes accept; each is a path and a session id. */
@@ -125,7 +128,44 @@ async function handle(
 }
 
 /**
- * Register the four routes on the browser HTTP carrier.
+ * Answer one image request with the file's own bytes.
+ *
+ * A `GET` with the path in the query string, because the caller is an `<img>`
+ * element and not this plugin's `fetch`: an image address cannot carry a body,
+ * and a browser will not let script read the answer either way. Everything else
+ * is the same fence the JSON routes stand behind — the same cross-origin
+ * refusal, the same workspace-confined path — and a failure is answered with a
+ * status and a short text body, which is what an `<img>` turns into its own
+ * broken-image state rather than into a picture.
+ *
+ * @param ctx - the Host plugin context.
+ * @param req - the incoming request; its query names the session and the file.
+ * @param res - the response to write.
+ */
+async function handleRaw(ctx: any, req: any, res: any): Promise<void> {
+  if (!methodAllowed(req, res, ['GET', 'HEAD'])) return
+  const query = new URL(typeof req.url === 'string' ? req.url : '/', 'http://localhost').searchParams
+  const answer = await readImage(ctx, query.get('sessionId') ?? undefined, query.get('path') ?? '')
+  if (answer.ok !== true) {
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+    res.end(answer.error)
+    return
+  }
+  res.writeHead(200, {
+    'content-type': answer.mediaType,
+    'content-length': String(answer.data.length),
+    'cache-control': 'no-store',
+    // An SVG served from this origin could otherwise carry script into the page;
+    // this header makes the browser treat the answer as a passive image, which is
+    // all the preview ever needs it to be.
+    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    'x-content-type-options': 'nosniff',
+  })
+  res.end(req.method === 'HEAD' ? undefined : Buffer.from(answer.data))
+}
+
+/**
+ * Register the five routes on the browser HTTP carrier.
  *
  * @param ctx - the Host plugin context.
  * @returns the disposer that removes the routes with the plugin.
@@ -159,6 +199,7 @@ export function registerRoutes(ctx: any): () => void {
         MAX_WRITE_BODY_BYTES,
       ),
     ),
+    route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res)),
   ]
 
   return () => {

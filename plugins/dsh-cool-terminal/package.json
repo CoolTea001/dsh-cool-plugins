@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@dsh-cool/icons": "workspace:*",
+    "@dsh-cool/ui": "workspace:*",
     "@dsh-cool/tsdown-config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",

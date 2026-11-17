@@ -13,9 +13,17 @@
  */
 export declare const TERMINAL_CSS: string;
 /**
- * Insert the stylesheet once for the plugin lifetime.
+ * Insert the stylesheet — and the shared one — once for the plugin lifetime.
  *
- * @returns disposer that removes exactly this element.
+ * xterm's own sheet is part of this package's rules: the whole point of inlining
+ * it is that the console's markup and its styles arrive together.
+ *
+ * The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+ * rather than this file's: see `insertPluginStyles`. This sheet used to carry no
+ * `data-plugin` at all, which left it claimable by whichever module materialized
+ * next and deletable with it.
+ *
+ * @returns disposer that removes exactly this sheet.
  */
 export declare function insertTerminalStyles(): () => void;
 //# sourceMappingURL=styles.d.ts.map

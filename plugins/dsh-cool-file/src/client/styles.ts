@@ -32,6 +32,16 @@
  *    keeps its opaque canvas.
  */
 
+import { composerSeatCss, insertPluginStyles, wallpaperCss } from '@dsh-cool/ui'
+import { CODE_LINE_HEIGHT } from './code.js'
+
+/**
+ * The id the loader registers this bundle under, which is the name the sheet's
+ * ownership record carries. It is the package name, stated where the sheet is
+ * built rather than threaded through a build-time define, because this module's
+ * only other reader of it is that record.
+ */
+const PACKAGE_ID = 'dsh-cool-file'
 import { PREVIEW_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
 
 /** Class the Files View renders on its root; the stylesheet's only anchor. */
@@ -44,7 +54,7 @@ const FILES_CSS = [
   // `[data-conversation-scroll]` is the resident scrollport and the seat is its
   // direct child. Hidden, not removed: the draft mirror and the input store keep
   // running for the Chat tab underneath.
-  `[data-conversation-scroll]:has(.${FILES_ROOT_CLASS})>[data-composer-seat]{display:none}`,
+  composerSeatCss(FILES_ROOT_CLASS),
 
   // 2. Page layout.
   //
@@ -54,7 +64,7 @@ const FILES_CSS = [
   // instead of stretching the page, and `flex:1 1 auto` beside the View's inline
   // `height:100%` keeps the page full-height whichever way the shell's wrapper
   // hands the body over.
-  `.${FILES_ROOT_CLASS}{display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
+  `.${FILES_ROOT_CLASS}{--dsh-cf-measure:900px;display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
   `.${FILES_ROOT_CLASS} *{box-sizing:border-box}`,
   // The sidebar's width is the drag's to set: one custom property the page publishes
   // on its root (see `layout.ts`), with the default width as the rule's own fallback,
@@ -72,15 +82,23 @@ const FILES_CSS = [
   //
   // `::before` is the indicator: the line brightens on hover and stays lit for the
   // length of a drag, which is what makes a boundary read as draggable at rest.
-  '.dsh-cf-resize{position:absolute;z-index:2;top:0;right:-1px;bottom:0;width:1px;cursor:col-resize;touch-action:none}',
-  '.dsh-cf-resize::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-secondary) 50%,transparent) center / 1px 100% no-repeat;transition:opacity .12s ease-out}',
-  '.dsh-cf-resize::after{content:"";position:absolute;inset:0 -4px}',
-  '.dsh-cf-resize:hover::before,.dsh-cf-resize[data-dragging]::before{opacity:1}',
+  // The boundary itself is `@dsh-cool/ui`'s: one element, one hit band, one hover
+  // cue, shared with the Git and Terminal tabs.
+  // The sidebar's width is the drag's to set: one custom property the page publishes
+  // on its root (see `layout.ts`), with the default width as the rule's own fallback,
+  // so the first frame — before a saved layout has been read — is already a whole
+  // page. The floor and the cap restate the drag's bounds, which is what keeps a
+  // width saved in a wide window from squeezing the preview in a narrow one.
+  `.dsh-cf-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cf-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${PREVIEW_MIN}px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3)}`,
+
+  // The boundary itself is `@dsh-cool/ui`'s: the element is 1px wide so that it
+  // covers the sidebar's own hairline, and the shared sheet gives it the invisible
+  // hit band and the hover cue. What stays here is what is stated on this page's
+  // own root, which is the cursor for the length of a gesture.
   // While the boundary is being dragged the whole page takes the axis's cursor and
   // stops selecting text: the pointer leaves a 1px line at the first frame of a
   // drag, and a crossed row would otherwise highlight under it.
   `.${FILES_ROOT_CLASS}[data-resizing],.${FILES_ROOT_CLASS}[data-resizing] *{user-select:none}`,
-  `.${FILES_ROOT_CLASS}[data-resizing=col],.${FILES_ROOT_CLASS}[data-resizing=col] *{cursor:col-resize}`,
 
   // 3. Sidebar chrome: one row, the workspace's name on the left and Refresh on
   //    the right.
@@ -121,6 +139,14 @@ const FILES_CSS = [
   '.dsh-cf-row-icon{flex:none;display:inline-flex;color:var(--dsw-alias-label-secondary)}',
   '.dsh-cf-row[data-type=directory] .dsh-cf-row-icon{color:var(--dsw-alias-brand-primary)}',
   '.dsh-cf-row-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  // An entry the workspace's own ignore rules leave out. It is still a row the
+  // reader can open — it is on disk — so it is dimmed by one step rather than
+  // struck through or hidden: the name stays legible, and the tree still says
+  // which half of it the project considers its own. The icon follows the name,
+  // otherwise a dimmed file would keep a full-strength glyph beside it.
+  '.dsh-cf-row[data-ignored] .dsh-cf-row-name{color:var(--dsw-alias-label-secondary)}',
+  '.dsh-cf-row[data-ignored] .dsh-cf-row-icon{opacity:.6}',
+  '.dsh-cf-row[data-ignored][data-type=directory] .dsh-cf-row-icon{opacity:.6}',
   // A file the editor holds an unsaved draft for. The tree says so without
   // opening the file: a lost edit is the one thing this tab must not hide.
   '.dsh-cf-row-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-state-warn-primary)}',
@@ -144,14 +170,37 @@ const FILES_CSS = [
   '.dsh-cf-file-meta{flex:none;color:var(--dsw-alias-label-secondary);opacity:.75;font-size:11px;font-variant-numeric:tabular-nums}',
   // Saving has no header state of its own: a draft is shown by the dot beside
   // its file in the tree, and the shortcut that writes it lives in the field.
-  // The switch's list is the shell's `Menu`, so only its trigger is this page's
-  // (see `mode.tsx`): the card, the rows, the check and the keys are the ones
-  // every other dropdown in the window uses.
-  '.dsh-cf-mode{flex:none;display:inline-flex}',
-  '.dsh-cf-mode-btn{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
-  '.dsh-cf-mode-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
-  '.dsh-cf-mode-btn[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}',
-  '.dsh-cf-mode-btn svg{flex:none;opacity:.7}',
+  //
+  // The switch is the shell's `SegmentedTabs` (see `mode.tsx`), so only its box
+  // is set here: the track, the indicator's slide, the tab roles and the key walk
+  // all belong to the primitive. Its own metrics are a settings page's — 34px
+  // tabs in a 4px-padded track — while this head is 36px tall and the control in
+  // it is two glyphs, so the tabs come down to 20px: 28px of track, which sits in
+  // the head with air above and below it, as the sidebar's 24px icon buttons do.
+  //
+  // The track's own height is deliberately not restated: it is the tabs plus that
+  // 4px padding, and the indicator's height is `track - 8px` — pinning the track
+  // to a number of its own would desynchronise the sliding pill from the tab it
+  // is meant to sit under. Only the tab box changes; the 4px inset the
+  // primitive computes its geometry from is left exactly as it sets it.
+  //
+  // The doubled class lifts these rules above the primitive's own single-class
+  // module selectors without `!important`, whatever order the sheets land in. The
+  // head centres it vertically already; `flex:none` keeps the path column from
+  // squeezing it, since this is the one control in the head that must stay whole.
+  '.dsh-cf-mode.dsh-cf-mode{flex:none}',
+  '.dsh-cf-mode.dsh-cf-mode [role=tab]{height:20px;padding:0 8px;font-size:11px;line-height:20px;gap:0}',
+  // Selecting a tab is not a headline: the shell bolds the pick because its own
+  // segmented controls sit on pages with room for it, while a 20px tab in a
+  // toolbar only jitters when the weight flips.
+  '.dsh-cf-mode.dsh-cf-mode [role=tab][aria-selected=true]{font-weight:500}',
+  // The glyph is the segment, so it carries the hover text (`mode.tsx`); the box
+  // around it only centres the icon in the tab.
+  '.dsh-cf-mode.dsh-cf-mode .dsh-cf-mode-glyph{display:inline-flex;align-items:center;justify-content:center}',
+  '.dsh-cf-mode.dsh-cf-mode svg{display:block;opacity:.85}',
+  // The word behind each icon: out of sight, still the tab's accessible name. A
+  // tab whose only child were a decorative glyph would have no name at all.
+  '.dsh-cf-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}',
   // A failed save is a notice above the body, not a replacement for it: the
   // draft is still there, and the reader decides whether to reload.
   '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
@@ -167,7 +216,7 @@ const FILES_CSS = [
   // the caret drifts away from the glyph it sits on. That includes the ligature
   // setting: a form field may shape `=>` differently from a `<pre>`, and two
   // glyphs of difference on one line is enough to shift everything under them.
-  '.dsh-cf-edit{flex:1 1 auto;display:flex;min-width:0;min-height:0;position:relative;overflow:hidden;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px;font-variant-ligatures:none}',
+  `.dsh-cf-edit{flex:1 1 auto;display:flex;min-width:0;min-height:0;position:relative;overflow:hidden;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:${CODE_LINE_HEIGHT}px;font-variant-ligatures:none}`,
   '.dsh-cf-edit-gutter{flex:none;position:relative;overflow:hidden;box-sizing:border-box;text-align:right;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);opacity:.55;user-select:none;-webkit-user-select:none;pointer-events:none}',
   '.dsh-cf-edit-numbers{margin:0;padding:12px 8px 24px;white-space:pre;font:inherit;line-height:inherit;will-change:transform}',
   '.dsh-cf-edit-pane{position:relative;flex:1 1 auto;min-width:0;overflow:hidden}',
@@ -192,7 +241,7 @@ const FILES_CSS = [
   // The columns start at the top rather than stretching: a stretched code block
   // would pay for its horizontal scrollbar out of its own height and clip the
   // last row, while an auto-height one grows to keep it.
-  '.dsh-cf-code-view{display:flex;align-items:flex-start;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:19.2px}',
+  `.dsh-cf-code-view{display:flex;align-items:flex-start;font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;line-height:${CODE_LINE_HEIGHT}px}`,
   // The gutter is a `<pre>` holding one number per line, right-aligned against
   // the code. It repeats the code's top and bottom padding so both columns begin
   // and end on the same line; `overflow:hidden` keeps it out of any scrolling.
@@ -205,13 +254,45 @@ const FILES_CSS = [
   // number follows in the gutter.
   '.dsh-cf-code{flex:1 1 auto;min-width:0;margin:0;padding:12px 16px 24px 8px;overflow-x:auto;overflow-y:hidden;font-family:inherit;font-size:inherit;line-height:inherit;tab-size:2;color:var(--shiki-foreground,var(--dsw-alias-label-primary))}',
   '.dsh-cf-code code{display:block;font:inherit;line-height:inherit;white-space:normal}',
-  '.dsh-cf-line{display:block;height:19.2px;white-space:pre}',
+  `.dsh-cf-line{display:block;height:${CODE_LINE_HEIGHT}px;white-space:pre}`,
   // Syntax colours are not styled here: the tokenizer emits the shell's
   // `--shiki-*` colours (and italic/bold/underline) inline on the spans it
   // builds (see `highlight.ts`), and only paints a token when it differs from
   // the plain foreground. The sheet therefore owns the block's font and the
   // plain foreground, and nothing else about how code is coloured.
   '.dsh-cf-truncated{flex:none;margin:8px 16px 0;padding:6px 10px;border-radius:5px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+  // The image pane. A picture is drawn at its own proportions inside a
+  // scrollport rather than cropped to fill the frame: a tall screenshot has to
+  // stay readable, and a fixed height with `object-fit:contain` would trade that
+  // for a picture the pane made up. The button around the picture is the click
+  // target only — no border, no fill, no padding of its own, so the picture is
+  // the whole surface, and the pane's padding is what keeps it off the edges.
+  '.dsh-cf-image{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;box-sizing:border-box;min-height:100%;padding:24px}',
+  '.dsh-cf-image-open{display:block;max-width:100%;padding:0;border:0;background:transparent;cursor:zoom-in}',
+  // The picture's frame is the shell's own elevation and radius, the pair the
+  // lightbox opens with: a hand-picked `rgba(0,0,0,…)` shadow would be the one
+  // colour on this page that a light theme and a third-party skin cannot adjust.
+  '.dsh-cf-image-img{display:block;max-width:100%;height:auto;border-radius:var(--dsw-radius-lg);box-shadow:var(--dsw-elevation-prominent)}',
+  // The picture fades in as it decodes; a half-painted image beside the page's
+  // own chrome reads as a glitch, while the status line says what is happening.
+  '.dsh-cf-image[data-state=loading] .dsh-cf-image-img{opacity:0}',
+  '.dsh-cf-image-status{color:var(--dsw-alias-label-secondary);font-size:11.5px}',
+  // A picture the browser could not decode is the one failure an image pane can
+  // hit (a mistyped path, a file the Host refuses), so the notice carries the
+  // retry beside it instead of sitting above an empty stage.
+  '.dsh-cf-image-failed{display:inline-flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
+  // The Markdown pane. The shell's renderer brings its own typography (headings,
+  // lists, tables, fences), so this rule adds only the document's margins: a page
+  // reads better with a little air around it than flush against the pane edge,
+  // and the measure is capped so a wide window does not stretch a paragraph to
+  // two hundred characters.
+  // One measure for every body, so switching files does not slide the left edge:
+  // the source view's rows start at the same axis a rendered document's text does.
+  '.dsh-cf-markdown{box-sizing:border-box;width:100%;max-width:var(--dsh-cf-measure);margin:0 auto;padding:20px 28px 48px}',
+  // Front matter, drawn above a rendered document. It is source, so it looks like
+  // the source view's own block: the same surface the notices use, the same mono
+  // metrics, and no colour of its own that a theme would have to know about.
+  '.dsh-cf-front-matter{margin:0 0 20px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-family:var(--dsw-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:11.5px;line-height:1.6;overflow-x:auto}',
   '.dsh-cf-empty{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--dsw-alias-label-secondary)}',
   '.dsh-cf-empty-title{color:var(--dsw-alias-label-primary);font-size:13px}',
   '.dsh-cf-empty-hint{max-width:320px;font-size:11.5px}',
@@ -233,25 +314,19 @@ const FILES_CSS = [
   // `layer-2`, which this rule does not touch. The scoping is the whole
   // contract — a profile without the theme never matches the selector, so the
   // tab draws its own opaque canvas exactly as it did before.
-  `html.ct-bg-on .${FILES_ROOT_CLASS}{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+  wallpaperCss(FILES_ROOT_CLASS),
 ]
 
 /**
- * Insert this plugin's stylesheet once and hand back its disposer.
+ * Insert this plugin's stylesheet — and the shared one — once for the plugin
+ * lifetime.
  *
- * @returns the function that removes the element again.
+ * The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+ * rather than this file's: see `insertPluginStyles`. What stays here is the
+ * plugin's own id, which is the name that ownership record carries.
+ *
+ * @returns disposer that removes exactly this sheet.
  */
 export function insertFilesStyles(): () => void {
-  const element = document.createElement('style')
-  // The ownership record every DSH bundle writes on the tags it injects: the
-  // client module system books a `<style>` by `data-plugin`, and an unowned tag
-  // that appears while some other module materializes can be claimed by it and
-  // removed with that module. Naming this package keeps the sheet its own.
-  element.setAttribute('data-plugin', 'dsh-cool-file')
-  element.setAttribute('data-dsh-cool-file', 'styles')
-  element.textContent = FILES_CSS.join('\n')
-  document.head.appendChild(element)
-  return () => {
-    element.remove()
-  }
+  return insertPluginStyles(PACKAGE_ID, FILES_CSS.join('\n'))
 }

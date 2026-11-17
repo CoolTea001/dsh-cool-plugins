@@ -26,7 +26,7 @@ import {
   Menu,
   Modal,
   type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@dsh-cool/ui'
 import {
   IconAutostart,
   IconEdit,
@@ -49,7 +49,7 @@ import { CommandsDialog } from './commands-dialog.js'
 import { StartupDialog } from './startup-dialog.js'
 import { loadCommands, saveCommands, type CommandDef } from './commands.js'
 import { writeGeometry } from './geometry.js'
-import { ResizeHandle } from './resize-handle.js'
+import { ResizeHandle } from '@dsh-cool/ui'
 import {
   clampSideWidth,
   readSideLayout,
@@ -1620,6 +1620,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       ),
       // The sidebar's own right edge: the boundary its width is dragged by.
       h(ResizeHandle, {
+        axis: 'col',
         key: 'resize',
         onStart: startSideResize,
         onDrag: dragSideResize,

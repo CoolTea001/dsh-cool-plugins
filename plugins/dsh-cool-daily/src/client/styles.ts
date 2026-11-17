@@ -9,6 +9,8 @@
  * instead of forcing a palette of its own.
  */
 
+import { insertPluginStyles } from '@dsh-cool/ui'
+
 /** Build-time define from tsdown.config.ts: the id the loader registers this bundle under. */
 declare const __DSH_CD_PLUGIN_ID__: string
 
@@ -302,12 +304,5 @@ const PLUGIN_CSS = [
  * @returns the disposer that removes the style element.
  */
 export function insertStyles(): () => void {
-  const element = document.createElement('style')
-  element.setAttribute('data-plugin', __DSH_CD_PLUGIN_ID__)
-  element.setAttribute('data-dsh-cool-daily', 'styles')
-  element.textContent = PLUGIN_CSS
-  document.head.appendChild(element)
-  return () => {
-    element.remove()
-  }
+  return insertPluginStyles(__DSH_CD_PLUGIN_ID__, PLUGIN_CSS)
 }

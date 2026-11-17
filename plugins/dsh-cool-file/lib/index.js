@@ -1,4 +1,396 @@
+import { join } from "node:path";
+// src/shared/kinds.ts
+/**
+* What kind of preview one workspace path earns.
+*
+* Both halves read this table. The browser half asks it which pane to draw, and
+* the Host half asks it which paths its raw-bytes route may answer — so the set
+* of files the page can display as an image and the set the server will send as
+* an image are one list, not two tables that can drift.
+*
+* A path not in either table is text: the preview reads its lines and colours
+* them, and the editor may write it back. Nothing here reads the file itself —
+* a kind is decided by the name the workspace already gave it, which is what
+* keeps the decision available before a byte is requested.
+*/
+/** Where the Host serves a workspace file's raw bytes. */
+const RAW_ROUTE = "/dsh-cool-file/api/raw";
+/**
+* Largest image the preview will serve, in bytes.
+*
+* Both halves need it: the Host refuses to send more, and the page can tell a
+* reader that a picture is over the cap before it asks for one. It is generous
+* because a photograph or a screenshot routinely passes the editor's 2 MiB limit.
+*/
+const IMAGE_MAX_BYTES = 25165824;
+/**
+* Media type per image extension, the only extensions the raw route answers.
+*
+* Every entry is a format this page's browsers decode. TIFF is deliberately
+* absent even though it is an image: no browser renders one, so listing it would
+* only offer a reader a pane that can never fill — and, worse, would deny them the
+* source view that is the only thing they could actually read. ICO stays because
+* Chromium and WebKit both decode it.
+*/
+const IMAGE_MEDIA_TYPES = {
+	apng: "image/apng",
+	avif: "image/avif",
+	bmp: "image/bmp",
+	gif: "image/gif",
+	ico: "image/x-icon",
+	jpe: "image/jpeg",
+	jpeg: "image/jpeg",
+	jpg: "image/jpeg",
+	png: "image/png",
+	svg: "image/svg+xml",
+	webp: "image/webp"
+};
+/**
+* The extension of a workspace path, lower-cased and without its dot.
+*
+* @param path - a `/`-joined workspace path.
+* @returns the final segment's extension, or '' when it has none.
+*/
+function extensionOf(path) {
+	const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+	const dot = name.lastIndexOf(".");
+	return dot <= 0 ? "" : name.slice(dot + 1);
+}
+/**
+* The media type the raw route should answer for one path.
+*
+* @param path - a `/`-joined workspace path.
+* @returns the image media type, or undefined when the path is not an image.
+*/
+function imageMediaTypeOf(path) {
+	return IMAGE_MEDIA_TYPES[extensionOf(path)];
+}
+// src/host/gitignore.ts
+/**
+* Which listed children the workspace's own ignore rules leave out.
+*
+* A project's `.gitignore` is the author's statement about the tree: it says
+* which paths are generated, vendored, or private. The Files tab still lists
+* them — the tab shows what the disk holds — but a row the project has excluded
+* is drawn one step quieter, so the tree reads the way the repository does.
+*
+* The rules are Git's, so Git is what answers: `check-ignore` already resolves
+* the whole chain a hand-rolled matcher would have to reimplement — nested
+* `.gitignore` files, `.git/info/exclude`, the global excludes file, `.ignore`,
+* negations, and directory-only patterns — and it answers a whole level in one
+* run. A tracked file that happens to match a pattern is *not* ignored by Git,
+* and `check-ignore` reports exactly that without `--no-index`, which is the
+* reading wanted here: an entry the repository tracks is part of the project
+* whatever a pattern says.
+*
+* Like the hidden-mark probe, this is best-effort. A directory outside any
+* repository, a host without Git, and a run that fails all leave the level
+* undimmed rather than guessed at: a quieter row is a hint, and a hint is not
+* worth an error state or a second implementation of Git's matcher.
+*/
+/** Largest stdin one run may carry; a level's names, NUL-joined. */
+const MAX_STDIN_BYTES = 131072;
+/** Largest stdout one run may collect; one NUL-terminated name per match. */
+const MAX_STDOUT_BYTES = 262144;
+/** Largest stderr one run may collect; a diagnosis is one short line. */
+const MAX_STDERR_BYTES = 8192;
+/** How long a killed run may take to settle before its result is ignored. */
+const GRACE_MS = 1e3;
+/** How long one run may take before it is killed. */
+const TIMEOUT_MS = 3e3;
+/**
+* Environment every run gets.
+*
+* `GIT_OPTIONAL_LOCKS` keeps a read-only question from touching the index, and
+* the prompt pin turns an unexpected credential request into a failed run rather
+* than a hung one — nothing here can answer a prompt. Colour is irrelevant to a
+* `-z` answer but costs nothing to pin.
+*/
+const GIT_ENV = {
+	NO_COLOR: "1",
+	GIT_OPTIONAL_LOCKS: "0",
+	GIT_TERMINAL_PROMPT: "0"
+};
+/**
+* The names of one level that the workspace's ignore rules exclude.
+*
+* @param ctx - the Host plugin context.
+* @param directory - the absolute directory the listing answered for.
+* @param names - the level's child names, in listing order.
+* @returns the ignored names; empty when no rule, no repository, or no Git can answer.
+*/
+async function ignoredNames(ctx, directory, names) {
+	const wanted = names.filter((name) => name !== "");
+	if (wanted.length === 0) return /* @__PURE__ */ new Set();
+	const sent = [];
+	let bytes = 0;
+	for (const name of wanted) {
+		const size = Buffer.byteLength(name, "utf8") + 1;
+		if (bytes + size > MAX_STDIN_BYTES) break;
+		sent.push(name);
+		bytes += size;
+	}
+	if (sent.length === 0) return /* @__PURE__ */ new Set();
+	const reported = await runCheckIgnore(ctx, directory, `${sent.join("\0")}\0`);
+	if (reported === void 0) return /* @__PURE__ */ new Set();
+	const wantedSet = new Set(sent);
+	const ignored = /* @__PURE__ */ new Set();
+	for (const name of reported) if (wantedSet.has(name)) ignored.add(name);
+	return ignored;
+}
+/**
+* Run `git check-ignore` over one level and read the names it reported.
+*
+* Exit `0` means at least one name matched, `1` means none did; both are ordinary
+* answers. Anything else — most commonly `128` for a directory outside any
+* repository — leaves the level unmarked.
+*
+* @param ctx - the Host plugin context.
+* @param directory - the absolute directory the run is made against.
+* @param input - the NUL-joined names, terminated by a NUL.
+* @returns the reported names, or undefined when Git could not answer.
+*/
+async function runCheckIgnore(ctx, directory, input) {
+	const subprocess = ctx.get("subprocess");
+	if (subprocess === void 0 || typeof subprocess.spawn !== "function") return void 0;
+	let handle;
+	try {
+		handle = subprocess.spawn({
+			argv: [
+				"git",
+				"check-ignore",
+				"--stdin",
+				"-z"
+			],
+			cwd: directory,
+			stdio: {
+				stdin: { data: input },
+				stdout: { maxBytes: MAX_STDOUT_BYTES },
+				stderr: { maxBytes: MAX_STDERR_BYTES }
+			},
+			graceMs: GRACE_MS,
+			env: GIT_ENV
+		});
+	} catch {
+		return;
+	}
+	const readers = handle?.collected;
+	if (typeof handle?.done?.then !== "function" || readers === void 0) {
+		try {
+			handle?.terminate?.();
+		} catch {}
+		return;
+	}
+	const timer = setTimeout(() => {
+		try {
+			handle.terminate();
+		} catch {}
+	}, TIMEOUT_MS);
+	try {
+		if ((await handle.done)?.exitCode !== 0) return void 0;
+		const read = typeof readers.stdout?.readFrom === "function" ? readers.stdout.readFrom(0) : void 0;
+		if (read?.lossy === true || typeof read?.text !== "string") return void 0;
+		return read.text.split("\0").filter((name) => name !== "");
+	} catch {
+		return;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+// src/host/hidden.ts
+/**
+* Which listed children the host platform itself treats as hidden.
+*
+* A dot-prefixed name is the POSIX convention, and it is the only "hidden" mark
+* a plain directory read carries: neither Node's dirents nor the filesystem
+* service's listing exposes a platform visibility bit, so a name has to be
+* judged here rather than read off the entry. Two judgements are combined — the
+* convention, and a probe of the platform's own hidden mark — and the union is
+* what the page filters on:
+*
+* - Linux and every other system with no attribute to ask about: a leading `.`
+*   is the convention, and it is the whole answer.
+* - macOS: the Finder's invisible mark is the `UF_HIDDEN` flag (which is also
+*   what `chflags hidden` and `SetFile -a V` set), and it is not part of a
+*   `readdir` answer. One `find -flags hidden` over the listed level reports
+*   those names.
+* - Windows: the hidden attribute is `FILE_ATTRIBUTE_HIDDEN`, which dirents drop
+*   as well; `attrib` reports it per child.
+*
+* The probe is best-effort by construction. A host without a process substrate,
+* a platform with no attribute worth asking about, and a probe that exits
+* non-zero all leave the convention in charge, so the page never draws a folder
+* differently just because a helper process could not run. Nothing here throws:
+* a visibility hint is not worth failing a listing over.
+*/
+/** Largest stdout one probe may collect; a level's hidden names are short. */
+const PROBE_MAX_BYTES = 65536;
+/** Largest stderr one probe may collect; a diagnosis is one short line. */
+const PROBE_STDERR_BYTES = 8192;
+/** How long a killed probe may take to settle before its result is ignored. */
+const PROBE_GRACE_MS = 1e3;
+/** How long one probe may run before it is killed. */
+const PROBE_TIMEOUT_MS = 1500;
+/**
+* Whether a name carries the POSIX hidden mark.
+*
+* @param name - the basename of one listed child.
+* @returns true for a dot-prefixed name.
+*/
+function isHiddenName(name) {
+	return name.startsWith(".");
+}
+/**
+* The probes that answer for this host, if any.
+*
+* The `find` output is NUL-delimited and relative to the probe's own working
+* directory, so a name holding a newline or a space needs no quoting and no
+* shell sits between this module and the answer. `attrib` insists on printing
+* whole paths, so its mask is made absolute and the name is read back off that
+* prefix rather than off a column position — the tool's column widths vary with
+* the attributes present.
+*
+* @param platform - the Host's own `process.platform`.
+* @returns the probes to run, in order; empty when the platform has none.
+*/
+function probesFor(platform) {
+	if (platform === "darwin") return [{
+		argv: () => [
+			"/usr/bin/find",
+			".",
+			"-mindepth",
+			"1",
+			"-maxdepth",
+			"1",
+			"-flags",
+			"hidden",
+			"-print0"
+		],
+		parse: (stdout) => stdout.split("\0").filter((line) => line.startsWith("./")).map((line) => line.slice(2))
+	}];
+	if (platform === "win32") {
+		/**
+		* Read `attrib`'s rows for one directory.
+		*
+		* A row is `<attribute letters><spaces><absolute path>`; the letters are
+		* everything before the directory prefix this run was given, and `H` among
+		* them is the hidden attribute. A name that itself contains the prefix or an
+		* `H` is never misread, because only the letters column is scanned.
+		*/
+		const parse = (stdout, directory) => {
+			const prefix = directory.endsWith("\\") ? directory : `${directory}\\`;
+			const names = [];
+			for (const line of stdout.split(/\r?\n/)) {
+				if (line.trim() === "") continue;
+				const at = line.indexOf(prefix);
+				if (at === -1) continue;
+				if (!line.slice(0, at).toUpperCase().includes("H")) continue;
+				const name = line.slice(at + prefix.length).trim();
+				if (name !== "") names.push(name);
+			}
+			return names;
+		};
+		return [{
+			argv: (directory) => ["attrib", `${directory}\\*`],
+			parse
+		}, {
+			argv: (directory) => [
+				"attrib",
+				`${directory}\\*`,
+				"/d"
+			],
+			parse
+		}];
+	}
+	return [];
+}
+/**
+* Run one probe and read the names it reported.
+*
+* @param ctx - the Host plugin context.
+* @param directory - the absolute directory the probe runs in.
+* @param probe - the invocation to make.
+* @returns the reported names, or undefined when the probe could not answer.
+*/
+async function runProbe(ctx, directory, probe) {
+	const subprocess = ctx.get("subprocess");
+	if (subprocess === void 0 || typeof subprocess.spawn !== "function") return void 0;
+	let handle;
+	try {
+		handle = subprocess.spawn({
+			argv: [...probe.argv(directory)],
+			cwd: directory,
+			stdio: {
+				stdin: "ignore",
+				stdout: { maxBytes: PROBE_MAX_BYTES },
+				stderr: { maxBytes: PROBE_STDERR_BYTES }
+			},
+			graceMs: PROBE_GRACE_MS
+		});
+	} catch {
+		return;
+	}
+	const readers = handle?.collected;
+	if (typeof handle?.done?.then !== "function" || readers === void 0) {
+		try {
+			handle?.terminate?.();
+		} catch {}
+		return;
+	}
+	const timer = setTimeout(() => {
+		try {
+			handle.terminate();
+		} catch {}
+	}, PROBE_TIMEOUT_MS);
+	try {
+		const outcome = await handle.done;
+		if (typeof outcome?.exitCode !== "number" || outcome.exitCode !== 0) return void 0;
+		const read = typeof readers.stdout?.readFrom === "function" ? readers.stdout.readFrom(0) : void 0;
+		if (read?.lossy === true || typeof read?.text !== "string") return void 0;
+		return probe.parse(read.text, directory);
+	} catch {
+		return;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+/**
+* The names of one directory level that the platform itself marks hidden.
+*
+* @param ctx - the Host plugin context.
+* @param directory - the absolute directory the listing answered for.
+* @returns the hidden basenames; empty when no probe can answer.
+*/
+async function platformHiddenNames(ctx, directory) {
+	const probes = probesFor(process.platform);
+	if (probes.length === 0) return /* @__PURE__ */ new Set();
+	const names = /* @__PURE__ */ new Set();
+	for (const probe of probes) {
+		const reported = await runProbe(ctx, directory, probe);
+		if (reported === void 0) continue;
+		for (const name of reported) if (name !== "") names.add(name);
+	}
+	return names;
+}
 // src/host/files.ts
+/**
+* Workspace reads — and the editor's one guarded write — for the Files tab.
+*
+* Two questions the page asks, and one answer it gives: what a directory holds,
+* what a text file says (paged for the preview, whole for the editor), and the
+* text the editor wants written back. Reads are answered through the composed
+* `workspaceFiles` service, so the session's own workspace root is the only
+* directory a page can reach and every listing stays inside it. The write is the
+* exception: that service is read-only, so saving goes through `ctx.fs`, fenced
+* by the session's own sandbox policy and guarded by the freshness token the
+* editor was handed. A session that is not live yet still owns a durable header,
+* and that header's `cwd` is what lets a reopened page answer for its workspace
+* on the first request.
+*
+* A session the Host cannot name at all falls back to the executor's default
+* directory, which is at least a directory that exists; the page then shows
+* whatever that directory holds rather than an empty tab.
+*/
 /** How many lines one preview asks for; the service's own cap still applies. */
 const READ_LINES = 5e3;
 /**
@@ -133,16 +525,25 @@ async function listDirectory(ctx, sessionId, rawPath) {
 	const workspace = await workspaceName(ctx, root);
 	try {
 		const listing = await files.list(scopeOf(sessionId, root), path === "" ? "." : path, void 0);
+		const entries = Array.isArray(listing.entries) ? listing.entries : [];
+		const absolute = typeof listing.path === "string" && listing.path !== "" ? join(root, listing.path) : root;
+		const names = entries.map((entry) => String(entry.name));
+		const [marked, excluded] = await Promise.all([platformHiddenNames(ctx, absolute), ignoredNames(ctx, absolute, names)]);
 		return {
 			ok: true,
 			path: typeof listing.path === "string" ? listing.path : path,
 			root,
 			...workspace === void 0 ? {} : { workspace },
-			entries: listing.entries.map((entry) => ({
-				name: String(entry.name),
-				type: entry.type === "directory" || entry.type === "file" ? entry.type : "other",
-				...typeof entry.size === "number" ? { size: entry.size } : {}
-			})),
+			entries: entries.map((entry, index) => {
+				const name = names[index] ?? String(entry.name);
+				return {
+					name,
+					type: entry.type === "directory" || entry.type === "file" ? entry.type : "other",
+					...typeof entry.size === "number" ? { size: entry.size } : {},
+					hidden: isHiddenName(name) || marked.has(name),
+					...excluded.has(name) ? { ignored: true } : {}
+				};
+			}),
 			truncated: listing.truncated === true
 		};
 	} catch (error) {
@@ -261,6 +662,70 @@ async function readWholeFile(ctx, sessionId, rawPath) {
 			text,
 			bytes: data.length,
 			version: String(info.version)
+		};
+	} catch (error) {
+		return {
+			ok: false,
+			error: messageOf(error)
+		};
+	}
+}
+/**
+* The raw bytes of one workspace image, for the preview's `<img>`.
+*
+* The text routes answer JSON; this one answers a body, because what the page
+* wants is the picture itself. Three fences keep it as narrow as the reads: the
+* path must stay inside the workspace, the name must be an extension the shared
+* kind table calls an image — which is the same table the page used to decide to
+* ask — and the file must sit under the image cap, checked before it is read so
+* an oversized file is refused rather than buffered and dropped.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the file as a workspace path.
+* @returns the media type and bytes, or a failure the route answers with.
+*/
+async function readImage(ctx, sessionId, rawPath) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		error: "The path must name a workspace file"
+	};
+	const mediaType = imageMediaTypeOf(path);
+	if (mediaType === void 0) return {
+		ok: false,
+		error: "This file is not an image"
+	};
+	const root = await resolveRoot(ctx, sessionId);
+	if (root === void 0) return {
+		ok: false,
+		error: "This session has no working directory to browse"
+	};
+	const fs = ctx.get("fs");
+	if (fs === void 0) return {
+		ok: false,
+		error: "The filesystem service is not mounted"
+	};
+	try {
+		const target = await fs.resolve(path, { cwd: root });
+		const info = await fs.stat(target);
+		if (info === void 0) return {
+			ok: false,
+			error: "This file no longer exists"
+		};
+		if (info.type !== "file") return {
+			ok: false,
+			error: "This path is not a regular file"
+		};
+		if (typeof info.size === "number" && info.size > 25165824) return {
+			ok: false,
+			reason: "too-large",
+			error: `This image is larger than ${IMAGE_MAX_BYTES} bytes`
+		};
+		return {
+			ok: true,
+			mediaType,
+			data: await fs.readBytes(target, void 0, IMAGE_MAX_BYTES)
 		};
 	} catch (error) {
 		return {
@@ -393,12 +858,13 @@ async function saveFile(ctx, sessionId, rawPath, rawText, rawVersion) {
 * every question it asks the Host crosses a same-origin route registered on the
 * `webServer` carrier. Each route answers JSON and never rejects: a transport or
 * service failure becomes an `{ ok: false }` result the page draws in its own
-* error state.
+* error state. The one exception is the raw route, which answers bytes rather
+* than JSON because its caller is an `<img>` that cannot read either.
 *
 * The Host stays authoritative about *which* workspace is browsed. A request may
 * name the session it belongs to, but never a directory: the root is read from
 * that session's own header, so a page cannot point the plugin at a tree the
-* session does not own. Three routes read; the fourth is the editor's save, and
+* session does not own. Four routes read; the fifth is the editor's save, and
 * it accepts nothing but the text of one file already inside that workspace.
 */
 /** Route table, kept in one place so the two halves cannot drift. */
@@ -406,7 +872,8 @@ const ROUTES = {
 	list: "/dsh-cool-file/api/list",
 	read: "/dsh-cool-file/api/read",
 	text: "/dsh-cool-file/api/text",
-	write: "/dsh-cool-file/api/write"
+	write: "/dsh-cool-file/api/write",
+	raw: RAW_ROUTE
 };
 /** Longest body the read routes accept; each is a path and a session id. */
 const MAX_BODY_BYTES = 16384;
@@ -500,7 +967,43 @@ async function handle(req, res, run, limit = MAX_BODY_BYTES) {
 	sendJson(res, 200, await run(body));
 }
 /**
-* Register the four routes on the browser HTTP carrier.
+* Answer one image request with the file's own bytes.
+*
+* A `GET` with the path in the query string, because the caller is an `<img>`
+* element and not this plugin's `fetch`: an image address cannot carry a body,
+* and a browser will not let script read the answer either way. Everything else
+* is the same fence the JSON routes stand behind — the same cross-origin
+* refusal, the same workspace-confined path — and a failure is answered with a
+* status and a short text body, which is what an `<img>` turns into its own
+* broken-image state rather than into a picture.
+*
+* @param ctx - the Host plugin context.
+* @param req - the incoming request; its query names the session and the file.
+* @param res - the response to write.
+*/
+async function handleRaw(ctx, req, res) {
+	if (!methodAllowed(req, res, ["GET", "HEAD"])) return;
+	const query = new URL(typeof req.url === "string" ? req.url : "/", "http://localhost").searchParams;
+	const answer = await readImage(ctx, query.get("sessionId") ?? void 0, query.get("path") ?? "");
+	if (answer.ok !== true) {
+		res.writeHead(404, {
+			"content-type": "text/plain; charset=utf-8",
+			"cache-control": "no-store"
+		});
+		res.end(answer.error);
+		return;
+	}
+	res.writeHead(200, {
+		"content-type": answer.mediaType,
+		"content-length": String(answer.data.length),
+		"cache-control": "no-store",
+		"content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+		"x-content-type-options": "nosniff"
+	});
+	res.end(req.method === "HEAD" ? void 0 : Buffer.from(answer.data));
+}
+/**
+* Register the five routes on the browser HTTP carrier.
 *
 * @param ctx - the Host plugin context.
 * @returns the disposer that removes the routes with the plugin.
@@ -527,7 +1030,8 @@ function registerRoutes(ctx) {
 		route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))),
 		route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
 		route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path))),
-		route(ROUTES.write, (req, res) => handle(req, res, (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version), MAX_WRITE_BODY_BYTES))
+		route(ROUTES.write, (req, res) => handle(req, res, (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version), MAX_WRITE_BODY_BYTES)),
+		route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res))
 	];
 	return () => {
 		for (const dispose of disposers) dispose();

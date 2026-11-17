@@ -561,6 +561,468 @@ window.__ModuleLoader__.load({
 			"error.model-truncated": "模型在写出提交信息前就把输出预算用在了思考上，请重试或降低默认推理强度",
 			"error.empty-message": "模型未返回提交信息"
 		};
+		// ../../packages/ui/src/styles/inject.ts
+		/**
+		* Hand one sheet to the shell's styles service.
+		*
+		* @param css - the sheet's text.
+		* @returns its disposer, or null when this build has no service.
+		*/
+		function insertViaPlatform(css) {
+			try {
+				const service = typeof styles === "undefined" ? void 0 : styles;
+				if (service === void 0 || typeof service.insert !== "function") return null;
+				const dispose = service.insert(css);
+				return typeof dispose === "function" ? dispose : null;
+			} catch {
+				return null;
+			}
+		}
+		/**
+		* Insert a plugin's stylesheet — the shared one included — as a single tag.
+		*
+		* The sheet is one tag rather than one per owner: the rule for the shared part
+		* and the rule for a plugin's own part are equally owned by that plugin, and a
+		* second tag would only be a second thing to leak. Callers hand in their own
+		* rules and get the shared frame for free, which is what keeps two plugins from
+		* shipping two subtly different empty-state or divider rules.
+		*
+		* Insert it from `apply()`, inside `ctx.effect`, so the disposer runs when the
+		* plugin is unloaded or hot-replaced:
+		*
+		* ```ts
+		* ctx.effect(() => insertPluginStyles(__DSH_CG_PLUGIN_ID__, GIT_CSS), 'dsh-cool-git: styles')
+		* ```
+		*
+		* @param pluginId - the id the loader registered this bundle under; the tag's
+		*   ownership record, and the value the shell books it by.
+		* @param extraCss - the plugin's own rules, after the shared ones.
+		* @returns a disposer removing exactly this sheet.
+		*/
+		function insertPluginStyles(pluginId, extraCss) {
+			const css = extraCss === void 0 || extraCss === "" ? UI_CSS : `${UI_CSS}\n${extraCss}`;
+			const platformDispose = insertViaPlatform(css);
+			if (platformDispose !== null) return platformDispose;
+			const element = document.createElement("style");
+			element.setAttribute("data-plugin", pluginId);
+			element.setAttribute("data-dsh-cool-ui", pluginId);
+			element.textContent = css;
+			document.head.appendChild(element);
+			return () => {
+				element.remove();
+			};
+		}
+		/** The prefix every class in {@link UI_CSS} carries. */
+		const UI_PREFIX = "dsh-ui";
+		/**
+		* Build a shared class name from a suffix.
+		*
+		* Callers write `uiClass('resize')` rather than `'dsh-ui-resize'`, so the
+		* prefix is renamed in one place if it ever has to be.
+		*
+		* @param suffix - the part after the prefix, without a leading dash.
+		* @returns the class name.
+		*/
+		function uiClass(suffix) {
+			return `${UI_PREFIX}-${suffix}`;
+		}
+		/**
+		* The stylesheet rule half of the composer-seat hand-off.
+		*
+		* The Conversation shell keeps its composer seat mounted for every View and only
+		* floats it when a View declares `data-conversation-composer-overlay`. A page
+		* with no input of its own has to take the seat out, and the declarative half of
+		* that lives here: the seat is hidden on every frame the shell paints, including
+		* the frames before the page's mount effect has run.
+		*
+		* The rule is scoped by the page's own root class, which exists only while that
+		* page is mounted, so the other tabs keep their composer untouched and the rule
+		* disappears with the View. The imperative twin — the DOM write in
+		* `useComposerSeatSuppression` — stays, deliberately redundant in the same
+		* direction: it depends on nothing beyond the rendered tree.
+		*
+		* @param rootClass - the class the page renders on its root.
+		* @returns one CSS rule, to append to the plugin's own sheet.
+		*/
+		function composerSeatCss(rootClass) {
+			return `[data-conversation-scroll]:has(.${rootClass})>[data-composer-seat]{display:none}`;
+		}
+		/**
+		* The stylesheet rule half of the theme wallpaper's hand-off.
+		*
+		* `dsh-cool-theme` paints a fixed wallpaper layer behind the shell and marks the
+		* document with `ct-bg-on` for as long as that layer is mounted. The theme clears
+		* the shell's own canvas surfaces by name, but a plugin page that paints a
+		* canvas of its own still covers the image with it. Rebinding the two canvas
+		* tokens inside the page's root is what lets the image through, and it names
+		* nothing about the page's parts.
+		*
+		* The scoping is the whole contract: a profile without the theme never matches
+		* the selector, so the page draws its own opaque canvas exactly as it did
+		* before. Everything raised above the canvas keeps its fill, because only these
+		* two tokens are rebound.
+		*
+		* @param rootClass - the class the page renders on its root.
+		* @returns one CSS rule, to append to the plugin's own sheet.
+		*/
+		function wallpaperCss(rootClass) {
+			return `html.ct-bg-on .${rootClass}{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`;
+		}
+		/**
+		* The shared stylesheet.
+		*
+		* Every rule here is a fact more than one plugin has to state, and every color
+		* is a `--dsw-*` theme token, so a rule follows the active light or dark
+		* appearance — including third-party theme presets — instead of forcing a
+		* palette of its own. Nothing in it paints a surface of its own: the classes are
+		* applied inside a plugin's root, and the root keeps owning the canvas.
+		*
+		* What is here, and why each part is shared rather than copied:
+		*
+		* 1. The page frame — the one place a plugin gets a full-height column that
+		*    paints no fill of its own, so a theme's wallpaper shows through it.
+		* 2. The draggable boundary — one gesture, one hit target, one hover cue; three
+		*    copies of it meant three chances for the cue to drift from the hit target.
+		* 3. The scrollbar treatment — the shell's own tokens, applied the way its
+		*    lists apply them.
+		* 4. The wallpaper hand-off — `dsh-cool-theme` marks the document with
+		*    `ct-bg-on` while it has a wallpaper mounted, and a plugin page that paints
+		*    its own canvas has to clear the two tokens it paints with for the image to
+		*    show through. The rule is scoped by the plugin's own root class, so a
+		*    profile without the theme never matches it.
+		*/
+		const UI_CSS = [
+			`.${UI_PREFIX}-page{display:flex;flex:1 1 auto;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
+			`.${UI_PREFIX}-page *{box-sizing:border-box}`,
+			`.${UI_PREFIX}-page[data-surface=canvas]{background:var(--dsw-alias-bg-base)}`,
+			`.${UI_PREFIX}-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable both-edges}`,
+			`.${UI_PREFIX}-resize{position:absolute;z-index:2;touch-action:none}`,
+			`.${UI_PREFIX}-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}`,
+			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
+			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
+			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
+			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
+			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
+			`[data-resizing=row],[data-resizing=row] *{cursor:row-resize}`,
+			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+		].join("\n");
+		// ../../packages/ui/src/input.tsx
+		/**
+		* The shell's text field, with the one attribute its `Modal` looks for.
+		*
+		* `Input` is the shell's own control, so this module wraps rather than restates
+		* it: the markup, the icon gutter, the focus ring and the fill all stay the
+		* platform's. What it adds is a single, typed spelling of `data-modal-autofocus`.
+		*
+		* The attribute is how the platform's `Modal` picks the control that takes
+		* initial focus (`element.querySelector('[data-modal-autofocus]')`), and it is
+		* deliberately not React's `autoFocus`: React's runs before the layer stack has
+		* captured the invoking control, so returning focus on close would land in the
+		* wrong place. But the shell types `Input`'s props as the native input
+		* attributes, and TypeScript does not admit an arbitrary `data-*` key on a
+		* component whose props are an intersection — so a caller that wants the
+		* attribute has to spell it in a way the type system refuses, and a plugin that
+		* worked around that with its own ambient declaration would be describing an API
+		* the shell does not publish.
+		*
+		* A named boolean is the fix: the wrapper turns it into the attribute, the
+		* caller stays inside the published props, and the trick is written once.
+		*/
+		/**
+		* Render the shell's text field.
+		*
+		* @param props - the field's own props and the initial-focus flag.
+		* @returns the field, with `data-modal-autofocus` set when asked for.
+		*/
+		function Input({ modalAutofocus, ...rest }) {
+			return (0, react.createElement)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				...modalAutofocus === true ? { "data-modal-autofocus": true } : {},
+				...rest
+			});
+		}
+		// ../../packages/ui/src/layout/resize-handle.tsx
+		/**
+		* The one pointer gesture behind every resizable boundary in this repository.
+		*
+		* Three plugins had written it three times — the Git tab's sidebar and its
+		* pane divider, the Files tab's sidebar, the Terminal tab's sidebar — and the
+		* copies had begun to disagree about which axis they take and which coordinate
+		* they read. What they share is not incidental: it is a set of decisions that
+		* are wrong in ways a reader would only notice as a bad drag.
+		*
+		* The gesture is the platform's own width handle (client-ui-conversation's
+		* `WidthHandle`), restated once:
+		*
+		* - the press captures the pointer and records where it started and the size the
+		*   page was drawing;
+		* - each move asks the caller to draw the size the pointer now implies — at most
+		*   once a frame, since a pointer reports more often than a page paints;
+		* - the release records that one number;
+		* - a press that never moved records nothing, so a click on a boundary cannot
+		*   overwrite a saved size with the window-clamped size it happens to be drawn
+		*   at.
+		*
+		* A drag never renders React: the caller writes each size straight to a custom
+		* property on the page root, which is what keeps the frame rate of a drag
+		* independent of how many thousand rows the page happens to be drawing.
+		*
+		* The two terminal paths mean different things. `onCommit` is a new size to
+		* record and draw; `onEnd` is a gesture that produced no size — a click, or a
+		* pointer lost mid-drag — and the caller draws the recorded layout again, which
+		* is what makes a cancelled drag leave the page exactly as it found it.
+		*
+		* The element sits on the boundary itself, which is a 1px line a pointer cannot
+		* be asked to hold, so the shared stylesheet puts an invisible 8px band around
+		* it and this component owns the line in the middle. The page root carries
+		* `data-resizing` for the length of a gesture, so the cursor keeps its meaning
+		* while the pointer travels outside the boundary.
+		*/
+		/**
+		* The pointer's own coordinate on one axis, in viewport pixels.
+		*
+		* @param axis - the boundary being dragged.
+		* @param event - the pointer event.
+		* @returns X for a column boundary, Y for a row boundary.
+		*/
+		function along(axis, event) {
+			return axis === "col" ? event.clientX : event.clientY;
+		}
+		/** Begin, drive and settle one drag of a boundary. */
+		function ResizeHandle(props) {
+			/** Whether a gesture this component started is still running. */
+			const dragging = (0, react.useRef)(false);
+			/** The pointer's coordinate where the gesture started. */
+			const origin = (0, react.useRef)(0);
+			/** The size the page was drawing where the gesture started. */
+			const start = (0, react.useRef)(0);
+			/** The pointer's latest coordinate on this axis. */
+			const latest = (0, react.useRef)(0);
+			/** The frame awaiting the pointer's latest coordinate, if one is. */
+			const frame = (0, react.useRef)(null);
+			const live = (0, react.useRef)(props);
+			live.current = props;
+			/** The size the pointer's latest coordinate implies. */
+			const implied = () => start.current + (latest.current - origin.current);
+			const cancelFrame = () => {
+				if (frame.current !== null) {
+					cancelAnimationFrame(frame.current);
+					frame.current = null;
+				}
+			};
+			/**
+			* End the gesture, and either record a size or re-state the layout.
+			*
+			* @param element - the handle the gesture was captured on.
+			* @param pointerId - the pointer to release.
+			* @param moved - whether this release holds a size the pointer chose.
+			*/
+			const settle = (element, pointerId, moved) => {
+				dragging.current = false;
+				element.toggleAttribute("data-dragging", false);
+				if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+				cancelFrame();
+				if (moved && latest.current !== origin.current) live.current.onCommit(implied());
+				else live.current.onEnd();
+			};
+			const onPointerDown = (0, react.useCallback)((event) => {
+				if (event.button !== 0) return;
+				event.preventDefault();
+				event.currentTarget.setPointerCapture(event.pointerId);
+				event.currentTarget.toggleAttribute("data-dragging", true);
+				origin.current = along(live.current.axis, event);
+				latest.current = origin.current;
+				start.current = live.current.onStart();
+				dragging.current = true;
+			}, []);
+			const onPointerMove = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+				latest.current = along(live.current.axis, event);
+				if (frame.current !== null) return;
+				frame.current = requestAnimationFrame(() => {
+					frame.current = null;
+					live.current.onDrag(implied());
+				});
+			}, []);
+			const onPointerUp = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+				latest.current = along(live.current.axis, event);
+				settle(event.currentTarget, event.pointerId, true);
+			}, []);
+			const onPointerCancel = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				settle(event.currentTarget, event.pointerId, false);
+			}, []);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: uiClass("resize"),
+				"data-axis": props.axis,
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+				onPointerCancel,
+				onLostPointerCapture: onPointerCancel
+			});
+		}
+		// ../../packages/ui/src/layout/layout-store.ts
+		/** A reader for one number field of a stored layout. */
+		function finiteNumber(fallback) {
+			return {
+				fallback,
+				read: (raw) => typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : fallback
+			};
+		}
+		/**
+		* A reader for one share field, stored as a fraction strictly between 0 and 1.
+		*
+		* A split is saved as a share rather than a size so that a boundary dragged in a
+		* short window is the same split when the window grows. The strict bounds are
+		* what keep a saved `0` or `1` — a pane collapsed to nothing, by an older version
+		* or a hand-edited entry — from leaving a pane that can never be dragged back.
+		*/
+		function fraction(fallback) {
+			return {
+				fallback,
+				read: (raw) => typeof raw === "number" && Number.isFinite(raw) && raw > 0 && raw < 1 ? raw : fallback
+			};
+		}
+		/**
+		* Read one stored layout.
+		*
+		* @param key - the plugin's own `localStorage` entry.
+		* @param fields - one reader per field, in the shape the caller draws with.
+		* @returns the layout to draw, always usable.
+		*/
+		function readLayout$1(key, fields) {
+			let raw;
+			try {
+				raw = window.localStorage.getItem(key);
+			} catch {
+				return parseLayout(null, fields);
+			}
+			return parseLayout(raw, fields);
+		}
+		/**
+		* Read one layout out of a raw stored string.
+		*
+		* The parse half of {@link readLayout}, split out for two reasons: it is the half
+		* worth reviewing and showing (what happens to a value another version wrote),
+		* and it has no storage to stub in order to be exercised. A missing entry, an
+		* unreadable one, and a field of the wrong shape are the three cases, and each
+		* costs only what it names.
+		*
+		* @param raw - the entry's text, or null when there is none.
+		* @param fields - one reader per field.
+		* @returns the layout to draw, always usable.
+		*/
+		function parseLayout(raw, fields) {
+			if (raw === null) return defaultsOf(fields);
+			let parsed;
+			try {
+				parsed = JSON.parse(raw);
+			} catch {
+				return defaultsOf(fields);
+			}
+			const saved = typeof parsed === "object" && parsed !== null ? parsed : {};
+			const result = {};
+			for (const [name, field] of Object.entries(fields)) result[name] = field.read(saved[name]);
+			return result;
+		}
+		/**
+		* Build the all-defaults layout.
+		*
+		* @param fields - the readers the layout is made of.
+		* @returns one value per field, all of them the fallbacks.
+		*/
+		function defaultsOf(fields) {
+			const result = {};
+			for (const [name, field] of Object.entries(fields)) result[name] = field.fallback;
+			return result;
+		}
+		/**
+		* Record one stored layout.
+		*
+		* A storage that refuses the write is not worth surfacing: no workspace state is
+		* involved, and the drag holds for as long as the page is open either way.
+		*
+		* @param key - the plugin's own `localStorage` entry.
+		* @param layout - the layout to save.
+		*/
+		function writeLayout$1(key, layout) {
+			try {
+				window.localStorage.setItem(key, JSON.stringify(layout));
+			} catch {}
+		}
+		// ../../packages/ui/src/shell/composer-seat.ts
+		/**
+		* Live under the Conversation shell's one resident composer seat.
+		*
+		* The shell mounts a composer seat — the input card plus the
+		* `conversation.input.dock` rows above it — for every View. It also publishes the
+		* hook a View uses to take the whole body: the View root declares
+		* `data-conversation-composer-overlay`, and the shell then drops the transcript
+		* width handles and floats the seat over the page. That hook repositions the seat;
+		* it never removes it, so a page with no input of its own has to take the seat out
+		* itself.
+		*
+		* Two things go into that, and both live here because they have to agree:
+		*
+		* 1. A stylesheet rule, so the seat is gone on every frame the shell paints —
+		*    including the frames before this module's effect has run. The selector is
+		*    scoped by the page's own root class, which exists only while that page is
+		*    mounted, so Chat, Trajectory, Terminal and Git keep their composer
+		*    untouched, and the rule disappears with the View.
+		*
+		* 2. A DOM write on the seat element. It is presentation too, but it depends on
+		*    nothing beyond the rendered tree: not on this plugin's sheet being
+		*    inserted, not on the shell ranking our selector above its own, not on the
+		*    attribute names this version of the shell happens to use. The two are
+		*    deliberately redundant, in the same direction.
+		*
+		* The seat is a sibling of the View inside the Conversation body, rendered
+		* unconditionally by the same component that renders the View: when that body is
+		* replaced the View remounts with it, so one write per mount reaches every seat
+		* this page can coexist with.
+		*/
+		/** The shell's marker on the Conversation body that owns one composer seat. */
+		const CONVERSATION_BODY = "[data-conversation-content]";
+		/** The shell's marker on the seat itself. */
+		const COMPOSER_SEAT = "[data-composer-seat]";
+		/**
+		* Hide the composer seat of the Conversation hosting `view`.
+		*
+		* @param view - the mounted View root, or null before React attaches it.
+		* @returns disposer restoring exactly the inline display it replaced.
+		*/
+		function suppressComposerSeat(view) {
+			if (view === null) return () => {};
+			const body = view.closest(CONVERSATION_BODY) ?? document;
+			const seats = Array.from(body.querySelectorAll(COMPOSER_SEAT));
+			if (seats.length === 0) return () => {};
+			const previous = seats.map((seat) => seat.style.display);
+			for (const seat of seats) seat.style.display = "none";
+			return () => {
+				seats.forEach((seat, index) => {
+					seat.style.display = previous[index] ?? "";
+				});
+			};
+		}
+		/**
+		* Take the composer seat out for as long as a page is mounted.
+		*
+		* @param rootRef - the page's own root element; the View root that also declares
+		*   `data-conversation-composer-overlay`.
+		*/
+		function useComposerSeatSuppression(rootRef) {
+			(0, react.useLayoutEffect)(() => suppressComposerSeat(rootRef.current), [rootRef]);
+		}
 		// src/shared/contract.ts
 		/**
 		* Longest custom message prompt the Settings route accepts.
@@ -1693,56 +2155,6 @@ window.__ModuleLoader__.load({
 			snapshots.set(repository, snapshot);
 			persist(repository, snapshot);
 		}
-		// src/client/chrome.ts
-		/**
-		* Composer-seat suppression for the Git tab.
-		*
-		* The Conversation shell mounts its composer seat — the input card plus the
-		* `conversation.input.dock` rows above it — for every View. It also publishes
-		* the hook a View uses to take the whole body for itself: the View root
-		* declares `data-conversation-composer-overlay`, and the shell then drops the
-		* transcript width handles and floats the seat over the page
-		* (`.scrollBody:has([data-conversation-composer-overlay])`, see
-		* `ConversationRoot.module.css`). That hook repositions the seat; it never
-		* removes it, so a page with no input of its own — this one — has to take the
-		* seat out itself.
-		*
-		* The removal is a DOM write on the seat element instead of only a stylesheet
-		* rule. Both are presentation, but the write depends on nothing beyond the
-		* rendered tree: not on this plugin's sheet being inserted, not on the shell
-		* ranking our selector above its own, not on the attribute names this version
-		* of the shell happens to use. The declarative twin in `styles.ts` states the
-		* same fact for the frames the shell paints before this runs.
-		*/
-		/** The shell's marker on the Conversation body that owns one composer seat. */
-		const CONVERSATION_BODY = "[data-conversation-content]";
-		/** The shell's marker on the seat itself. */
-		const COMPOSER_SEAT = "[data-composer-seat]";
-		/**
-		* Hide the composer seat of the Conversation hosting `view`.
-		*
-		* The seat is a sibling of the View inside the same body, rendered
-		* unconditionally by the same component that renders the View: when that body
-		* is replaced the View remounts with it, so one write per mount reaches every
-		* seat this page can coexist with.
-		*
-		* @param view - the mounted View root, or null before React attaches it.
-		* @returns disposer restoring exactly the inline display it replaced.
-		*/
-		function suppressComposerSeat(view) {
-			if (view === null) return () => {};
-			const scope = view.closest(CONVERSATION_BODY) ?? view.ownerDocument;
-			const hidden = /* @__PURE__ */ new Map();
-			for (const seat of scope.querySelectorAll(COMPOSER_SEAT)) {
-				hidden.set(seat, seat.style.display);
-				seat.style.display = "none";
-			}
-			return () => {
-				for (const [seat, display] of hidden) if (display === "") seat.style.removeProperty("display");
-				else seat.style.display = display;
-				hidden.clear();
-			};
-		}
 		// ../../packages/icons/src/icon.tsx
 		/**
 		* Draw an icon's root `<svg>`.
@@ -2204,51 +2616,25 @@ window.__ModuleLoader__.load({
 			filesShare: .5
 		};
 		/**
-		* The saved layout, with every part that is missing or unusable replaced by its
-		* default.
+		* The stored shape, field by field.
 		*
-		* A saved value is a preference written in another window size, by another version
-		* of this page, in a browser that may not give the entry back at all, so it is read
-		* as data rather than trusted: each field is checked on its own — a width has to be
-		* a positive number, a share strictly between 0 and 1 — and anything else (an
-		* unreadable entry, a JSON error, a field of the wrong shape) falls back to the
-		* default for that field alone.
-		*
-		* @returns the layout to draw, always usable.
+		* Read as data rather than trusted as a fact: a saved value is a preference
+		* written in another window size, by another version of this page, in a browser
+		* that may not give the entry back at all. Each field is checked on its own, so
+		* one bad number costs one field rather than the whole layout. The reading and
+		* writing themselves are `@dsh-cool/ui`'s.
 		*/
+		const FIELDS = {
+			sideWidth: finiteNumber(DEFAULT_LAYOUT.sideWidth),
+			filesShare: fraction(DEFAULT_LAYOUT.filesShare)
+		};
+		/** The saved layout, with every unusable field replaced by its default. */
 		function readLayout() {
-			let raw;
-			try {
-				raw = localStorage.getItem(LAYOUT_KEY);
-			} catch {
-				return DEFAULT_LAYOUT;
-			}
-			if (raw === null) return DEFAULT_LAYOUT;
-			let parsed;
-			try {
-				parsed = JSON.parse(raw);
-			} catch {
-				return DEFAULT_LAYOUT;
-			}
-			const { sideWidth, filesShare } = typeof parsed === "object" && parsed !== null ? parsed : {};
-			return {
-				sideWidth: typeof sideWidth === "number" && Number.isFinite(sideWidth) && sideWidth > 0 ? sideWidth : DEFAULT_LAYOUT.sideWidth,
-				filesShare: typeof filesShare === "number" && Number.isFinite(filesShare) && filesShare > 0 && filesShare < 1 ? filesShare : DEFAULT_LAYOUT.filesShare
-			};
+			return readLayout$1(LAYOUT_KEY, FIELDS);
 		}
-		/**
-		* Record the layout.
-		*
-		* A storage that refuses the write (quota, or third-party storage blocked) is not
-		* worth surfacing: no repository state is involved, and the drag holds for as long
-		* as this page is open either way.
-		*
-		* @param layout - the layout to save.
-		*/
+		/** Record the layout. A storage that refuses the write is not worth surfacing. */
 		function writeLayout(layout) {
-			try {
-				localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
-			} catch {}
+			writeLayout$1(LAYOUT_KEY, layout);
 		}
 		/**
 		* The widest the sidebar may be drawn in a page this wide.
@@ -2316,112 +2702,6 @@ window.__ModuleLoader__.load({
 			const floor = Math.min(96 / track, .5);
 			return Math.min(Math.max(height / track, floor), 1 - floor);
 		}
-		/**
-		* The pointer's own coordinate on one axis, in viewport pixels.
-		*
-		* @param axis - the boundary being dragged.
-		* @param event - the pointer event.
-		* @returns X for the sidebar's width, Y for the panes' divider.
-		*/
-		function along(axis, event) {
-			return axis === "col" ? event.clientX : event.clientY;
-		}
-		/**
-		* One boundary, dragged with the pointer.
-		*
-		* The gesture is the platform's own width handle (client-ui-conversation's
-		* `WidthHandle`), stated once for either axis and for a size rather than a width:
-		* the press captures the pointer and records where it started and the size the page
-		* was drawing, each move asks the caller to draw the size the pointer now implies —
-		* at most once a frame, since a pointer reports more often than a page paints — and
-		* the release records that one number. A press that never moved records nothing, so
-		* a click on a boundary cannot overwrite a saved size with the window-clamped size
-		* it happens to be drawn at.
-		*
-		* The two terminal paths mean different things. `onCommit` is a new size to record
-		* and draw; `onEnd` is a gesture that produced no size — a click, or a pointer lost
-		* mid-drag — and the caller draws the recorded layout again, which is what makes a
-		* cancelled drag leave the page exactly as it found it.
-		*
-		* The element sits on the boundary itself, which is a 1px line a pointer cannot be
-		* asked to hold, so the stylesheet puts an invisible 8px band around it and this
-		* component owns the line in the middle.
-		*/
-		function ResizeHandle(props) {
-			/** Whether a gesture this component started is still running. */
-			const dragging = (0, react.useRef)(false);
-			/** The pointer's coordinate where the gesture started. */
-			const origin = (0, react.useRef)(0);
-			/** The size the page was drawing where the gesture started. */
-			const start = (0, react.useRef)(0);
-			/** The pointer's latest coordinate on this axis. */
-			const latest = (0, react.useRef)(0);
-			/** The frame awaiting the pointer's latest coordinate, if one is. */
-			const frame = (0, react.useRef)(null);
-			const live = (0, react.useRef)(props);
-			live.current = props;
-			/** The size the pointer's latest coordinate implies. */
-			const implied = () => start.current + (latest.current - origin.current);
-			const cancelFrame = () => {
-				if (frame.current !== null) {
-					cancelAnimationFrame(frame.current);
-					frame.current = null;
-				}
-			};
-			/**
-			* End the gesture, and either record a size or re-state the layout.
-			*
-			* @param element - the handle the gesture was captured on.
-			* @param pointerId - the pointer to release.
-			* @param moved - whether this release holds a size the pointer chose.
-			*/
-			const settle = (element, pointerId, moved) => {
-				dragging.current = false;
-				element.toggleAttribute("data-dragging", false);
-				if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
-				cancelFrame();
-				if (moved && latest.current !== origin.current) live.current.onCommit(implied());
-				else live.current.onEnd();
-			};
-			const onPointerDown = (0, react.useCallback)((event) => {
-				if (event.button !== 0) return;
-				event.preventDefault();
-				event.currentTarget.setPointerCapture(event.pointerId);
-				event.currentTarget.toggleAttribute("data-dragging", true);
-				origin.current = along(live.current.axis, event);
-				latest.current = origin.current;
-				start.current = live.current.onStart();
-				dragging.current = true;
-			}, []);
-			const onPointerMove = (0, react.useCallback)((event) => {
-				if (!dragging.current) return;
-				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-				latest.current = along(live.current.axis, event);
-				if (frame.current !== null) return;
-				frame.current = requestAnimationFrame(() => {
-					frame.current = null;
-					live.current.onDrag(implied());
-				});
-			}, []);
-			const onPointerUp = (0, react.useCallback)((event) => {
-				if (!dragging.current) return;
-				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-				latest.current = along(live.current.axis, event);
-				settle(event.currentTarget, event.pointerId, true);
-			}, []);
-			const onPointerCancel = (0, react.useCallback)((event) => {
-				if (!dragging.current) return;
-				settle(event.currentTarget, event.pointerId, false);
-			}, []);
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				className: props.axis === "col" ? "dsh-cg-resize dsh-cg-col-resize" : "dsh-cg-resize dsh-cg-row-resize",
-				onPointerDown,
-				onPointerMove,
-				onPointerUp,
-				onPointerCancel,
-				onLostPointerCapture: onPointerCancel
-			});
-		}
 		// src/client/styles.ts
 		/**
 		* Package-owned stylesheet for the Git tab.
@@ -2460,7 +2740,7 @@ window.__ModuleLoader__.load({
 		const GIT_ROOT_CLASS = "dsh-cg-root";
 		/** CSS rules, one selector per line. */
 		const GIT_CSS = [
-			`[data-conversation-scroll]:has(.${GIT_ROOT_CLASS})>[data-composer-seat]{display:none}`,
+			composerSeatCss(GIT_ROOT_CLASS),
 			`.${GIT_ROOT_CLASS}{display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
 			`.${GIT_ROOT_CLASS} *{box-sizing:border-box}`,
 			`.dsh-cg-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cg-side-width,340px);min-width:260px;max-width:min(560px,calc(100% - 320px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
@@ -2468,19 +2748,7 @@ window.__ModuleLoader__.load({
 			".dsh-cg-files{position:relative;flex-grow:var(--dsh-cg-files-grow,1)}",
 			".dsh-cg-history{flex-grow:var(--dsh-cg-history-grow,1)}",
 			".dsh-cg-pane+.dsh-cg-pane{border-top:.5px solid var(--dsw-alias-border-l3)}",
-			".dsh-cg-resize{position:absolute;z-index:2;touch-action:none}",
-			".dsh-cg-resize::before{content:\"\";position:absolute;opacity:0;transition:opacity .12s ease-out}",
-			".dsh-cg-resize::after{content:\"\";position:absolute}",
-			".dsh-cg-resize:hover::before,.dsh-cg-resize[data-dragging]::before{opacity:1}",
-			".dsh-cg-col-resize{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}",
-			".dsh-cg-col-resize::after{inset:0 -4px}",
-			".dsh-cg-col-resize::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}",
-			".dsh-cg-row-resize{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}",
-			".dsh-cg-row-resize::after{inset:-4px 0}",
-			".dsh-cg-row-resize::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}",
 			`.${GIT_ROOT_CLASS}[data-resizing],.${GIT_ROOT_CLASS}[data-resizing] *{user-select:none}`,
-			`.${GIT_ROOT_CLASS}[data-resizing=col],.${GIT_ROOT_CLASS}[data-resizing=col] *{cursor:col-resize}`,
-			`.${GIT_ROOT_CLASS}[data-resizing=row],.${GIT_ROOT_CLASS}[data-resizing=row] *{cursor:row-resize}`,
 			".dsh-cg-head{flex:none;display:flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 12px}",
 			".dsh-cg-head-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:600;letter-spacing:.02em}",
 			".dsh-cg-list{flex:1 1 auto;min-height:0;overflow:auto;padding:0 8px 8px 8px}",
@@ -2755,7 +3023,7 @@ window.__ModuleLoader__.load({
 			".dsh-cg-conflict-fold-btn{flex:1 1 auto;display:block;padding:2px 12px 2px 50px;border:0;background:transparent;color:var(--dsw-alias-label-tertiary);font-family:var(--ds-font-family-code,ui-monospace,monospace);font-size:11px;line-height:16px;text-align:left;cursor:pointer}",
 			".dsh-cg-conflict-fold-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-cg-conflict-choose{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}",
-			`html.ct-bg-on .${GIT_ROOT_CLASS}{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+			wallpaperCss(GIT_ROOT_CLASS)
 		].join("\n");
 		/**
 		* Insert the stylesheet once for the plugin lifetime.
@@ -2781,14 +3049,7 @@ window.__ModuleLoader__.load({
 		* @returns disposer that removes exactly this element.
 		*/
 		function insertGitStyles() {
-			const element = document.createElement("style");
-			element.setAttribute("data-plugin", "dsh-cool-git");
-			element.setAttribute("data-dsh-cool-git", "styles");
-			element.textContent = GIT_CSS;
-			document.head.appendChild(element);
-			return () => {
-				element.remove();
-			};
+			return insertPluginStyles("dsh-cool-git", GIT_CSS);
 		}
 		// src/client/git.tsx
 		/**
@@ -3598,7 +3859,7 @@ window.__ModuleLoader__.load({
 			const [layout, setLayout] = (0, react.useState)(readLayout);
 			/** The boundary a drag is holding, or null at rest. */
 			const [resizing, setResizing] = (0, react.useState)(null);
-			(0, react.useLayoutEffect)(() => suppressComposerSeat(page.current), []);
+			useComposerSeatSuppression(page);
 			/**
 			* Draw one layout: the page's two boundaries, as custom properties on the root.
 			*
@@ -6389,13 +6650,13 @@ window.__ModuleLoader__.load({
 				children: emptyText
 			});
 			else content = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Input, {
 					className: "dsh-cg-branch-filter",
 					type: "text",
 					value: filter,
 					placeholder: t("branch.search"),
 					"aria-label": t("branch.search"),
-					"data-modal-autofocus": mode === "create" ? void 0 : true,
+					modalAutofocus: mode === "create" ? false : true,
 					onChange: (event) => {
 						const value = event.target.value;
 						setFilter(value);
@@ -6462,13 +6723,13 @@ window.__ModuleLoader__.load({
 				closeLabel: t("dialog.close"),
 				className: "dsh-cg-branch-dialog",
 				footer: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-					mode === "create" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+					mode === "create" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Input, {
 						className: "dsh-cg-branch-create-name",
 						type: "text",
 						value: name,
 						placeholder: t("create.name"),
 						"aria-label": t("create.name"),
-						"data-modal-autofocus": true,
+						modalAutofocus: true,
 						onChange: (event) => setName(event.target.value)
 					}) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
@@ -6659,13 +6920,13 @@ window.__ModuleLoader__.load({
 				children: t("delete.none")
 			});
 			else content = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Input, {
 					className: "dsh-cg-branch-filter",
 					type: "text",
 					value: filter,
 					placeholder: t("branch.search"),
 					"aria-label": t("branch.search"),
-					"data-modal-autofocus": true,
+					modalAutofocus: true,
 					disabled: busy,
 					onChange: (event) => {
 						const value = event.target.value;

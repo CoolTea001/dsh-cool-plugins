@@ -34,6 +34,8 @@
 
 import { DIFF_MIN, PANE_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
 
+import { composerSeatCss, insertPluginStyles, wallpaperCss } from '@dsh-cool/ui'
+
 /** Build-time define from tsdown.config.ts: the id the loader registers this bundle under. */
 declare const __DSH_CG_PLUGIN_ID__: string
 
@@ -47,7 +49,7 @@ const GIT_CSS = [
   // `[data-conversation-scroll]` is the resident scrollport and the seat is its
   // direct child. Hidden, not removed: the draft mirror and the input store keep
   // running for the Chat tab underneath.
-  `[data-conversation-scroll]:has(.${GIT_ROOT_CLASS})>[data-composer-seat]{display:none}`,
+  composerSeatCss(GIT_ROOT_CLASS),
 
   // 2. Page layout.
   //
@@ -89,22 +91,10 @@ const GIT_CSS = [
   // stays lit for the length of a drag, which is what makes a boundary read as
   // draggable at rest. The geometry and the gradient are DSH's own pane divider's
   // (`client/ui-dockkit`), so a divider here looks like every other one in the app.
-  '.dsh-cg-resize{position:absolute;z-index:2;touch-action:none}',
-  '.dsh-cg-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}',
-  '.dsh-cg-resize::after{content:"";position:absolute}',
-  '.dsh-cg-resize:hover::before,.dsh-cg-resize[data-dragging]::before{opacity:1}',
-  // The sidebar's right edge: the handle is laid over the border itself
-  // (`right:-1px` starts its 1px span at the padding box, which is where the
-  // `.5px` border begins), so the line it lights up is the line that is already
-  // drawn there.
-  '.dsh-cg-col-resize{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}',
-  '.dsh-cg-col-resize::after{inset:0 -4px}',
-  '.dsh-cg-col-resize::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}',
-  // The divider between the panes: the same line, reached from the upper pane and
-  // covering the lower pane's own top border.
-  '.dsh-cg-row-resize{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}',
-  '.dsh-cg-row-resize::after{inset:-4px 0}',
-  '.dsh-cg-row-resize::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}',
+  // The boundaries themselves are `@dsh-cool/ui`'s: one element, one hit band, one
+  // hover cue, shared with the Files and Terminal tabs. What stays here is the
+  // cursor the page keeps for the length of a gesture, because it is stated on
+  // this page's own root.
   // While a boundary is being dragged the whole page takes that axis's cursor and
   // stops selecting text: the pointer leaves a 1px line at the first frame of a
   // vertical drag, and a cursor that changed as it crossed a row would say the
@@ -113,8 +103,6 @@ const GIT_CSS = [
   // cursor of its own more specifically (a disabled toolbar button) keeps it, which
   // is the same trade the platform's own dividers make.
   `.${GIT_ROOT_CLASS}[data-resizing],.${GIT_ROOT_CLASS}[data-resizing] *{user-select:none}`,
-  `.${GIT_ROOT_CLASS}[data-resizing=col],.${GIT_ROOT_CLASS}[data-resizing=col] *{cursor:col-resize}`,
-  `.${GIT_ROOT_CLASS}[data-resizing=row],.${GIT_ROOT_CLASS}[data-resizing=row] *{cursor:row-resize}`,
   // A pane's header: the pane's name and its row count, separated by a middle
   // dot, on the left, and whatever that pane's own control is on the right.
   // Commit history draws one, carrying the remote control there; the changed-path
@@ -1156,7 +1144,7 @@ const GIT_CSS = [
   // root. The scoping is the whole contract — a profile without the theme never
   // matches the selector, so the tab draws its own opaque surfaces exactly as it
   // did before.
-  `html.ct-bg-on .${GIT_ROOT_CLASS}{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+  wallpaperCss(GIT_ROOT_CLASS),
 ].join('\n')
 
 /**
@@ -1183,12 +1171,5 @@ const GIT_CSS = [
  * @returns disposer that removes exactly this element.
  */
 export function insertGitStyles(): () => void {
-  const element = document.createElement('style')
-  element.setAttribute('data-plugin', __DSH_CG_PLUGIN_ID__)
-  element.setAttribute('data-dsh-cool-git', 'styles')
-  element.textContent = GIT_CSS
-  document.head.appendChild(element)
-  return () => {
-    element.remove()
-  }
+  return insertPluginStyles(__DSH_CG_PLUGIN_ID__, GIT_CSS)
 }

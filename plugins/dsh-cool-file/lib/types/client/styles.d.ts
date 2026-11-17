@@ -34,9 +34,14 @@
 /** Class the Files View renders on its root; the stylesheet's only anchor. */
 export declare const FILES_ROOT_CLASS = "dsh-cf-root";
 /**
- * Insert this plugin's stylesheet once and hand back its disposer.
+ * Insert this plugin's stylesheet — and the shared one — once for the plugin
+ * lifetime.
  *
- * @returns the function that removes the element again.
+ * The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+ * rather than this file's: see `insertPluginStyles`. What stays here is the
+ * plugin's own id, which is the name that ownership record carries.
+ *
+ * @returns disposer that removes exactly this sheet.
  */
 export declare function insertFilesStyles(): () => void;
 //# sourceMappingURL=styles.d.ts.map

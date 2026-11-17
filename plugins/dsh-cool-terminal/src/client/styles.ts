@@ -12,7 +12,14 @@
  * as a single JS file and would never fetch a sibling `.css` asset.
  */
 
+import { composerSeatCss, insertPluginStyles } from '@dsh-cool/ui'
 import { MAIN_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
+
+/**
+ * The id the loader registers this bundle under, which is the name the sheet's
+ * ownership record carries.
+ */
+const PACKAGE_ID = 'dsh-cool-terminal'
 
 /**
  * xterm's stylesheet, substituted at build time. `typeof` keeps an unbundled
@@ -50,19 +57,9 @@ export const TERMINAL_CSS = [
   // bounds, which is what keeps a width saved in a wide window from squeezing
   // the console in a narrow one.
   `.dsh-ct-side{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;width:var(--dsh-ct-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${MAIN_MIN}px));box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
-  // The boundary itself. It covers the sidebar's existing half-pixel hairline,
-  // with an invisible band either side of that 1px line as the hit target: half
-  // a pixel is not something a pointer can be asked to hold. It takes no layout
-  // space — it is positioned on the sidebar's own edge — so adding it moves
-  // nothing on the page.
-  //
-  // `::before` is the indicator: the line brightens on hover and stays lit for
-  // the length of a drag, which is what makes a boundary read as draggable at
-  // rest.
-  '.dsh-ct-resize{position:absolute;z-index:2;top:0;right:-1px;bottom:0;width:1px;cursor:col-resize;touch-action:none}',
-  '.dsh-ct-resize::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-secondary) 50%,transparent) center / 1px 100% no-repeat;transition:opacity .12s ease-out}',
-  '.dsh-ct-resize::after{content:"";position:absolute;inset:0 -4px}',
-  '.dsh-ct-resize:hover::before,.dsh-ct-resize[data-dragging]::before{opacity:1}',
+  // The boundary itself is `@dsh-cool/ui`'s: one element, one hit band, one hover
+  // cue, shared with the Git and Files tabs. What stays here is what is stated on
+  // this page's own root — the cursor and the selection lock for a gesture.
   // While the boundary is dragged the whole page takes the axis's cursor and
   // stops selecting text: the pointer leaves a 1px line at the first frame of a
   // drag, and a crossed row would otherwise highlight under it.
@@ -336,20 +333,25 @@ export const TERMINAL_CSS = [
   // uses) only turns that seat into a floating card over the View; this View
   // opts out of it entirely. Scoped by our own root class, so Chat and
   // Trajectory keep their composer untouched.
-  '[data-conversation-scroll]:has(.dsh-ct-root)>[data-composer-seat]{display:none}',
+  composerSeatCss('dsh-ct-root'),
 ].join('\n')
 
 /**
- * Insert the stylesheet once for the plugin lifetime.
+ * Insert the stylesheet — and the shared one — once for the plugin lifetime.
  *
- * @returns disposer that removes exactly this element.
+ * xterm's own sheet is part of this package's rules: the whole point of inlining
+ * it is that the console's markup and its styles arrive together.
+ *
+ * The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+ * rather than this file's: see `insertPluginStyles`. This sheet used to carry no
+ * `data-plugin` at all, which left it claimable by whichever module materialized
+ * next and deletable with it.
+ *
+ * @returns disposer that removes exactly this sheet.
  */
 export function insertTerminalStyles(): () => void {
-  const element = document.createElement('style')
-  element.setAttribute('data-dsh-cool-terminal', '')
-  element.textContent = XTERM_CSS === '' ? TERMINAL_CSS : `${XTERM_CSS}\n${TERMINAL_CSS}`
-  document.head.appendChild(element)
-  return () => {
-    element.remove()
-  }
+  return insertPluginStyles(
+    PACKAGE_ID,
+    XTERM_CSS === '' ? TERMINAL_CSS : `${XTERM_CSS}\n${TERMINAL_CSS}`,
+  )
 }

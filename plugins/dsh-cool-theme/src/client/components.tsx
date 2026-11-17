@@ -88,7 +88,7 @@ import {
   Switch,
   Toast,
   Tooltip,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@dsh-cool/ui'
 
 /** Reserved menu value that switches to the user-defined theme. */
 export const CUSTOM_SELECTION = CUSTOM_PRESET_ID

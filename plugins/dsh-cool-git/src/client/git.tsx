@@ -71,9 +71,11 @@ import {
   Menu,
   Modal,
   Tooltip,
+  ResizeHandle,
+  useComposerSeatSuppression,
   useModalLayer,
   type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@dsh-cool/ui'
 import {
   checkoutBranch,
   commitAll,
@@ -117,7 +119,7 @@ import {
   writeCommitScope,
   writeRepositorySnapshot,
 } from './cache.js'
-import { suppressComposerSeat } from './chrome.js'
+
 import {
   IconAlertCircle as IconAlert,
   IconArrowDown as IconPull,
@@ -140,7 +142,6 @@ import {
   clampFilesHeight,
   clampSideWidth,
   readLayout,
-  ResizeHandle,
   shareOf,
   writeLayout,
   type GitLayout,
@@ -1153,7 +1154,7 @@ export function GitView(props: {
   // Layout effect, not a passive one: the composer seat is already in the tree
   // when this View mounts, and a passive effect would paint one frame of an
   // input this page cannot use.
-  useLayoutEffect(() => suppressComposerSeat(page.current), [])
+  useComposerSeatSuppression(page)
 
   /**
    * Draw one layout: the page's two boundaries, as custom properties on the root.
@@ -4276,11 +4277,11 @@ function BranchDialog(props: {
           aria-label={t('branch.search')}
           // The Modal's own way of choosing the initial focus: React's
           // `autoFocus` runs before the layer can note the control to return to.
-          // The primitive passes the marker through to the native field, which is
-          // the element the layer actually focuses. A create hands the marker to
-          // the name field in the footer instead, so the attribute is dropped here
-          // in that mode rather than two controls claiming the same focus.
-          data-modal-autofocus={mode === 'create' ? undefined : true}
+          // `modalAutofocus` is the package's one spelling of the marker; it
+          // reaches the native field, which is the element the layer focuses. A
+          // create hands the marker to the name field in the footer instead, so
+          // it is dropped here rather than two controls claiming one focus.
+          modalAutofocus={mode === 'create' ? false : true}
           // A selection the filter has just hidden is dropped with it: the footer's
           // button applies the row it can name, and a row the list no longer shows
           // is not one. A selection that survived the narrowing is kept, so a stray
@@ -4393,7 +4394,7 @@ function BranchDialog(props: {
                 value={name}
                 placeholder={t('create.name')}
                 aria-label={t('create.name')}
-                data-modal-autofocus
+                modalAutofocus
                 onChange={event => setName(event.target.value)}
               />
             )
@@ -4604,7 +4605,7 @@ function BranchDeleteDialog(props: {
           value={filter}
           placeholder={t('branch.search')}
           aria-label={t('branch.search')}
-          data-modal-autofocus
+          modalAutofocus
           // The list is what the request was made from, so nothing in it moves
           // while the answer is outstanding: the ticks are the request's own
           // record, and a second tick or a filter that hid one would describe a

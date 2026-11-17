@@ -23,7 +23,7 @@ import {
   Menu,
   useModalLayer,
   type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@dsh-cool/ui'
 
 import { IconCheck, IconChevronRight } from '@dsh-cool/icons'
 import { fetchModelEfforts } from './api.js'

@@ -38,26 +38,11 @@ export interface SideLayout {
     /** The sidebar's width, in CSS pixels. */
     readonly sideWidth: number;
 }
-/**
- * The saved layout, with every part that is missing or unusable replaced by its
- * default.
- *
- * A saved value was written in another window size, by another version of this
- * page, in a browser that may not give the entry back at all, so it is read as
- * data rather than trusted: the width has to be a positive finite number, and
- * anything else — an unreadable entry, a JSON error, a field of the wrong
- * shape — falls back to the default.
- * @returns the layout to draw, always usable.
- */
+/** The layout of a page nobody has resized. */
+export declare const DEFAULT_LAYOUT: SideLayout;
+/** The saved layout, with every unusable field replaced by its default. */
 export declare function readSideLayout(): SideLayout;
-/**
- * Record the layout.
- *
- * A storage that refuses the write (quota, or third-party storage blocked) is
- * not worth surfacing: no workspace state is involved, and the drag holds for
- * as long as this page is open either way.
- * @param layout - the layout to save.
- */
+/** Record the layout. A storage that refuses the write is not worth surfacing. */
 export declare function writeSideLayout(layout: SideLayout): void;
 /**
  * Clamp a preferred sidebar width to what this page can draw.

@@ -17,6 +17,10 @@
  * whatever that directory holds rather than an empty tab.
  */
 
+import { join } from 'node:path'
+import { IMAGE_MAX_BYTES, imageMediaTypeOf } from '../shared/kinds.js'
+import { ignoredNames } from './gitignore.js'
+import { isHiddenName, platformHiddenNames } from './hidden.js'
 import type { FileEntry, ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 /** How many lines one preview asks for; the service's own cap still applies. */
@@ -175,16 +179,36 @@ export async function listDirectory(ctx: any, sessionId: unknown, rawPath: unkno
 
   try {
     const listing = await files.list(scopeOf(sessionId, root), path === '' ? '.' : path, undefined)
+    const entries: any[] = Array.isArray(listing.entries) ? listing.entries : []
+    // The platform's own hidden mark is not part of a listing, so it is asked
+    // for once per level rather than once per child. The directory the answer
+    // actually came from is the one to probe: a symlinked level resolves to its
+    // target, and the names to judge are that target's children.
+    const absolute = typeof listing.path === 'string' && listing.path !== '' ? join(root, listing.path) : root
+    const names = entries.map((entry: any): string => String(entry.name))
+    // The two questions are independent — a hidden entry is not an ignored one —
+    // and both answer for the whole level, so they are asked together rather than
+    // one child at a time. Each one runs its own helper process, so pairing them
+    // is the difference between one round trip and two.
+    const [marked, excluded] = await Promise.all([
+      platformHiddenNames(ctx, absolute),
+      ignoredNames(ctx, absolute, names),
+    ])
     return {
       ok: true,
       path: typeof listing.path === 'string' ? listing.path : path,
       root,
       ...(workspace === undefined ? {} : { workspace }),
-      entries: listing.entries.map((entry: any): FileEntry => ({
-        name: String(entry.name),
-        type: entry.type === 'directory' || entry.type === 'file' ? entry.type : 'other',
-        ...(typeof entry.size === 'number' ? { size: entry.size } : {}),
-      })),
+      entries: entries.map((entry: any, index: number): FileEntry => {
+        const name = names[index] ?? String(entry.name)
+        return {
+          name,
+          type: entry.type === 'directory' || entry.type === 'file' ? entry.type : 'other',
+          ...(typeof entry.size === 'number' ? { size: entry.size } : {}),
+          hidden: isHiddenName(name) || marked.has(name),
+          ...(excluded.has(name) ? { ignored: true } : {}),
+        }
+      }),
       truncated: listing.truncated === true,
     }
   } catch (error) {
@@ -271,6 +295,54 @@ export async function readWholeFile(ctx: any, sessionId: unknown, rawPath: unkno
       return { ok: false, reason: 'not-text', error: 'This file is not UTF-8 text' }
     }
     return { ok: true, path, text, bytes: data.length, version: String(info.version) }
+  } catch (error) {
+    return { ok: false, error: messageOf(error) }
+  }
+}
+
+/**
+ * The raw bytes of one workspace image, for the preview's `<img>`.
+ *
+ * The text routes answer JSON; this one answers a body, because what the page
+ * wants is the picture itself. Three fences keep it as narrow as the reads: the
+ * path must stay inside the workspace, the name must be an extension the shared
+ * kind table calls an image — which is the same table the page used to decide to
+ * ask — and the file must sit under the image cap, checked before it is read so
+ * an oversized file is refused rather than buffered and dropped.
+ *
+ * @param ctx - the Host plugin context.
+ * @param sessionId - the session the page belongs to, when it named one.
+ * @param rawPath - the file as a workspace path.
+ * @returns the media type and bytes, or a failure the route answers with.
+ */
+export async function readImage(
+  ctx: any,
+  sessionId: unknown,
+  rawPath: unknown,
+): Promise<
+  { ok: true; mediaType: string; data: Uint8Array } | { ok: false; error: string; reason?: 'too-large' }
+> {
+  const path = readPath(rawPath)
+  if (path === undefined || path === '') return { ok: false, error: 'The path must name a workspace file' }
+
+  const mediaType = imageMediaTypeOf(path)
+  if (mediaType === undefined) return { ok: false, error: 'This file is not an image' }
+
+  const root = await resolveRoot(ctx, sessionId)
+  if (root === undefined) return { ok: false, error: 'This session has no working directory to browse' }
+
+  const fs = ctx.get('fs')
+  if (fs === undefined) return { ok: false, error: 'The filesystem service is not mounted' }
+
+  try {
+    const target = await fs.resolve(path, { cwd: root })
+    const info = await fs.stat(target)
+    if (info === undefined) return { ok: false, error: 'This file no longer exists' }
+    if (info.type !== 'file') return { ok: false, error: 'This path is not a regular file' }
+    if (typeof info.size === 'number' && info.size > IMAGE_MAX_BYTES) {
+      return { ok: false, reason: 'too-large', error: `This image is larger than ${IMAGE_MAX_BYTES} bytes` }
+    }
+    return { ok: true, mediaType, data: await fs.readBytes(target, undefined, IMAGE_MAX_BYTES) }
   } catch (error) {
     return { ok: false, error: messageOf(error) }
   }

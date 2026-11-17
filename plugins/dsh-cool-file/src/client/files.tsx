@@ -27,11 +27,15 @@
  * belongs to the page holding it.
  *
  * The page reads by default and writes only when asked. It lists entries,
- * expands them, and shows the first page of a text file; the editor — reached
- * through the header's Preview/Editor menu — replaces one file's complete text
- * and nothing else. It never creates, renames or deletes, and a save quotes the
- * freshness token of the read it started from, so a file that moved on is
- * refused instead of overwritten.
+ * expands them, and draws the selected file the way its kind is best read
+ * (`shared/kinds.ts`): a picture as the picture itself, fetched by the browser
+ * from the Host's raw route; a Markdown document as the rendered page, through
+ * the shell's own renderer; anything else as its numbered, coloured source. The
+ * editor — reached through the header's Preview/Editor switch — replaces one
+ * file's complete text and nothing else, and is what shows a document's source
+ * once Preview has started rendering it. It never creates, renames or deletes, and a
+ * save quotes the freshness token of the read it started from, so a file that
+ * moved on is refused instead of overwritten.
  *
  * The page is full-bleed, the same way the Terminal and Git tabs are: the root
  * class gives the stylesheet a handle on this subtree, the root declares the
@@ -43,6 +47,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -51,16 +56,21 @@ import {
   type ReactElement,
 } from 'react'
 import { IconChevronRight, IconEye, IconEyeOff, IconFile, IconFolder, IconRotateCw } from '@dsh-cool/icons'
+import { ResizeHandle, useComposerSeatSuppression } from '@dsh-cool/ui'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
-import { suppressComposerSeat } from './chrome.js'
+
 import { CodePreview } from './code.js'
 import { CodeEditor, EDIT_HIGHLIGHT_CHARS } from './editor.js'
-import { clampSideWidth, readLayout, ResizeHandle, writeLayout, type FileLayout } from './layout.js'
+import { ImageView } from './image.js'
+import { clampSideWidth, readLayout, writeLayout, type FileLayout } from './layout.js'
 import type { Translate } from './locales.js'
-import { ModeMenu, readMode, writeMode, type FilesMode } from './mode.js'
+import { MarkdownPreview } from './markdown.js'
+import { ModeSwitch, modePanelId, readMode, writeMode, type FilesMode } from './mode.js'
+import { rawImageUrl } from './raw.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
-import type { FileEntry, ListPayload } from '../shared/contract.js'
+import { IMAGE_MAX_BYTES, fileKindOf } from '../shared/kinds.js'
+import type { FileEntry, ListPayload, ReadPayload } from '../shared/contract.js'
 
 /** The root is the whole conversation body, sized the way the shell hands it over. */
 const PAGE: CSSProperties = {
@@ -74,6 +84,15 @@ interface Preview {
   readonly lines: number
   readonly eof: boolean
   readonly bytes?: number
+  /**
+   * Whether a Markdown document is only the beginning of its file.
+   *
+   * Its own flag rather than `eof === false`: a partial document is not rendered
+   * at all (see `markdown.tsx`), so the pane needs to know the difference between
+   * "the whole file, one page" and "part of the file", which `eof` alone cannot
+   * say once the fallback read is involved.
+   */
+  readonly partial?: boolean
 }
 
 /**
@@ -158,6 +177,51 @@ function writeShowHidden(show: boolean): void {
   } catch {
     /* storage unavailable: the choice lasts for this page */
   }
+}
+
+/**
+ * The size the listing already reported for one workspace file.
+ *
+ * The tree holds it because it lists the children of every open branch, which is
+ * why the pane can know a picture is over the raw route's cap before asking for
+ * it — an `<img>` cannot report why a fetch failed, so the size check has to
+ * happen on this side. Undefined when no listing has answered for the file's
+ * directory (a file opened from the restored shape before its folder loaded).
+ *
+ * @param directories - every directory answer the page holds.
+ * @param path - the file's workspace path, or null.
+ * @returns the size in bytes, when one was reported.
+ */
+function directorySizeOf(
+  directories: Readonly<Record<string, DirectoryState>>,
+  path: string | null,
+): number | undefined {
+  if (path === null) return undefined
+  const at = path.lastIndexOf('/')
+  const parent = at === -1 ? '' : path.slice(0, at)
+  const name = at === -1 ? path : path.slice(at + 1)
+  const state = directories[parent]
+  if (state === undefined || state.error !== null) return undefined
+  return state.entries.find((entry) => entry.name === name)?.size
+}
+
+/**
+ * The raw address of one workspace picture, with the refresh epoch folded in.
+ *
+ * Two mechanisms, one result. Remounting the pane (through the body's key) makes
+ * React run the load again; changing the address makes the browser actually fetch
+ * again, because an `<img>` caches by URL. The raw route ignores the extra
+ * parameter, so the epoch is invisible to the Host and a refresh cannot be served
+ * from a copy the reader has already seen.
+ *
+ * @param path - the file as a workspace path.
+ * @param sessionId - the session whose workspace holds it, when known.
+ * @param epoch - how many times Refresh has re-read this picture.
+ * @returns the address the pane should point at.
+ */
+function imageUrl(path: string, sessionId: string | undefined, epoch: number): string {
+  const url = rawImageUrl(path, sessionId)
+  return epoch === 0 ? url : `${url}&rev=${epoch}`
 }
 
 /**
@@ -345,6 +409,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const [fileLoading, setFileLoading] = useState(() => restored?.selected != null)
   /** What the page does with the open file: preview it, or edit it. */
   const [mode, setMode] = useState<FilesMode>(readMode)
+  /**
+   * The id the mode switch's tabs and the body they control share.
+   *
+   * The tabs sit in the header and the panel is the body below it, so the id is
+   * made here, once, and handed down: the two halves cannot disagree about it, and
+   * two Files tabs open side by side still get distinct ids.
+   *
+   * React's own id carries colons (`:r1:`). They are legal in an HTML `id` and in
+   * the attribute references that name it, but they would make the value unusable
+   * in a selector, and this page's ids are worth being able to query.
+   */
+  const modeId = `dsh-cf-mode-${useId().replaceAll(':', '')}`
   /** Every file opened for editing, by workspace path. */
   const [docs, setDocs] = useState<Readonly<Record<string, EditorDoc>>>({})
   /** The unsaved drafts, by workspace path: a path present here is dirty. */
@@ -459,7 +535,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   // Layout effect, not a passive one: the composer seat is already in the tree
   // when this View mounts, and a passive effect would paint one frame of an
   // input this page cannot use.
-  useLayoutEffect(() => suppressComposerSeat(page.current), [])
+  useComposerSeatSuppression(page)
 
   /**
    * Ask the Host for one directory's children and file the answer under its path.
@@ -607,7 +683,38 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const restoredRoot = useRef(restored?.root ?? '')
 
   /**
+   * Draw one paged read of a text file.
+   *
+   * The two reads below — the preview's page and the fallback page a large
+   * Markdown document falls back to — answer in the same shape, so they finish in
+   * the same place: the page's text, its line count, and whether it reaches the
+   * end of the file.
+   *
+   * @param payload - the read answer.
+   * @param eof - whether the page is the whole file, which the caller knows.
+   */
+  const applyPage = useCallback((payload: ReadPayload, eof: boolean, partial = false): void => {
+    setPreview({
+      text: pendingText(payload.text),
+      lines: typeof payload.lines === 'number' ? payload.lines : 0,
+      eof,
+      ...(partial ? { partial: true } : {}),
+      ...(typeof payload.bytes === 'number' ? { bytes: payload.bytes } : {}),
+    })
+  }, [])
+
+  /**
    * Read one file for the preview pane and draw it.
+   *
+   * What "read" means depends on the file's kind (`shared/kinds.ts`). An image is
+   * not read here at all: the pane points an `<img>` at the raw route and the
+   * browser decodes it, so no text — and no failed text read on a binary file —
+   * is ever involved. A Markdown document is read whole, through the editor's
+   * text route, because a rendered document must not stop at the preview's page
+   * cap; a document past that cap falls back to the paged read and is marked
+   * partial, which the pane answers with the source view and a notice rather than
+   * with half a page. Everything else keeps the paged read the source view was
+   * built on.
    *
    * @param path - the file as a workspace path.
    * @param restoring - whether this read is the memory putting a file back, in
@@ -622,29 +729,150 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       setSelected(path)
       setPreview(null)
       setFileError(null)
-      setFileLoading(true)
-      void fetchFile(sessionId, path).then((payload) => {
-        if (previewToken.current !== token) return
+      setLinkError(null)
+
+      /** Report a read that did not produce a page. */
+      const fail = (text: string): void => {
         setFileLoading(false)
-        if (payload.ok !== true) {
-          if (restoring) setSelected(null)
-          else setFileError(payload.error ?? t('error.read'))
+        if (restoring) setSelected(null)
+        else setFileError(text)
+      }
+
+      const kind = fileKindOf(path)
+      if (kind === 'image') {
+        // The picture is fetched by the `<img>` itself; there is nothing for this
+        // page to read, so the pane is ready as soon as it is drawn.
+        setFileLoading(false)
+        return
+      }
+      setFileLoading(true)
+
+      const readPage = (partial: boolean): void => {
+        void fetchFile(sessionId, path).then((page) => {
+          if (previewToken.current !== token) return
+          if (page.ok !== true) {
+            fail(page.error ?? t('error.read'))
+            return
+          }
+          setFileLoading(false)
+          applyPage(page, page.eof !== false, partial)
+        })
+      }
+
+      if (kind !== 'markdown') {
+        readPage(false)
+        return
+      }
+
+      void fetchText(sessionId, path).then((payload) => {
+        if (previewToken.current !== token) return
+        if (payload.ok === true) {
+          const raw = typeof payload.text === 'string' ? payload.text : ''
+          setFileLoading(false)
+          setPreview({
+            text: previewTextOf(raw),
+            lines: lineCount(raw),
+            eof: true,
+            ...(typeof payload.bytes === 'number' ? { bytes: payload.bytes } : {}),
+          })
           return
         }
-        setPreview({
-          text: pendingText(payload.text),
-          lines: typeof payload.lines === 'number' ? payload.lines : 0,
-          eof: payload.eof !== false,
-          ...(typeof payload.bytes === 'number' ? { bytes: payload.bytes } : {}),
-        })
+        // A document too large to read whole is still worth showing as far as
+        // the paged read reaches, but as source: the pane cannot render half a
+        // page without lying about it, and the notice above the source says what
+        // the reader is looking at.
+        if (payload.reason === 'too-large') {
+          readPage(true)
+          return
+        }
+        // The preview words its own failures: the editor's copy says "can only be
+        // previewed", which is exactly what the reader is already doing.
+        fail(
+          payload.reason === 'not-text'
+            ? t('preview.notText')
+            : payload.reason === 'missing'
+              ? t('preview.missing')
+              : (payload.error ?? t('error.read')),
+        )
       })
     },
-    [sessionId, t],
+    [applyPage, sessionId, t],
   )
 
   /** The opening read of a restored file, for the reset effect below. */
   const openFileRef = useRef(openFile)
   openFileRef.current = openFile
+
+  /**
+   * The line a Markdown link asked the open file to reveal, if any.
+   *
+   * Reset by every plain open from the tree — a click there means "this file", not
+   * "this line" — and consumed by the body once it has scrolled, so re-rendering
+   * the pane later does not jump the reader back.
+   */
+  const [revealLine, setRevealLine] = useState<number | undefined>(undefined)
+  /**
+   * A link the page could not follow, worded for the reader.
+   *
+   * Cleared by any open: the notice belongs to the click that produced it, not to
+   * the document behind it.
+   */
+  const [linkError, setLinkError] = useState<string | null>(null)
+
+  // `toggleDirectory` is declared below, after the effects that reset the tree;
+  // a ref keeps this callback off that ordering without making it depend on a
+  // function identity that changes with every listing.
+  const toggleDirectoryRef = useRef<(path: string) => void>(() => {})
+
+  /**
+   * Open one workspace target a document linked to, optionally at a line.
+   *
+   * A link is authored by whoever wrote the document, so it can name anything:
+   * a sibling file, a picture, a folder, or something the workspace does not
+   * hold. Those are three different answers and the renderer cannot tell them
+   * apart for this page — it only knows a local-looking destination. The cache of
+   * directory answers is what makes the difference visible here: a target listed
+   * as a folder is opened as one, and a target a listed folder does not hold is
+   * reported in the page's own words instead of the Host's English.
+   *
+   * @param path - the target as a workspace path.
+   * @param line - the 1-based line the link named.
+   */
+  const openDocumentAt = useCallback(
+    (path: string, line?: number): void => {
+      const at = path.lastIndexOf('/')
+      const parent = at === -1 ? '' : path.slice(0, at)
+      const name = at === -1 ? path : path.slice(at + 1)
+      const listing = directories[parent]
+
+      // A folder link opens that branch rather than asking the Host for a text
+      // read it can only refuse.
+      if (listing !== undefined && listing.error === null) {
+        const entry = listing.entries.find((item) => item.name === name)
+        if (entry?.type === 'directory') {
+          if (!expanded.includes(path)) toggleDirectoryRef.current(path)
+          return
+        }
+        // A file the listing says is not there: the document is out of date with
+        // the workspace. The page says so in a line above the body and leaves the
+        // document open — the link is not the file the reader is reading, and
+        // replacing a rendered document with an error over it would lose their
+        // place for a dead link.
+        if (entry === undefined) {
+          setLinkError(t('preview.missing'))
+          return
+        }
+      }
+
+      openFile(path)
+      // A line is only meaningful where the pane draws numbered rows. A rendered
+      // document has no lines to reveal — its source view does — so the anchor is
+      // dropped there rather than promised and never honoured. `#L24` is written
+      // to point at code, which is the kind that keeps it.
+      setRevealLine(fileKindOf(path) === 'text' ? line : undefined)
+    },
+    [directories, expanded, openFile, t],
+  )
 
   // One tree per session: switching sessions drops every cached directory, every
   // open branch and the file being previewed, then reads the new root and draws
@@ -677,6 +905,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     setDrafts({})
     setSaving(false)
     setSaveError(null)
+    setRevealLine(undefined)
     loadRef.current('')
     // The file is read again rather than remembered: only its path was saved, so
     // what comes back is the file as it is now.
@@ -909,9 +1138,13 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   }, [])
 
   // A file opened in editor mode needs its whole text; reading it here rather
-  // than in the menu keeps the choice instant and the read off the click path.
+  // than in the switch keeps the choice instant and the read off the click path.
+  // An image has no text to read for an editor, and the pane never offers the
+  // switch for one — this guard is what keeps a stale editor mode (left over
+  // from the last text file) from asking for a binary file's "text".
   useEffect(() => {
     if (mode !== 'editor' || selected === null) return
+    if (fileKindOf(selected) === 'image') return
     if (docs[selected] !== undefined) return
     loadDocument(selected)
   }, [docs, loadDocument, mode, selected])
@@ -952,6 +1185,9 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     },
     [directories, expanded, loadDirectory],
   )
+  // The link opener reads the current toggle through this: it declares earlier,
+  // and a stale closure here would open a branch the page has since folded.
+  toggleDirectoryRef.current = toggleDirectory
 
   /**
    * Show or hide the entries the system hides.
@@ -965,6 +1201,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     setShowHidden(next)
     writeShowHidden(next)
   }, [showHidden])
+
+  /**
+   * Bumped whenever Refresh re-reads a selected picture.
+   *
+   * An `<img>` caches by address, and an image preview reads nothing through this
+   * page — the browser fetches the picture itself — so a refresh that left the
+   * address alone would show the frame it already had. The body's key carries
+   * this number, which remounts the image pane and therefore fetches again.
+   */
+  const [imageEpoch, setImageEpoch] = useState(0)
 
   /**
    * Re-read the tree that is on screen: the root and every open branch.
@@ -981,6 +1227,9 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     for (const path of ['', ...open]) loadDirectory(path)
     if (selected !== null) {
       openFile(selected)
+      // A picture is not read through this page (the `<img>` fetches it), so the
+      // epoch is what makes Refresh mean something for one.
+      if (fileKindOf(selected) === 'image') setImageEpoch((count) => count + 1)
       // An open editor follows the disk too — unless it holds a draft, which a
       // refresh must not throw away.
       if (docs[selected] !== undefined && drafts[selected] === undefined) loadDocument(selected)
@@ -1021,11 +1270,13 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       ]
     }
 
-    // A dotted name is the system's own "hidden" mark; the eye decides whether
-    // those children are drawn, and the listing itself always carries them.
+    // Hidden is the Host's judgement, not this page's: the listing carries the
+    // platform's own mark where it has one, and the eye decides whether those
+    // children are drawn. A Host that predates the field answers with none, and
+    // then the POSIX convention is what this page has to go on.
     const entries = showHidden
       ? state.entries
-      : state.entries.filter((entry) => !entry.name.startsWith('.'))
+      : state.entries.filter((entry) => (entry.hidden ?? entry.name.startsWith('.')) !== true)
     if (entries.length === 0) {
       return [
         <div className="dsh-cf-note" key={`${path}:filtered`}>
@@ -1044,6 +1295,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             type="button"
             className="dsh-cf-row"
             data-type={entry.type}
+            data-ignored={entry.ignored === true ? '' : undefined}
             data-open={open ? '' : undefined}
             data-selected={!isDirectory && selected === target ? '' : undefined}
             title={entry.name}
@@ -1054,7 +1306,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 toggleDirectory(target)
                 return
               }
-              if (entry.type === 'file') openFile(target)
+              if (entry.type === 'file') {
+                setRevealLine(undefined)
+                openFile(target)
+              }
             }}
           >
             <span className="dsh-cf-twist" aria-hidden="true">
@@ -1085,7 +1340,23 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
 
   const doc = selected === null ? undefined : docs[selected]
   const draft = selected === null ? undefined : drafts[selected]
-  const editing = mode === 'editor' && selected !== null
+  // What the preview pane draws for the selected file. An image has no text to
+  // edit, so the editor cannot apply to it: the pane shows the picture and the
+  // header draws no switch at all.
+  //
+  // This is a fact about the file's kind, not about whether it can be read right
+  // now. A text file whose document read failed — too large, not UTF-8, gone from
+  // disk — keeps its switch: the reader may have arrived in editor mode by the
+  // saved preference, a failed read is what the body's notice explains, and
+  // hiding the control that got them there would leave no way back to the
+  // preview.
+  const kind = selected === null ? 'text' : fileKindOf(selected)
+  const editable = kind !== 'image'
+  // The mode the pane is actually drawn in, which is the saved preference only
+  // where it can be honoured. The header names this, not the preference, so the
+  // selected segment never claims an editor it is not showing.
+  const effectiveMode: FilesMode = editable ? mode : 'preview'
+  const editing = effectiveMode === 'editor' && selected !== null && editable
   // The text the editor would draw, once the file is open and readable; null
   // while it is still loading, or when it cannot be edited at all.
   const editorText = doc !== undefined && !doc.loading && doc.error === null ? draft ?? doc.text : null
@@ -1097,8 +1368,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   // The header's line/size note follows the mode: the preview's page while
   // previewing, the whole document while editing, where the draft's own line
   // count is what the reader is looking at.
-  let meta: { readonly lines: number; readonly bytes?: number } | null = null
-  if (editing) {
+  //
+  // A rendered document is a page, not a file of numbered rows, so it carries no
+  // line count either: the size is the one fact about it that still means what it
+  // says. A picture has neither — but its size is known from the listing it was
+  // opened from, which is why it reports bytes alone.
+  const entrySize = directorySizeOf(directories, selected)
+  let meta: { readonly lines?: number; readonly bytes?: number } | null = null
+  if (kind === 'image') {
+    meta = entrySize === undefined ? null : { bytes: entrySize }
+  } else if (editing) {
     if (doc !== undefined && !doc.loading && doc.error === null) {
       meta = {
         lines: lineCount(draft ?? doc.text),
@@ -1106,8 +1385,20 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       }
     }
   } else if (preview !== null) {
-    meta = { lines: preview.lines, ...(preview.bytes === undefined ? {} : { bytes: preview.bytes }) }
+    const rendered = kind === 'markdown' && preview.partial !== true
+    meta = {
+      ...(rendered ? {} : { lines: preview.lines }),
+      ...(preview.bytes === undefined ? {} : { bytes: preview.bytes }),
+    }
+    if (meta.bytes === undefined && meta.lines === undefined) meta = null
   }
+
+  // A picture over the raw route's cap cannot be shown at all, so the pane is
+  // told before it asks: the `<img>` could never report why it failed.
+  const imageRefusal =
+    kind === 'image' && entrySize !== undefined && entrySize > IMAGE_MAX_BYTES
+      ? t('preview.imageTooLarge', { size: formatSize(IMAGE_MAX_BYTES) })
+      : undefined
 
   return (
     <div
@@ -1157,6 +1448,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
         {/* The sidebar's own right edge, which is the boundary its width is
             measured to. */}
         <ResizeHandle
+          axis="col"
           onStart={startSideResize}
           onDrag={dragSideResize}
           onCommit={commitSideResize}
@@ -1181,18 +1473,36 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               </span>
               {meta === null ? null : (
                 <span className="dsh-cf-file-meta">
-                  {t('preview.lines', { count: meta.lines })}
-                  {meta.bytes === undefined ? '' : ` · ${formatSize(meta.bytes)}`}
+                  {meta.lines === undefined ? null : t('preview.lines', { count: meta.lines })}
+                  {meta.lines !== undefined && meta.bytes !== undefined ? ' · ' : null}
+                  {meta.bytes === undefined ? null : formatSize(meta.bytes)}
                 </span>
               )}
-              <ModeMenu mode={mode} onSelect={changeMode} t={t} />
+              {/* Nothing for a picture: it has no source to edit, so a control
+                  here could only restate the pane. The saved preference is left
+                  alone and applies again at the next file that can honour it. */}
+              <ModeSwitch
+                mode={effectiveMode}
+                onSelect={changeMode}
+                editable={editable}
+                id={modeId}
+                t={t}
+              />
             </header>
 
-            {mode !== 'editor' && preview !== null && preview.eof === false ? (
+            {/* The source view's page notice. A rendered document is a page, so it
+                reports its own partial read (see `markdown.tsx`) instead. */}
+            {!editing && kind !== 'markdown' && preview !== null && preview.eof === false ? (
               <div className="dsh-cf-truncated">{t('preview.truncated', { count: preview.lines })}</div>
             ) : null}
 
             {plainEdit ? <div className="dsh-cf-truncated">{t('editor.plain')}</div> : null}
+
+            {linkError === null ? null : (
+              <div className="dsh-cf-truncated" role="alert">
+                {linkError}
+              </div>
+            )}
 
             {saveError === null ? null : (
               <div className="dsh-cf-save-error" role="alert">
@@ -1206,9 +1516,42 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             )}
 
             {/* Keyed by the mode and the file: a new subject starts at its first
-                line, rather than wherever the previous one left its scroller. */}
-            <div className="dsh-cf-body" key={`${mode}:${selected}`} data-editor={editing ? '' : undefined}>
-              {editing ? (
+                line, rather than wherever the previous one left its scroller. An
+                image also carries the refresh epoch, because the browser fetches
+                a picture by address and would otherwise keep the cached one.
+
+                It is also the panel the mode switch controls — one panel whose
+                content the two tabs swap, which is why both tabs name this same
+                id. A file with no switch has no panel role either: a tabpanel
+                nothing points at would be a lie about the page's structure. */}
+            <div
+              className="dsh-cf-body"
+              key={`${mode}:${selected}:${imageEpoch}`}
+              data-editor={editing ? '' : undefined}
+              {...(editable
+                ? {
+                    id: modePanelId(modeId),
+                    role: 'tabpanel',
+                    // The preview holds nothing focusable, so the panel itself is
+                    // the tab stop that lets the arrow keys scroll it. The editor
+                    // does not get one: its field is already the stop, and a second
+                    // one in front of it would only be a step to walk past.
+                    ...(editing ? {} : { tabIndex: 0 }),
+                    'aria-labelledby': `${modeId}-${effectiveMode}`,
+                  }
+                : {})}
+            >
+              {kind === 'image' ? (
+                <ImageView
+                  // The epoch rides in the address as well as the key: a remount
+                  // alone trusts the raw route's `no-store` header, while a new
+                  // address is a request the browser cannot answer from cache.
+                  src={imageUrl(selected, sessionId, imageEpoch)}
+                  alt={baseName(selected)}
+                  refusal={imageRefusal}
+                  t={t}
+                />
+              ) : editing ? (
                 doc === undefined || doc.loading ? (
                   <div className="dsh-cf-note">{t('editor.loading')}</div>
                 ) : doc.error !== null ? (
@@ -1226,9 +1569,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 <div className="dsh-cf-note">{t('preview.loading')}</div>
               ) : fileError !== null ? (
                 <div className="dsh-cf-error">{fileError}</div>
-              ) : preview !== null ? (
-                <CodePreview text={preview.text} path={selected} />
-              ) : null}
+              ) : preview === null ? null : kind === 'markdown' ? (
+                <MarkdownPreview
+                  text={preview.text}
+                  path={selected}
+                  sessionId={sessionId}
+                  partial={preview.partial === true}
+                  onOpenFile={openDocumentAt}
+                  t={t}
+                />
+              ) : (
+                <CodePreview text={preview.text} path={selected} line={revealLine} />
+              )}
             </div>
           </>
         )}

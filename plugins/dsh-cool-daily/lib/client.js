@@ -28,8 +28,8 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
-		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		let react_dom = require("react-dom");
+		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		// ../../packages/icons/src/icon.tsx
 		/**
 		* Draw an icon's root `<svg>`.
@@ -222,6 +222,104 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
+		// ../../packages/ui/src/styles/inject.ts
+		/**
+		* Hand one sheet to the shell's styles service.
+		*
+		* @param css - the sheet's text.
+		* @returns its disposer, or null when this build has no service.
+		*/
+		function insertViaPlatform(css) {
+			try {
+				const service = typeof styles === "undefined" ? void 0 : styles;
+				if (service === void 0 || typeof service.insert !== "function") return null;
+				const dispose = service.insert(css);
+				return typeof dispose === "function" ? dispose : null;
+			} catch {
+				return null;
+			}
+		}
+		/**
+		* Insert a plugin's stylesheet — the shared one included — as a single tag.
+		*
+		* The sheet is one tag rather than one per owner: the rule for the shared part
+		* and the rule for a plugin's own part are equally owned by that plugin, and a
+		* second tag would only be a second thing to leak. Callers hand in their own
+		* rules and get the shared frame for free, which is what keeps two plugins from
+		* shipping two subtly different empty-state or divider rules.
+		*
+		* Insert it from `apply()`, inside `ctx.effect`, so the disposer runs when the
+		* plugin is unloaded or hot-replaced:
+		*
+		* ```ts
+		* ctx.effect(() => insertPluginStyles(__DSH_CG_PLUGIN_ID__, GIT_CSS), 'dsh-cool-git: styles')
+		* ```
+		*
+		* @param pluginId - the id the loader registered this bundle under; the tag's
+		*   ownership record, and the value the shell books it by.
+		* @param extraCss - the plugin's own rules, after the shared ones.
+		* @returns a disposer removing exactly this sheet.
+		*/
+		function insertPluginStyles(pluginId, extraCss) {
+			const css = extraCss === void 0 || extraCss === "" ? UI_CSS : `${UI_CSS}\n${extraCss}`;
+			const platformDispose = insertViaPlatform(css);
+			if (platformDispose !== null) return platformDispose;
+			const element = document.createElement("style");
+			element.setAttribute("data-plugin", pluginId);
+			element.setAttribute("data-dsh-cool-ui", pluginId);
+			element.textContent = css;
+			document.head.appendChild(element);
+			return () => {
+				element.remove();
+			};
+		}
+		/** The prefix every class in {@link UI_CSS} carries. */
+		const UI_PREFIX = "dsh-ui";
+		/**
+		* The shared stylesheet.
+		*
+		* Every rule here is a fact more than one plugin has to state, and every color
+		* is a `--dsw-*` theme token, so a rule follows the active light or dark
+		* appearance — including third-party theme presets — instead of forcing a
+		* palette of its own. Nothing in it paints a surface of its own: the classes are
+		* applied inside a plugin's root, and the root keeps owning the canvas.
+		*
+		* What is here, and why each part is shared rather than copied:
+		*
+		* 1. The page frame — the one place a plugin gets a full-height column that
+		*    paints no fill of its own, so a theme's wallpaper shows through it.
+		* 2. The draggable boundary — one gesture, one hit target, one hover cue; three
+		*    copies of it meant three chances for the cue to drift from the hit target.
+		* 3. The scrollbar treatment — the shell's own tokens, applied the way its
+		*    lists apply them.
+		* 4. The wallpaper hand-off — `dsh-cool-theme` marks the document with
+		*    `ct-bg-on` while it has a wallpaper mounted, and a plugin page that paints
+		*    its own canvas has to clear the two tokens it paints with for the image to
+		*    show through. The rule is scoped by the plugin's own root class, so a
+		*    profile without the theme never matches it.
+		*/
+		const UI_CSS = [
+			`.${UI_PREFIX}-page{display:flex;flex:1 1 auto;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
+			`.${UI_PREFIX}-page *{box-sizing:border-box}`,
+			`.${UI_PREFIX}-page[data-surface=canvas]{background:var(--dsw-alias-bg-base)}`,
+			`.${UI_PREFIX}-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable both-edges}`,
+			`.${UI_PREFIX}-resize{position:absolute;z-index:2;touch-action:none}`,
+			`.${UI_PREFIX}-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}`,
+			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
+			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
+			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
+			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
+			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
+			`[data-resizing=row],[data-resizing=row] *{cursor:row-resize}`,
+			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+		].join("\n");
 		// src/shared/contract.ts
 		/** Every route below this prefix is owned by this plugin. */
 		const API_PREFIX = "/dsh-cool-daily/api";
@@ -1203,6 +1301,15 @@ window.__ModuleLoader__.load({
 								label: t("settings.count"),
 								text: count,
 								numeric: true,
+								hint: t("settings.countHint"),
+								invalid: count === "",
+								invalidLabel: t("settings.countInvalid"),
+								overridden: false,
+								overriddenLabel: "",
+								resetLabel: t("settings.countReset"),
+								onReset: () => {
+									setCount(String(settings.count));
+								},
 								disabled: saving,
 								onEdit: (value) => {
 									setCount(limitCount(value));
@@ -1880,6 +1987,9 @@ window.__ModuleLoader__.load({
 			"settings.prompt": "Prompt",
 			"settings.promptHint": "Describe the topics, angle, or style you want to read.",
 			"settings.count": "Articles per generation",
+			"settings.countHint": "Between 1 and 10.",
+			"settings.countInvalid": "Enter a number between 1 and 10.",
+			"settings.countReset": "Reset",
 			"settings.days": "Repeat days",
 			"settings.cancel": "Cancel",
 			"settings.close": "Close",
@@ -1938,6 +2048,9 @@ window.__ModuleLoader__.load({
 			"settings.prompt": "提示词",
 			"settings.promptHint": "描述你想读的主题、角度或写作风格。",
 			"settings.count": "生成数量",
+			"settings.countHint": "可填 1 到 10 篇。",
+			"settings.countInvalid": "请填写 1 到 10 之间的数字。",
+			"settings.countReset": "重置",
 			"settings.days": "生成日期",
 			"settings.cancel": "取消",
 			"settings.close": "关闭",
@@ -1973,6 +2086,16 @@ window.__ModuleLoader__.load({
 			"weekday.6": "六"
 		};
 		// src/client/styles.ts
+		/**
+		* Package-owned stylesheet for the Daily Post page.
+		*
+		* The sheet follows the shipped first-level pages' frame — the same centered
+		* column, first-level heading, and macOS hiddenInset titlebar clearance — so
+		* this panel sits beside Plugins and Automated Tasks without looking like a
+		* different surface. Every color is a `--dsw-*` theme token, so the page follows
+		* the active light or dark appearance, including third-party theme presets,
+		* instead of forcing a palette of its own.
+		*/
 		/** CSS rules, one selector per line. */
 		const PLUGIN_CSS = [
 			".dsh-cd-glyph{position:relative;display:inline-flex;align-items:center;justify-content:center}",
@@ -2132,14 +2255,7 @@ window.__ModuleLoader__.load({
 		* @returns the disposer that removes the style element.
 		*/
 		function insertStyles() {
-			const element = document.createElement("style");
-			element.setAttribute("data-plugin", "dsh-cool-daily");
-			element.setAttribute("data-dsh-cool-daily", "styles");
-			element.textContent = PLUGIN_CSS;
-			document.head.appendChild(element);
-			return () => {
-				element.remove();
-			};
+			return insertPluginStyles("dsh-cool-daily", PLUGIN_CSS);
 		}
 		// src/client/index.ts
 		/**

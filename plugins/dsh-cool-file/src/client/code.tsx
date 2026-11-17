@@ -25,7 +25,7 @@
  * coloured tokens inside — plus the row count the gutter needs.
  */
 
-import { useMemo, type CSSProperties, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactElement } from 'react'
 import { highlightCode } from './highlight.js'
 
 /** Props of the preview body. */
@@ -34,7 +34,25 @@ interface CodePreviewProps {
   readonly text: string
   /** The workspace path, which chooses the grammar and names the scroll region. */
   readonly path: string
+  /**
+   * The 1-based line to bring into view once drawn.
+   *
+   * A Markdown link may name one (`README.md#L24`), and opening the file at the
+   * top would make the link look broken. Absent means "start at the top", which
+   * is what a file opened from the tree wants.
+   */
+  readonly line?: number | undefined
 }
+
+/**
+ * One row's height, in pixels.
+ *
+ * Declared here because two things read it: the sheet, which pins every row and
+ * both columns to it, and the one-off reveal below, which converts a line number
+ * into a scroll offset by multiplying. A rule and a multiplication that disagreed
+ * by a pixel would drift by a handful of rows over a long file.
+ */
+export const CODE_LINE_HEIGHT = 19.2
 
 /** The padding the gutter spends on either side of its digits, in pixels. */
 const GUTTER_PADDING = 16
@@ -69,11 +87,26 @@ export function gutterBox(lineCount: number): { readonly text: string; readonly 
  * @param props - the text to draw and the path it came from.
  * @returns the code body.
  */
-export function CodePreview({ text, path }: CodePreviewProps): ReactElement {
+export function CodePreview({ text, path, line }: CodePreviewProps): ReactElement {
   const { html, lineCount } = useMemo(() => highlightCode(text, path), [text, path])
   const gutter = useMemo(() => gutterBox(lineCount), [lineCount])
+  /** The scrolling body this preview was drawn into, for the one-off reveal. */
+  const view = useRef<HTMLDivElement>(null)
+
+  // A row is a fixed 19.2px block (see `styles.ts`), so the offset of any line is
+  // its number times that pitch — no measurement, which is why this can run before
+  // the frame is painted. Done once per mount: the preview is keyed by its file,
+  // so a later re-render is a scroll the reader chose.
+  useEffect(() => {
+    if (line === undefined || line < 1) return
+    const scroller = view.current?.parentElement
+    if (scroller == null) return
+    const top = CODE_LINE_HEIGHT * (line - 1)
+    scroller.scrollTop = Math.max(0, top - scroller.clientHeight / 2)
+  }, [line])
+
   return (
-    <div className="dsh-cf-code-view">
+    <div className="dsh-cf-code-view" ref={view}>
       {/* The ruler is not content: it is hidden from assistive technology,
           cannot be selected into a copy, and never takes the pointer. Its text
           is one number per line, and it starts on the same line the first row

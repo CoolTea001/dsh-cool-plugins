@@ -20,12 +20,13 @@
   "scripts": {
     "build": "pnpm -r --if-present run build",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "check": "pnpm run check:locales && pnpm -r --if-present run check && pnpm run check:client-bundles",
+    "check": "pnpm run check:locales && pnpm -r --if-present run check && pnpm run check:client-bundles && pnpm run check:ui",
     "dev": "pnpm -r --parallel --if-present run dev",
     "icons": "pnpm --filter @dsh-cool/icons dev:catalog",
     "publish-all": "pnpm -r publish --access public",
     "check:locales": "node scripts/check-locales.mjs",
-    "check:client-bundles": "node scripts/check-client-bundles.mjs"
+    "check:client-bundles": "node scripts/check-client-bundles.mjs",
+    "check:ui": "node scripts/check-ui-boundary.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

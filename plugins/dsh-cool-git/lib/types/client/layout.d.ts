@@ -22,7 +22,6 @@
  * own transcript width handle (client-ui-conversation's `ConversationWidthControls`)
  * makes the same trade for the same reason.
  */
-import { type ReactElement } from 'react';
 /**
  * The sidebar's width until it is dragged.
  *
@@ -53,7 +52,16 @@ export declare const DIFF_MIN = 320;
  * dragged still keeps each pane on screen.
  */
 export declare const PANE_MIN = 96;
-/** Which way a boundary moves, and so which pointer coordinate drives it. */
+/**
+ * Which way a boundary moves, and so which pointer coordinate drives it.
+ *
+ * Stated here rather than re-exported from `@dsh-cool/ui`: the package is private
+ * and source-only, so a `export ... from '@dsh-cool/ui'` in this file would be
+ * emitted into the published `.d.ts` and become an import no consumer can
+ * resolve. The two unions are the same two words, and the shared component's
+ * props are checked against them, so a drift is a compile error rather than a
+ * silent mismatch.
+ */
 export type ResizeAxis = 'col' | 'row';
 /** The two sizes the page remembers between visits. */
 export interface GitLayout {
@@ -62,29 +70,11 @@ export interface GitLayout {
     /** The share of the sidebar's pane track that Changed files takes, from 0 to 1. */
     readonly filesShare: number;
 }
-/**
- * The saved layout, with every part that is missing or unusable replaced by its
- * default.
- *
- * A saved value is a preference written in another window size, by another version
- * of this page, in a browser that may not give the entry back at all, so it is read
- * as data rather than trusted: each field is checked on its own — a width has to be
- * a positive number, a share strictly between 0 and 1 — and anything else (an
- * unreadable entry, a JSON error, a field of the wrong shape) falls back to the
- * default for that field alone.
- *
- * @returns the layout to draw, always usable.
- */
+/** The layout of a page nobody has resized. */
+export declare const DEFAULT_LAYOUT: GitLayout;
+/** The saved layout, with every unusable field replaced by its default. */
 export declare function readLayout(): GitLayout;
-/**
- * Record the layout.
- *
- * A storage that refuses the write (quota, or third-party storage blocked) is not
- * worth surfacing: no repository state is involved, and the drag holds for as long
- * as this page is open either way.
- *
- * @param layout - the layout to save.
- */
+/** Record the layout. A storage that refuses the write is not worth surfacing. */
 export declare function writeLayout(layout: GitLayout): void;
 /**
  * Clamp a preferred sidebar width to what this page can draw.
@@ -116,37 +106,4 @@ export declare function clampFilesHeight(preferred: number, track: number): numb
  * @returns the share to draw and save.
  */
 export declare function shareOf(height: number, track: number): number;
-/**
- * One boundary, dragged with the pointer.
- *
- * The gesture is the platform's own width handle (client-ui-conversation's
- * `WidthHandle`), stated once for either axis and for a size rather than a width:
- * the press captures the pointer and records where it started and the size the page
- * was drawing, each move asks the caller to draw the size the pointer now implies —
- * at most once a frame, since a pointer reports more often than a page paints — and
- * the release records that one number. A press that never moved records nothing, so
- * a click on a boundary cannot overwrite a saved size with the window-clamped size
- * it happens to be drawn at.
- *
- * The two terminal paths mean different things. `onCommit` is a new size to record
- * and draw; `onEnd` is a gesture that produced no size — a click, or a pointer lost
- * mid-drag — and the caller draws the recorded layout again, which is what makes a
- * cancelled drag leave the page exactly as it found it.
- *
- * The element sits on the boundary itself, which is a 1px line a pointer cannot be
- * asked to hold, so the stylesheet puts an invisible 8px band around it and this
- * component owns the line in the middle.
- */
-export declare function ResizeHandle(props: {
-    /** Which axis the boundary moves along, and so which pointer coordinate drives it. */
-    readonly axis: ResizeAxis;
-    /** The size the page is drawing as the gesture starts, in CSS pixels. */
-    readonly onStart: () => number;
-    /** Draw the size the pointer now implies. Called at most once a frame. */
-    readonly onDrag: (size: number) => void;
-    /** Record and draw the size the gesture settled on. */
-    readonly onCommit: (size: number) => void;
-    /** The gesture is over without a size: draw the recorded layout again. */
-    readonly onEnd: () => void;
-}): ReactElement;
 //# sourceMappingURL=layout.d.ts.map

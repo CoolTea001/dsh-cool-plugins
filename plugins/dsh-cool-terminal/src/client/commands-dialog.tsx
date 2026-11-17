@@ -23,7 +23,7 @@
  */
 
 import * as React from 'react'
-import { Button, Input, Modal, Toast, Tooltip, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, Toast, Tooltip, writeClipboard } from '@dsh-cool/ui'
 import { IconCopy, IconEdit, IconPlus, IconTrash } from './icons.js'
 import { addCommand, filterCommands, removeCommand, updateCommand, type CommandDef } from './commands.js'
 import type { Translate } from './locales.js'

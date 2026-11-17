@@ -31,7 +31,24 @@ interface CodePreviewProps {
     readonly text: string;
     /** The workspace path, which chooses the grammar and names the scroll region. */
     readonly path: string;
+    /**
+     * The 1-based line to bring into view once drawn.
+     *
+     * A Markdown link may name one (`README.md#L24`), and opening the file at the
+     * top would make the link look broken. Absent means "start at the top", which
+     * is what a file opened from the tree wants.
+     */
+    readonly line?: number | undefined;
 }
+/**
+ * One row's height, in pixels.
+ *
+ * Declared here because two things read it: the sheet, which pins every row and
+ * both columns to it, and the one-off reveal below, which converts a line number
+ * into a scroll offset by multiplying. A rule and a multiplication that disagreed
+ * by a pixel would drift by a handful of rows over a long file.
+ */
+export declare const CODE_LINE_HEIGHT = 19.2;
 /**
  * The number column for a file of `lineCount` rows.
  *
@@ -53,6 +70,6 @@ export declare function gutterBox(lineCount: number): {
  * @param props - the text to draw and the path it came from.
  * @returns the code body.
  */
-export declare function CodePreview({ text, path }: CodePreviewProps): ReactElement;
+export declare function CodePreview({ text, path, line }: CodePreviewProps): ReactElement;
 export {};
 //# sourceMappingURL=code.d.ts.map

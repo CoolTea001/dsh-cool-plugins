@@ -20,6 +20,12 @@
  * for the same reason.
  */
 
+import {
+  finiteNumber,
+  readLayout as readStoredLayout,
+  writeLayout as writeStoredLayout,
+} from '@dsh-cool/ui'
+
 /** The localStorage entry holding the sidebar width, as one JSON object. */
 const LAYOUT_KEY = 'dsh-cool-terminal.layout.v1'
 
@@ -48,60 +54,26 @@ export interface SideLayout {
 }
 
 /** The layout of a page nobody has resized. */
-const DEFAULT_LAYOUT: SideLayout = { sideWidth: SIDE_DEFAULT }
+export const DEFAULT_LAYOUT: SideLayout = { sideWidth: SIDE_DEFAULT }
 
 /**
- * The saved layout, with every part that is missing or unusable replaced by its
- * default.
+ * The stored shape, field by field.
  *
- * A saved value was written in another window size, by another version of this
- * page, in a browser that may not give the entry back at all, so it is read as
- * data rather than trusted: the width has to be a positive finite number, and
- * anything else — an unreadable entry, a JSON error, a field of the wrong
- * shape — falls back to the default.
- * @returns the layout to draw, always usable.
+ * Read as data rather than trusted as a fact: the width has to be a positive
+ * finite number, and anything else — an unreadable entry, a JSON error, a field
+ * of the wrong shape — falls back to the default. The reading and writing
+ * themselves are `@dsh-cool/ui`'s.
  */
-export function readSideLayout(): SideLayout {
-  let raw: string | null
-  try {
-    raw = window.localStorage.getItem(LAYOUT_KEY)
-  } catch {
-    // Storage is not available to this page (a sandboxed frame, or storage
-    // off): the page keeps the default layout for as long as it is open.
-    return DEFAULT_LAYOUT
-  }
-  if (raw === null) return DEFAULT_LAYOUT
+const FIELDS = { sideWidth: finiteNumber(DEFAULT_LAYOUT.sideWidth) } as const
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return DEFAULT_LAYOUT
-  }
-  const saved = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as Record<string, unknown>
-  const { sideWidth } = saved
-  return {
-    sideWidth:
-      typeof sideWidth === 'number' && Number.isFinite(sideWidth) && sideWidth > 0
-        ? sideWidth
-        : DEFAULT_LAYOUT.sideWidth,
-  }
+/** The saved layout, with every unusable field replaced by its default. */
+export function readSideLayout(): SideLayout {
+  return readStoredLayout(LAYOUT_KEY, FIELDS)
 }
 
-/**
- * Record the layout.
- *
- * A storage that refuses the write (quota, or third-party storage blocked) is
- * not worth surfacing: no workspace state is involved, and the drag holds for
- * as long as this page is open either way.
- * @param layout - the layout to save.
- */
+/** Record the layout. A storage that refuses the write is not worth surfacing. */
 export function writeSideLayout(layout: SideLayout): void {
-  try {
-    window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout))
-  } catch {
-    /* persistence is a convenience, never a precondition */
-  }
+  writeStoredLayout(LAYOUT_KEY, layout)
 }
 
 /**

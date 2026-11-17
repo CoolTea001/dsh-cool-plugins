@@ -24,6 +24,25 @@ export interface FileEntry {
   readonly type: FileEntryType
   /** Byte size, present only for a regular file whose backend reports it. */
   readonly size?: number
+  /**
+   * Whether the Host judges this child hidden: a dot-prefixed name by the POSIX
+   * convention, or the platform's own hidden mark when it could be read.
+   *
+   * The judgement is the Host's because only the Host can make it: the listing
+   * carries no visibility bit, and a macOS or Windows hidden flag is not part of
+   * one. The page therefore filters on this field rather than on the name, and
+   * the eye decides whether these rows are drawn.
+   */
+  readonly hidden?: boolean
+  /**
+   * Whether the workspace's own ignore rules leave this child out.
+   *
+   * The row is still drawn — it is on disk — but drawn one step quieter, the way
+   * a repository's own tooling reads it. The rules are Git's, so the answer is
+   * Git's; a directory outside any repository, or a host where Git cannot answer,
+   * reports none and every row stays at full strength.
+   */
+  readonly ignored?: boolean
 }
 
 /** `POST /list`: the direct children of one workspace directory. */

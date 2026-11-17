@@ -56,6 +56,24 @@ importers:
 
   packages/tsdown-config: {}
 
+  packages/ui:
+    devDependencies:
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: 0.2.2-rc.3
+        version: 0.2.2-rc.3(@deepseek-ai/cordis@4.1.0)
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   plugins/dsh-cool-daily:
     dependencies:
       react:
@@ -68,6 +86,9 @@ importers:
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
 
   plugins/dsh-cool-file:
     dependencies:
@@ -76,14 +97,17 @@ importers:
         version: 18.3.1
     devDependencies:
       '@deepseek-ai/dsh-client-ui-primitives':
-        specifier: 0.2.1-rc.5
-        version: 0.2.1-rc.5(@deepseek-ai/cordis@4.0.5)
+        specifier: 0.2.2-rc.3
+        version: 0.2.2-rc.3(@deepseek-ai/cordis@4.1.0)
       '@dsh-cool/icons':
         specifier: workspace:*
         version: link:../../packages/icons
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -112,6 +136,9 @@ importers:
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -137,6 +164,9 @@ importers:
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
 
   plugins/dsh-cool-terminal:
     dependencies:
@@ -150,6 +180,9 @@ importers:
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -181,6 +214,9 @@ importers:
       '@dsh-cool/tsdown-config':
         specifier: workspace:*
         version: link:../../packages/tsdown-config
+      '@dsh-cool/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -202,25 +238,25 @@ importers:
 
 packages:
 
-  '@deepseek-ai/cordis@4.0.5':
-    resolution: {integrity: sha512-Sktq5axy0owk9PdnivBRNOJjHEVEibCt0+TDDZcv0+UH2KS1M910fX4kn5y45YFsrpZIi1mJf/1s5VzywMUnyg==}
+  '@deepseek-ai/cordis@4.1.0':
+    resolution: {integrity: sha512-CJrjNyBkKn1SfvBQUcgFYKFnLjS+uKrhdMsbHU60xabvi12d+xQ+IQSNlME5Z+B+4Zi6n4BDknKY94tEPeo47w==}
     hasBin: true
     peerDependencies:
-      '@deepseek-ai/cordis-plugin-include': ~1.0.10
-      '@deepseek-ai/cordis-plugin-loader': ~1.0.6
+      '@deepseek-ai/cordis-plugin-include': ~1.1.0
+      '@deepseek-ai/cordis-plugin-loader': ~1.1.0
     peerDependenciesMeta:
       '@deepseek-ai/cordis-plugin-include':
         optional: true
       '@deepseek-ai/cordis-plugin-loader':
         optional: true
 
-  '@deepseek-ai/cosmokit@1.8.6':
-    resolution: {integrity: sha512-ZSD/fN52L498LBIOYwjIOlaLv5veY6ZEwI2yzvZUKQtctn0QAPqu8tKdJ+OF5+Tv6NBq1U+wJWH+QI6OGy5EvQ==}
+  '@deepseek-ai/cosmokit@1.9.0':
+    resolution: {integrity: sha512-5O1S53mZiJyZYcvxxD0Qv1EY7qFPSxbGyD8CbVK6gw7W9FvcXZj2YIX1ZkOqyQQ3Xt2rFkZDHJv0+V3Zmmp8CA==}
 
-  '@deepseek-ai/dsh-client-ui-primitives@0.2.1-rc.5':
-    resolution: {integrity: sha512-qSsRaEOURuFu4hDtPGcDO1bKiyPbFV68fvzm9Kxp9SG5c5SOzE4b6P33p1Hmml4nocXb7ktA6ay4jH3HEl1LQw==}
+  '@deepseek-ai/dsh-client-ui-primitives@0.2.2-rc.3':
+    resolution: {integrity: sha512-IVNAhE2SGXpLAyOtSk9JYJQcgoNj1yBuoNWg5ZeddcBx4O8ZZCF2ehpkT8M8dfg3VkQ38Rhr8kbwlpOhe3wJKg==}
     peerDependencies:
-      '@deepseek-ai/cordis': ~4.0.5
+      '@deepseek-ai/cordis': ~4.1.0
 
   '@fontsource-variable/geist-mono@5.3.0':
     resolution: {integrity: sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw==}
@@ -1002,16 +1038,16 @@ packages:
 
 snapshots:
 
-  '@deepseek-ai/cordis@4.0.5':
+  '@deepseek-ai/cordis@4.1.0':
     dependencies:
-      '@deepseek-ai/cosmokit': 1.8.6
+      '@deepseek-ai/cosmokit': 1.9.0
       '@standard-schema/spec': 1.1.0
 
-  '@deepseek-ai/cosmokit@1.8.6': {}
+  '@deepseek-ai/cosmokit@1.9.0': {}
 
-  '@deepseek-ai/dsh-client-ui-primitives@0.2.1-rc.5(@deepseek-ai/cordis@4.0.5)':
+  '@deepseek-ai/dsh-client-ui-primitives@0.2.2-rc.3(@deepseek-ai/cordis@4.1.0)':
     dependencies:
-      '@deepseek-ai/cordis': 4.0.5
+      '@deepseek-ai/cordis': 4.1.0
 
   '@fontsource-variable/geist-mono@5.3.0': {}
 

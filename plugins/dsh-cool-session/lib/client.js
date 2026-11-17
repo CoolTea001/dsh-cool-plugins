@@ -8,6 +8,138 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		let react_dom = require("react-dom");
+		// ../../packages/ui/src/styles/inject.ts
+		/**
+		* Hand one sheet to the shell's styles service.
+		*
+		* @param css - the sheet's text.
+		* @returns its disposer, or null when this build has no service.
+		*/
+		function insertViaPlatform(css) {
+			try {
+				const service = typeof styles === "undefined" ? void 0 : styles;
+				if (service === void 0 || typeof service.insert !== "function") return null;
+				const dispose = service.insert(css);
+				return typeof dispose === "function" ? dispose : null;
+			} catch {
+				return null;
+			}
+		}
+		/**
+		* Insert a plugin's stylesheet — the shared one included — as a single tag.
+		*
+		* The sheet is one tag rather than one per owner: the rule for the shared part
+		* and the rule for a plugin's own part are equally owned by that plugin, and a
+		* second tag would only be a second thing to leak. Callers hand in their own
+		* rules and get the shared frame for free, which is what keeps two plugins from
+		* shipping two subtly different empty-state or divider rules.
+		*
+		* Insert it from `apply()`, inside `ctx.effect`, so the disposer runs when the
+		* plugin is unloaded or hot-replaced:
+		*
+		* ```ts
+		* ctx.effect(() => insertPluginStyles(__DSH_CG_PLUGIN_ID__, GIT_CSS), 'dsh-cool-git: styles')
+		* ```
+		*
+		* @param pluginId - the id the loader registered this bundle under; the tag's
+		*   ownership record, and the value the shell books it by.
+		* @param extraCss - the plugin's own rules, after the shared ones.
+		* @returns a disposer removing exactly this sheet.
+		*/
+		function insertPluginStyles(pluginId, extraCss) {
+			const css = extraCss === void 0 || extraCss === "" ? UI_CSS : `${UI_CSS}\n${extraCss}`;
+			const platformDispose = insertViaPlatform(css);
+			if (platformDispose !== null) return platformDispose;
+			const element = document.createElement("style");
+			element.setAttribute("data-plugin", pluginId);
+			element.setAttribute("data-dsh-cool-ui", pluginId);
+			element.textContent = css;
+			document.head.appendChild(element);
+			return () => {
+				element.remove();
+			};
+		}
+		/** The prefix every class in {@link UI_CSS} carries. */
+		const UI_PREFIX = "dsh-ui";
+		/**
+		* The shared stylesheet.
+		*
+		* Every rule here is a fact more than one plugin has to state, and every color
+		* is a `--dsw-*` theme token, so a rule follows the active light or dark
+		* appearance — including third-party theme presets — instead of forcing a
+		* palette of its own. Nothing in it paints a surface of its own: the classes are
+		* applied inside a plugin's root, and the root keeps owning the canvas.
+		*
+		* What is here, and why each part is shared rather than copied:
+		*
+		* 1. The page frame — the one place a plugin gets a full-height column that
+		*    paints no fill of its own, so a theme's wallpaper shows through it.
+		* 2. The draggable boundary — one gesture, one hit target, one hover cue; three
+		*    copies of it meant three chances for the cue to drift from the hit target.
+		* 3. The scrollbar treatment — the shell's own tokens, applied the way its
+		*    lists apply them.
+		* 4. The wallpaper hand-off — `dsh-cool-theme` marks the document with
+		*    `ct-bg-on` while it has a wallpaper mounted, and a plugin page that paints
+		*    its own canvas has to clear the two tokens it paints with for the image to
+		*    show through. The rule is scoped by the plugin's own root class, so a
+		*    profile without the theme never matches it.
+		*/
+		const UI_CSS = [
+			`.${UI_PREFIX}-page{display:flex;flex:1 1 auto;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
+			`.${UI_PREFIX}-page *{box-sizing:border-box}`,
+			`.${UI_PREFIX}-page[data-surface=canvas]{background:var(--dsw-alias-bg-base)}`,
+			`.${UI_PREFIX}-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable both-edges}`,
+			`.${UI_PREFIX}-resize{position:absolute;z-index:2;touch-action:none}`,
+			`.${UI_PREFIX}-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}`,
+			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
+			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
+			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
+			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
+			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
+			`[data-resizing=row],[data-resizing=row] *{cursor:row-resize}`,
+			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+		].join("\n");
+		// ../../packages/ui/src/input.tsx
+		/**
+		* The shell's text field, with the one attribute its `Modal` looks for.
+		*
+		* `Input` is the shell's own control, so this module wraps rather than restates
+		* it: the markup, the icon gutter, the focus ring and the fill all stay the
+		* platform's. What it adds is a single, typed spelling of `data-modal-autofocus`.
+		*
+		* The attribute is how the platform's `Modal` picks the control that takes
+		* initial focus (`element.querySelector('[data-modal-autofocus]')`), and it is
+		* deliberately not React's `autoFocus`: React's runs before the layer stack has
+		* captured the invoking control, so returning focus on close would land in the
+		* wrong place. But the shell types `Input`'s props as the native input
+		* attributes, and TypeScript does not admit an arbitrary `data-*` key on a
+		* component whose props are an intersection — so a caller that wants the
+		* attribute has to spell it in a way the type system refuses, and a plugin that
+		* worked around that with its own ambient declaration would be describing an API
+		* the shell does not publish.
+		*
+		* A named boolean is the fix: the wrapper turns it into the attribute, the
+		* caller stays inside the published props, and the trick is written once.
+		*/
+		/**
+		* Render the shell's text field.
+		*
+		* @param props - the field's own props and the initial-focus flag.
+		* @returns the field, with `data-modal-autofocus` set when asked for.
+		*/
+		function Input({ modalAutofocus, ...rest }) {
+			return (0, react.createElement)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				...modalAutofocus === true ? { "data-modal-autofocus": true } : {},
+				...rest
+			});
+		}
 		// src/client/api.ts
 		const BASE = "/dsh-cool-session/api";
 		/**
@@ -1522,7 +1654,7 @@ window.__ModuleLoader__.load({
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: "dsh-cs-toolbar",
 						children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Input, {
 								className: "dsh-cs-search",
 								type: "search",
 								value: query,
@@ -1990,6 +2122,18 @@ window.__ModuleLoader__.load({
 			};
 		}
 		// src/client/styles.ts
+		/**
+		* Package-owned stylesheet for the plugin's three surfaces.
+		*
+		* The native Session menu row and both confirmations are drawn by DSH's own
+		* primitives, so this sheet only adds the danger tint on the legacy menu row and
+		* on the dialogs' confirm action, the inline refusal blocks, and the Settings
+		* page's own controls and table. (Where the menu service carries Delete, its
+		* `danger` flag supplies the red row instead.) The section follows the shipped
+		* sections' heading and row rhythm. Every color is a `--dsw-*` theme token, so
+		* every surface follows the active light or dark appearance — including
+		* third-party theme presets — instead of forcing a palette of its own.
+		*/
 		/** CSS rules, one selector per line. */
 		const PLUGIN_CSS = [
 			".dsh-cs-menu-delete-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-state-error-primary)}",
@@ -2051,26 +2195,16 @@ window.__ModuleLoader__.load({
 			".dsh-cs-nav-icon svg{width:16px;height:16px;display:block}"
 		].join("\n");
 		/**
-		* Insert the stylesheet once for the plugin lifetime.
+		* Insert this package's rules — and the shared ones — once for the plugin lifetime.
 		*
-		* The tag carries the platform's style-ownership record — `data-plugin` with this
-		* package's id, which is what every DSH bundle writes on the tags it injects. A
-		* tag carrying no attribute is claimed by whichever module materializes next and
-		* deleted with it, so naming the owner here keeps the sheet this plugin's own:
-		* only a reload of `dsh-cool-session` retires it, and this effect's disposer
-		* removes it then anyway.
+		* The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+		* rather than this file's: see `insertPluginStyles`. What stays here is the
+		* plugin's own id, which is the name that ownership record carries.
 		*
-		* @returns disposer that removes exactly this element.
+		* @returns disposer that removes exactly this sheet.
 		*/
 		function insertStyles() {
-			const element = document.createElement("style");
-			element.setAttribute("data-plugin", "dsh-cool-session");
-			element.setAttribute("data-dsh-cool-session", "styles");
-			element.textContent = PLUGIN_CSS;
-			document.head.appendChild(element);
-			return () => {
-				element.remove();
-			};
+			return insertPluginStyles("dsh-cool-session", PLUGIN_CSS);
 		}
 		// src/client/index.ts
 		/**

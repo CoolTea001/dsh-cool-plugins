@@ -34,6 +34,9 @@ export declare const en: {
     'settings.prompt': string;
     'settings.promptHint': string;
     'settings.count': string;
+    'settings.countHint': string;
+    'settings.countInvalid': string;
+    'settings.countReset': string;
     'settings.days': string;
     'settings.cancel': string;
     'settings.close': string;

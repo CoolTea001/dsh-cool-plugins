@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@dsh-cool/icons": "workspace:*",
+    "@dsh-cool/ui": "workspace:*",
     "@dsh-cool/tsdown-config": "workspace:*"
   },
   "peerDependencies": {

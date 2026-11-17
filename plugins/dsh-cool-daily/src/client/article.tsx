@@ -8,7 +8,7 @@
 
 import * as React from 'react'
 import { IconArrowLeft } from '@dsh-cool/icons'
-import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Tag } from '@dsh-cool/ui'
 
 import { fetchArticle } from './api.js'
 import type { Translate } from './locales.js'

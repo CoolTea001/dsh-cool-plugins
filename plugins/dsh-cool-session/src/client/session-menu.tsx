@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState, useSyncExternalStore, type ReactElement } from 'react'
-import { Button, IconTrashOutlineRegular, MenuItemButton, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconTrashOutlineRegular, MenuItemButton, Modal } from '@dsh-cool/ui'
 import { deleteSession } from './api.js'
 import { reasonOf } from './reason.js'
 import type { Translate } from './locales.js'

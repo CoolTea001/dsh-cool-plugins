@@ -19,7 +19,7 @@ import {
 import { BACKGROUND_ACCEPT } from './background.js'
 import { PICKER_HEIGHT, PICKER_HEIGHT_WITH_ALPHA, withAlpha } from './color-picker.js'
 import type { ThemeKey } from './locales.js'
-import { Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Switch, Tooltip } from '@dsh-cool/ui'
 
 /**
  * One editable colour. The dot edits whichever appearance the mode toggle is

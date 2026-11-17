@@ -13062,6 +13062,370 @@ window.__ModuleLoader__.load({
 				})(), e;
 			})()));
 		}));
+		// ../../packages/ui/src/styles/inject.ts
+		/**
+		* Hand one sheet to the shell's styles service.
+		*
+		* @param css - the sheet's text.
+		* @returns its disposer, or null when this build has no service.
+		*/
+		function insertViaPlatform(css) {
+			try {
+				const service = typeof styles === "undefined" ? void 0 : styles;
+				if (service === void 0 || typeof service.insert !== "function") return null;
+				const dispose = service.insert(css);
+				return typeof dispose === "function" ? dispose : null;
+			} catch {
+				return null;
+			}
+		}
+		/**
+		* Insert a plugin's stylesheet — the shared one included — as a single tag.
+		*
+		* The sheet is one tag rather than one per owner: the rule for the shared part
+		* and the rule for a plugin's own part are equally owned by that plugin, and a
+		* second tag would only be a second thing to leak. Callers hand in their own
+		* rules and get the shared frame for free, which is what keeps two plugins from
+		* shipping two subtly different empty-state or divider rules.
+		*
+		* Insert it from `apply()`, inside `ctx.effect`, so the disposer runs when the
+		* plugin is unloaded or hot-replaced:
+		*
+		* ```ts
+		* ctx.effect(() => insertPluginStyles(__DSH_CG_PLUGIN_ID__, GIT_CSS), 'dsh-cool-git: styles')
+		* ```
+		*
+		* @param pluginId - the id the loader registered this bundle under; the tag's
+		*   ownership record, and the value the shell books it by.
+		* @param extraCss - the plugin's own rules, after the shared ones.
+		* @returns a disposer removing exactly this sheet.
+		*/
+		function insertPluginStyles(pluginId, extraCss) {
+			const css = extraCss === void 0 || extraCss === "" ? UI_CSS : `${UI_CSS}\n${extraCss}`;
+			const platformDispose = insertViaPlatform(css);
+			if (platformDispose !== null) return platformDispose;
+			const element = document.createElement("style");
+			element.setAttribute("data-plugin", pluginId);
+			element.setAttribute("data-dsh-cool-ui", pluginId);
+			element.textContent = css;
+			document.head.appendChild(element);
+			return () => {
+				element.remove();
+			};
+		}
+		/** The prefix every class in {@link UI_CSS} carries. */
+		const UI_PREFIX = "dsh-ui";
+		/**
+		* Build a shared class name from a suffix.
+		*
+		* Callers write `uiClass('resize')` rather than `'dsh-ui-resize'`, so the
+		* prefix is renamed in one place if it ever has to be.
+		*
+		* @param suffix - the part after the prefix, without a leading dash.
+		* @returns the class name.
+		*/
+		function uiClass(suffix) {
+			return `${UI_PREFIX}-${suffix}`;
+		}
+		/**
+		* The stylesheet rule half of the composer-seat hand-off.
+		*
+		* The Conversation shell keeps its composer seat mounted for every View and only
+		* floats it when a View declares `data-conversation-composer-overlay`. A page
+		* with no input of its own has to take the seat out, and the declarative half of
+		* that lives here: the seat is hidden on every frame the shell paints, including
+		* the frames before the page's mount effect has run.
+		*
+		* The rule is scoped by the page's own root class, which exists only while that
+		* page is mounted, so the other tabs keep their composer untouched and the rule
+		* disappears with the View. The imperative twin — the DOM write in
+		* `useComposerSeatSuppression` — stays, deliberately redundant in the same
+		* direction: it depends on nothing beyond the rendered tree.
+		*
+		* @param rootClass - the class the page renders on its root.
+		* @returns one CSS rule, to append to the plugin's own sheet.
+		*/
+		function composerSeatCss(rootClass) {
+			return `[data-conversation-scroll]:has(.${rootClass})>[data-composer-seat]{display:none}`;
+		}
+		/**
+		* The shared stylesheet.
+		*
+		* Every rule here is a fact more than one plugin has to state, and every color
+		* is a `--dsw-*` theme token, so a rule follows the active light or dark
+		* appearance — including third-party theme presets — instead of forcing a
+		* palette of its own. Nothing in it paints a surface of its own: the classes are
+		* applied inside a plugin's root, and the root keeps owning the canvas.
+		*
+		* What is here, and why each part is shared rather than copied:
+		*
+		* 1. The page frame — the one place a plugin gets a full-height column that
+		*    paints no fill of its own, so a theme's wallpaper shows through it.
+		* 2. The draggable boundary — one gesture, one hit target, one hover cue; three
+		*    copies of it meant three chances for the cue to drift from the hit target.
+		* 3. The scrollbar treatment — the shell's own tokens, applied the way its
+		*    lists apply them.
+		* 4. The wallpaper hand-off — `dsh-cool-theme` marks the document with
+		*    `ct-bg-on` while it has a wallpaper mounted, and a plugin page that paints
+		*    its own canvas has to clear the two tokens it paints with for the image to
+		*    show through. The rule is scoped by the plugin's own root class, so a
+		*    profile without the theme never matches it.
+		*/
+		const UI_CSS = [
+			`.${UI_PREFIX}-page{display:flex;flex:1 1 auto;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
+			`.${UI_PREFIX}-page *{box-sizing:border-box}`,
+			`.${UI_PREFIX}-page[data-surface=canvas]{background:var(--dsw-alias-bg-base)}`,
+			`.${UI_PREFIX}-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable both-edges}`,
+			`.${UI_PREFIX}-resize{position:absolute;z-index:2;touch-action:none}`,
+			`.${UI_PREFIX}-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}`,
+			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
+			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
+			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
+			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
+			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
+			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
+			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
+			`[data-resizing=row],[data-resizing=row] *{cursor:row-resize}`,
+			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+		].join("\n");
+		// ../../packages/ui/src/input.tsx
+		/**
+		* The shell's text field, with the one attribute its `Modal` looks for.
+		*
+		* `Input` is the shell's own control, so this module wraps rather than restates
+		* it: the markup, the icon gutter, the focus ring and the fill all stay the
+		* platform's. What it adds is a single, typed spelling of `data-modal-autofocus`.
+		*
+		* The attribute is how the platform's `Modal` picks the control that takes
+		* initial focus (`element.querySelector('[data-modal-autofocus]')`), and it is
+		* deliberately not React's `autoFocus`: React's runs before the layer stack has
+		* captured the invoking control, so returning focus on close would land in the
+		* wrong place. But the shell types `Input`'s props as the native input
+		* attributes, and TypeScript does not admit an arbitrary `data-*` key on a
+		* component whose props are an intersection — so a caller that wants the
+		* attribute has to spell it in a way the type system refuses, and a plugin that
+		* worked around that with its own ambient declaration would be describing an API
+		* the shell does not publish.
+		*
+		* A named boolean is the fix: the wrapper turns it into the attribute, the
+		* caller stays inside the published props, and the trick is written once.
+		*/
+		/**
+		* Render the shell's text field.
+		*
+		* @param props - the field's own props and the initial-focus flag.
+		* @returns the field, with `data-modal-autofocus` set when asked for.
+		*/
+		function Input({ modalAutofocus, ...rest }) {
+			return (0, react.createElement)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				...modalAutofocus === true ? { "data-modal-autofocus": true } : {},
+				...rest
+			});
+		}
+		// ../../packages/ui/src/layout/resize-handle.tsx
+		/**
+		* The one pointer gesture behind every resizable boundary in this repository.
+		*
+		* Three plugins had written it three times — the Git tab's sidebar and its
+		* pane divider, the Files tab's sidebar, the Terminal tab's sidebar — and the
+		* copies had begun to disagree about which axis they take and which coordinate
+		* they read. What they share is not incidental: it is a set of decisions that
+		* are wrong in ways a reader would only notice as a bad drag.
+		*
+		* The gesture is the platform's own width handle (client-ui-conversation's
+		* `WidthHandle`), restated once:
+		*
+		* - the press captures the pointer and records where it started and the size the
+		*   page was drawing;
+		* - each move asks the caller to draw the size the pointer now implies — at most
+		*   once a frame, since a pointer reports more often than a page paints;
+		* - the release records that one number;
+		* - a press that never moved records nothing, so a click on a boundary cannot
+		*   overwrite a saved size with the window-clamped size it happens to be drawn
+		*   at.
+		*
+		* A drag never renders React: the caller writes each size straight to a custom
+		* property on the page root, which is what keeps the frame rate of a drag
+		* independent of how many thousand rows the page happens to be drawing.
+		*
+		* The two terminal paths mean different things. `onCommit` is a new size to
+		* record and draw; `onEnd` is a gesture that produced no size — a click, or a
+		* pointer lost mid-drag — and the caller draws the recorded layout again, which
+		* is what makes a cancelled drag leave the page exactly as it found it.
+		*
+		* The element sits on the boundary itself, which is a 1px line a pointer cannot
+		* be asked to hold, so the shared stylesheet puts an invisible 8px band around
+		* it and this component owns the line in the middle. The page root carries
+		* `data-resizing` for the length of a gesture, so the cursor keeps its meaning
+		* while the pointer travels outside the boundary.
+		*/
+		/**
+		* The pointer's own coordinate on one axis, in viewport pixels.
+		*
+		* @param axis - the boundary being dragged.
+		* @param event - the pointer event.
+		* @returns X for a column boundary, Y for a row boundary.
+		*/
+		function along(axis, event) {
+			return axis === "col" ? event.clientX : event.clientY;
+		}
+		/** Begin, drive and settle one drag of a boundary. */
+		function ResizeHandle(props) {
+			/** Whether a gesture this component started is still running. */
+			const dragging = (0, react.useRef)(false);
+			/** The pointer's coordinate where the gesture started. */
+			const origin = (0, react.useRef)(0);
+			/** The size the page was drawing where the gesture started. */
+			const start = (0, react.useRef)(0);
+			/** The pointer's latest coordinate on this axis. */
+			const latest = (0, react.useRef)(0);
+			/** The frame awaiting the pointer's latest coordinate, if one is. */
+			const frame = (0, react.useRef)(null);
+			const live = (0, react.useRef)(props);
+			live.current = props;
+			/** The size the pointer's latest coordinate implies. */
+			const implied = () => start.current + (latest.current - origin.current);
+			const cancelFrame = () => {
+				if (frame.current !== null) {
+					cancelAnimationFrame(frame.current);
+					frame.current = null;
+				}
+			};
+			/**
+			* End the gesture, and either record a size or re-state the layout.
+			*
+			* @param element - the handle the gesture was captured on.
+			* @param pointerId - the pointer to release.
+			* @param moved - whether this release holds a size the pointer chose.
+			*/
+			const settle = (element, pointerId, moved) => {
+				dragging.current = false;
+				element.toggleAttribute("data-dragging", false);
+				if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+				cancelFrame();
+				if (moved && latest.current !== origin.current) live.current.onCommit(implied());
+				else live.current.onEnd();
+			};
+			const onPointerDown = (0, react.useCallback)((event) => {
+				if (event.button !== 0) return;
+				event.preventDefault();
+				event.currentTarget.setPointerCapture(event.pointerId);
+				event.currentTarget.toggleAttribute("data-dragging", true);
+				origin.current = along(live.current.axis, event);
+				latest.current = origin.current;
+				start.current = live.current.onStart();
+				dragging.current = true;
+			}, []);
+			const onPointerMove = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+				latest.current = along(live.current.axis, event);
+				if (frame.current !== null) return;
+				frame.current = requestAnimationFrame(() => {
+					frame.current = null;
+					live.current.onDrag(implied());
+				});
+			}, []);
+			const onPointerUp = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+				latest.current = along(live.current.axis, event);
+				settle(event.currentTarget, event.pointerId, true);
+			}, []);
+			const onPointerCancel = (0, react.useCallback)((event) => {
+				if (!dragging.current) return;
+				settle(event.currentTarget, event.pointerId, false);
+			}, []);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				className: uiClass("resize"),
+				"data-axis": props.axis,
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+				onPointerCancel,
+				onLostPointerCapture: onPointerCancel
+			});
+		}
+		// ../../packages/ui/src/layout/layout-store.ts
+		/** A reader for one number field of a stored layout. */
+		function finiteNumber(fallback) {
+			return {
+				fallback,
+				read: (raw) => typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : fallback
+			};
+		}
+		/**
+		* Read one stored layout.
+		*
+		* @param key - the plugin's own `localStorage` entry.
+		* @param fields - one reader per field, in the shape the caller draws with.
+		* @returns the layout to draw, always usable.
+		*/
+		function readLayout(key, fields) {
+			let raw;
+			try {
+				raw = window.localStorage.getItem(key);
+			} catch {
+				return parseLayout(null, fields);
+			}
+			return parseLayout(raw, fields);
+		}
+		/**
+		* Read one layout out of a raw stored string.
+		*
+		* The parse half of {@link readLayout}, split out for two reasons: it is the half
+		* worth reviewing and showing (what happens to a value another version wrote),
+		* and it has no storage to stub in order to be exercised. A missing entry, an
+		* unreadable one, and a field of the wrong shape are the three cases, and each
+		* costs only what it names.
+		*
+		* @param raw - the entry's text, or null when there is none.
+		* @param fields - one reader per field.
+		* @returns the layout to draw, always usable.
+		*/
+		function parseLayout(raw, fields) {
+			if (raw === null) return defaultsOf(fields);
+			let parsed;
+			try {
+				parsed = JSON.parse(raw);
+			} catch {
+				return defaultsOf(fields);
+			}
+			const saved = typeof parsed === "object" && parsed !== null ? parsed : {};
+			const result = {};
+			for (const [name, field] of Object.entries(fields)) result[name] = field.read(saved[name]);
+			return result;
+		}
+		/**
+		* Build the all-defaults layout.
+		*
+		* @param fields - the readers the layout is made of.
+		* @returns one value per field, all of them the fallbacks.
+		*/
+		function defaultsOf(fields) {
+			const result = {};
+			for (const [name, field] of Object.entries(fields)) result[name] = field.fallback;
+			return result;
+		}
+		/**
+		* Record one stored layout.
+		*
+		* A storage that refuses the write is not worth surfacing: no workspace state is
+		* involved, and the drag holds for as long as the page is open either way.
+		*
+		* @param key - the plugin's own `localStorage` entry.
+		* @param layout - the layout to save.
+		*/
+		function writeLayout(key, layout) {
+			try {
+				window.localStorage.setItem(key, JSON.stringify(layout));
+			} catch {}
+		}
 		// ../../packages/icons/src/icon.tsx
 		/**
 		* Draw an icon's root `<svg>`.
@@ -13556,7 +13920,7 @@ window.__ModuleLoader__.load({
 			const commit = () => {
 				if (canSave) onSave();
 			};
-			return h$2("div", { className: "dsh-ct-cmd-edit" }, h$2(_deepseek_ai_dsh_client_ui_primitives.Input, {
+			return h$2("div", { className: "dsh-ct-cmd-edit" }, h$2(Input, {
 				className: "dsh-ct-cmd-input",
 				value: editing.body,
 				placeholder: t("commands.bodyPlaceholder"),
@@ -13571,7 +13935,7 @@ window.__ModuleLoader__.load({
 				onKeyDown: (event) => {
 					if (event.key === "Enter") commit();
 				}
-			}), h$2(_deepseek_ai_dsh_client_ui_primitives.Input, {
+			}), h$2(Input, {
 				className: "dsh-ct-cmd-input",
 				value: editing.description,
 				placeholder: t("commands.descriptionPlaceholder"),
@@ -13733,7 +14097,7 @@ window.__ModuleLoader__.load({
 				children: [h$2("div", {
 					key: "toolbar",
 					className: "dsh-ct-cmd-toolbar"
-				}, h$2(_deepseek_ai_dsh_client_ui_primitives.Input, {
+				}, h$2(Input, {
 					key: "search",
 					className: "dsh-ct-cmd-search",
 					value: query,
@@ -13805,14 +14169,14 @@ window.__ModuleLoader__.load({
 			}, h$1("span", {
 				key: "label",
 				className: "dsh-ct-startup-label"
-			}, t("terminal.startupCommand")), h$1(_deepseek_ai_dsh_client_ui_primitives.Input, {
+			}, t("terminal.startupCommand")), h$1(Input, {
 				key: "input",
 				className: "dsh-ct-startup-input",
 				value: command,
 				placeholder: t("terminal.startupPlaceholder"),
 				spellCheck: false,
 				"aria-label": t("terminal.startupCommand"),
-				"data-modal-autofocus": true,
+				modalAutofocus: true,
 				onChange: (event) => setCommand(event.target.value),
 				onKeyDown: (event) => {
 					if (event.key === "Enter" && !event.nativeEvent.isComposing) commit();
@@ -13926,83 +14290,6 @@ window.__ModuleLoader__.load({
 				window.localStorage.setItem(GEOMETRY_KEY, JSON.stringify(all));
 			} catch {}
 		}
-		// src/client/resize-handle.ts
-		/**
-		* Pointer gesture for the terminal sidebar's right edge.
-		*
-		* A drag does not render React: the owner writes each width to the page root,
-		* and only a completed gesture records it. Pointer capture keeps events coming
-		* after the pointer leaves the 1px boundary. One queued animation frame holds
-		* only the latest coordinate; a release uses that coordinate directly instead
-		* of waiting for a frame that would draw an obsolete width.
-		*/
-		/** The draggable boundary; its stylesheet supplies the wider hit target. */
-		function ResizeHandle(props) {
-			const gesture = (0, react.useRef)(null);
-			const frame = (0, react.useRef)(null);
-			const live = (0, react.useRef)(props);
-			live.current = props;
-			const cancelFrame = () => {
-				if (frame.current === null) return;
-				cancelAnimationFrame(frame.current);
-				frame.current = null;
-			};
-			(0, react.useEffect)(() => cancelFrame, []);
-			/** End the gesture, either committing its latest width or restoring layout. */
-			const settle = (event, commit) => {
-				const active = gesture.current;
-				if (active === null || active.pointerId !== event.pointerId) return;
-				const element = event.currentTarget;
-				gesture.current = null;
-				element.toggleAttribute("data-dragging", false);
-				if (element.hasPointerCapture(active.pointerId)) element.releasePointerCapture(active.pointerId);
-				cancelFrame();
-				if (commit && active.latest !== active.origin) live.current.onCommit(active.start + active.latest - active.origin);
-				else live.current.onEnd();
-			};
-			const onPointerDown = (0, react.useCallback)((event) => {
-				if (event.button !== 0 || gesture.current !== null) return;
-				event.preventDefault();
-				event.currentTarget.setPointerCapture(event.pointerId);
-				event.currentTarget.toggleAttribute("data-dragging", true);
-				gesture.current = {
-					pointerId: event.pointerId,
-					origin: event.clientX,
-					latest: event.clientX,
-					start: live.current.onStart()
-				};
-			}, []);
-			const onPointerMove = (0, react.useCallback)((event) => {
-				const active = gesture.current;
-				if (active === null || active.pointerId !== event.pointerId) return;
-				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-				active.latest = event.clientX;
-				if (frame.current !== null) return;
-				frame.current = requestAnimationFrame(() => {
-					frame.current = null;
-					if (gesture.current !== active) return;
-					live.current.onDrag(active.start + active.latest - active.origin);
-				});
-			}, []);
-			const onPointerUp = (0, react.useCallback)((event) => {
-				const active = gesture.current;
-				if (active === null || active.pointerId !== event.pointerId) return;
-				if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-				active.latest = event.clientX;
-				settle(event, true);
-			}, []);
-			const onPointerCancel = (0, react.useCallback)((event) => {
-				settle(event, false);
-			}, []);
-			return (0, react.createElement)("div", {
-				className: "dsh-ct-resize",
-				onPointerDown,
-				onPointerMove,
-				onPointerUp,
-				onPointerCancel,
-				onLostPointerCapture: onPointerCancel
-			});
-		}
 		// src/client/layout.ts
 		/**
 		* The terminal tab's resizable sidebar boundary, and the width it remembers.
@@ -14027,48 +14314,22 @@ window.__ModuleLoader__.load({
 		*/
 		/** The localStorage entry holding the sidebar width, as one JSON object. */
 		const LAYOUT_KEY = "dsh-cool-terminal.layout.v1";
-		/** The layout of a page nobody has resized. */
-		const DEFAULT_LAYOUT = { sideWidth: 256 };
 		/**
-		* The saved layout, with every part that is missing or unusable replaced by its
-		* default.
+		* The stored shape, field by field.
 		*
-		* A saved value was written in another window size, by another version of this
-		* page, in a browser that may not give the entry back at all, so it is read as
-		* data rather than trusted: the width has to be a positive finite number, and
-		* anything else — an unreadable entry, a JSON error, a field of the wrong
-		* shape — falls back to the default.
-		* @returns the layout to draw, always usable.
+		* Read as data rather than trusted as a fact: the width has to be a positive
+		* finite number, and anything else — an unreadable entry, a JSON error, a field
+		* of the wrong shape — falls back to the default. The reading and writing
+		* themselves are `@dsh-cool/ui`'s.
 		*/
+		const FIELDS = { sideWidth: finiteNumber({ sideWidth: 256 }.sideWidth) };
+		/** The saved layout, with every unusable field replaced by its default. */
 		function readSideLayout() {
-			let raw;
-			try {
-				raw = window.localStorage.getItem(LAYOUT_KEY);
-			} catch {
-				return DEFAULT_LAYOUT;
-			}
-			if (raw === null) return DEFAULT_LAYOUT;
-			let parsed;
-			try {
-				parsed = JSON.parse(raw);
-			} catch {
-				return DEFAULT_LAYOUT;
-			}
-			const { sideWidth } = typeof parsed === "object" && parsed !== null ? parsed : {};
-			return { sideWidth: typeof sideWidth === "number" && Number.isFinite(sideWidth) && sideWidth > 0 ? sideWidth : DEFAULT_LAYOUT.sideWidth };
+			return readLayout(LAYOUT_KEY, FIELDS);
 		}
-		/**
-		* Record the layout.
-		*
-		* A storage that refuses the write (quota, or third-party storage blocked) is
-		* not worth surfacing: no workspace state is involved, and the drag holds for
-		* as long as this page is open either way.
-		* @param layout - the layout to save.
-		*/
+		/** Record the layout. A storage that refuses the write is not worth surfacing. */
 		function writeSideLayout(layout) {
-			try {
-				window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
-			} catch {}
+			writeLayout(LAYOUT_KEY, layout);
 		}
 		/**
 		* The widest the sidebar may be drawn in a page this wide.
@@ -16112,6 +16373,7 @@ window.__ModuleLoader__.load({
 					"aria-label": t("commands.title"),
 					onClick: () => setCommandsOpen(true)
 				}, h(IconList, { key: "icon" }), h("span", { key: "label" }, t("commands.title")))), h(ResizeHandle, {
+					axis: "col",
 					key: "resize",
 					onStart: startSideResize,
 					onDrag: dragSideResize,
@@ -16310,14 +16572,15 @@ window.__ModuleLoader__.load({
 		* (see tsdown.config.ts) because the platform module loader loads this package
 		* as a single JS file and would never fetch a sibling `.css` asset.
 		*/
+		/**
+		* The id the loader registers this bundle under, which is the name the sheet's
+		* ownership record carries.
+		*/
+		const PACKAGE_ID = "dsh-cool-terminal";
 		const XTERM_CSS = "/**\n * Copyright (c) 2014 The xterm.js authors. All rights reserved.\n * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)\n * https://github.com/chjj/term.js\n * @license MIT\n *\n * Permission is hereby granted, free of charge, to any person obtaining a copy\n * of this software and associated documentation files (the \"Software\"), to deal\n * in the Software without restriction, including without limitation the rights\n * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n * copies of the Software, and to permit persons to whom the Software is\n * furnished to do so, subject to the following conditions:\n *\n * The above copyright notice and this permission notice shall be included in\n * all copies or substantial portions of the Software.\n *\n * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\n * THE SOFTWARE.\n *\n * Originally forked from (with the author's permission):\n *   Fabrice Bellard's javascript vt100 for jslinux:\n *   http://bellard.org/jslinux/\n *   Copyright (c) 2011 Fabrice Bellard\n *   The original design remains. The terminal itself\n *   has been extended to include xterm CSI codes, among\n *   other features.\n */\n\n/**\n *  Default styles for xterm.js\n */\n\n.xterm {\n    cursor: text;\n    position: relative;\n    user-select: none;\n    -ms-user-select: none;\n    -webkit-user-select: none;\n}\n\n.xterm.focus,\n.xterm:focus {\n    outline: none;\n}\n\n.xterm .xterm-helpers {\n    position: absolute;\n    top: 0;\n    /**\n     * The z-index of the helpers must be higher than the canvases in order for\n     * IMEs to appear on top.\n     */\n    z-index: 5;\n}\n\n.xterm .xterm-helper-textarea {\n    padding: 0;\n    border: 0;\n    margin: 0;\n    /* Move textarea out of the screen to the far left, so that the cursor is not visible */\n    position: absolute;\n    opacity: 0;\n    left: -9999em;\n    top: 0;\n    width: 0;\n    height: 0;\n    z-index: -5;\n    /** Prevent wrapping so the IME appears against the textarea at the correct position */\n    white-space: nowrap;\n    overflow: hidden;\n    resize: none;\n}\n\n.xterm .composition-view {\n    /* TODO: Composition position got messed up somewhere */\n    background: #000;\n    color: #FFF;\n    display: none;\n    position: absolute;\n    white-space: nowrap;\n    z-index: 1;\n}\n\n.xterm .composition-view.active {\n    display: block;\n}\n\n.xterm .xterm-viewport {\n    /* On OS X this is required in order for the scroll bar to appear fully opaque */\n    background-color: #000;\n    overflow-y: scroll;\n    cursor: default;\n    position: absolute;\n    right: 0;\n    left: 0;\n    top: 0;\n    bottom: 0;\n}\n\n.xterm .xterm-screen {\n    position: relative;\n}\n\n.xterm .xterm-screen canvas {\n    position: absolute;\n    left: 0;\n    top: 0;\n}\n\n.xterm-char-measure-element {\n    display: inline-block;\n    visibility: hidden;\n    position: absolute;\n    top: 0;\n    left: -9999em;\n    line-height: normal;\n}\n\n.xterm.enable-mouse-events {\n    /* When mouse events are enabled (eg. tmux), revert to the standard pointer cursor */\n    cursor: default;\n}\n\n.xterm.xterm-cursor-pointer,\n.xterm .xterm-cursor-pointer {\n    cursor: pointer;\n}\n\n.xterm.column-select.focus {\n    /* Column selection mode */\n    cursor: crosshair;\n}\n\n.xterm .xterm-accessibility:not(.debug),\n.xterm .xterm-message {\n    position: absolute;\n    left: 0;\n    top: 0;\n    bottom: 0;\n    right: 0;\n    z-index: 10;\n    color: transparent;\n    pointer-events: none;\n}\n\n.xterm .xterm-accessibility-tree:not(.debug) *::selection {\n  color: transparent;\n}\n\n.xterm .xterm-accessibility-tree {\n  font-family: monospace;\n  user-select: text;\n  white-space: pre;\n}\n\n.xterm .xterm-accessibility-tree > div {\n  transform-origin: left;\n  width: fit-content;\n}\n\n.xterm .live-region {\n    position: absolute;\n    left: -9999px;\n    width: 1px;\n    height: 1px;\n    overflow: hidden;\n}\n\n.xterm-dim {\n    /* Dim should not apply to background, so the opacity of the foreground color is applied\n     * explicitly in the generated class and reset to 1 here */\n    opacity: 1 !important;\n}\n\n.xterm-underline-1 { text-decoration: underline; }\n.xterm-underline-2 { text-decoration: double underline; }\n.xterm-underline-3 { text-decoration: wavy underline; }\n.xterm-underline-4 { text-decoration: dotted underline; }\n.xterm-underline-5 { text-decoration: dashed underline; }\n\n.xterm-overline {\n    text-decoration: overline;\n}\n\n.xterm-overline.xterm-underline-1 { text-decoration: overline underline; }\n.xterm-overline.xterm-underline-2 { text-decoration: overline double underline; }\n.xterm-overline.xterm-underline-3 { text-decoration: overline wavy underline; }\n.xterm-overline.xterm-underline-4 { text-decoration: overline dotted underline; }\n.xterm-overline.xterm-underline-5 { text-decoration: overline dashed underline; }\n\n.xterm-strikethrough {\n    text-decoration: line-through;\n}\n\n.xterm-screen .xterm-decoration-container .xterm-decoration {\n	z-index: 6;\n	position: absolute;\n}\n\n.xterm-screen .xterm-decoration-container .xterm-decoration.xterm-decoration-top-layer {\n	z-index: 7;\n}\n\n.xterm-decoration-overview-ruler {\n    z-index: 8;\n    position: absolute;\n    top: 0;\n    right: 0;\n    pointer-events: none;\n}\n\n.xterm-decoration-top {\n    z-index: 2;\n    position: relative;\n}\n\n\n\n/* Derived from vs/base/browser/ui/scrollbar/media/scrollbar.css */\n\n/* xterm.js customization: Override xterm's cursor style */\n.xterm .xterm-scrollable-element > .scrollbar {\n    cursor: default;\n}\n\n/* Arrows */\n.xterm .xterm-scrollable-element > .scrollbar > .scra {\n	cursor: pointer;\n	font-size: 11px !important;\n}\n\n.xterm .xterm-scrollable-element > .visible {\n	opacity: 1;\n\n	/* Background rule added for IE9 - to allow clicks on dom node */\n	background:rgba(0,0,0,0);\n\n	transition: opacity 100ms linear;\n	/* In front of peek view */\n	z-index: 11;\n}\n.xterm .xterm-scrollable-element > .invisible {\n	opacity: 0;\n	pointer-events: none;\n}\n.xterm .xterm-scrollable-element > .invisible.fade {\n	transition: opacity 800ms linear;\n}\n\n/* Scrollable Content Inset Shadow */\n.xterm .xterm-scrollable-element > .shadow {\n	position: absolute;\n	display: none;\n}\n.xterm .xterm-scrollable-element > .shadow.top {\n	display: block;\n	top: 0;\n	left: 3px;\n	height: 3px;\n	width: 100%;\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 0 6px 6px -6px inset;\n}\n.xterm .xterm-scrollable-element > .shadow.left {\n	display: block;\n	top: 3px;\n	left: 0;\n	height: 100%;\n	width: 3px;\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 6px 0 6px -6px inset;\n}\n.xterm .xterm-scrollable-element > .shadow.top-left-corner {\n	display: block;\n	top: 0;\n	left: 0;\n	height: 3px;\n	width: 3px;\n}\n.xterm .xterm-scrollable-element > .shadow.top.left {\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 6px 0 6px -6px inset;\n}\n";
 		const TERMINAL_CSS = [
 			".dsh-ct-root{display:flex;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}",
 			`.dsh-ct-side{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;width:var(--dsh-ct-side-width,256px);min-width:220px;max-width:min(560px,calc(100% - 320px));box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
-			".dsh-ct-resize{position:absolute;z-index:2;top:0;right:-1px;bottom:0;width:1px;cursor:col-resize;touch-action:none}",
-			".dsh-ct-resize::before{content:\"\";position:absolute;inset:0;opacity:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-secondary) 50%,transparent) center / 1px 100% no-repeat;transition:opacity .12s ease-out}",
-			".dsh-ct-resize::after{content:\"\";position:absolute;inset:0 -4px}",
-			".dsh-ct-resize:hover::before,.dsh-ct-resize[data-dragging]::before{opacity:1}",
 			".dsh-ct-root[data-resizing=col],.dsh-ct-root[data-resizing=col] *{user-select:none;cursor:col-resize}",
 			".dsh-ct-side-list-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}",
 			".dsh-ct-side-list{flex:1;min-height:0;overflow:auto;padding:8px 6px 10px;mask-image:none;mask-repeat:no-repeat;mask-position:0 0;mask-size:calc(100% - var(--dsh-ct-fade-right,0px)) 100%}",
@@ -16399,21 +16662,23 @@ window.__ModuleLoader__.load({
 			".dsh-ct-ac-body{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--ds-font-family-code),ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:18px}",
 			".dsh-ct-ac-desc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:14px}",
 			".dsh-ct-ac-foot{display:flex;align-items:center;height:22px;margin-top:2px;padding:0 8px;border-top:.5px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-dimmed);font-size:10.5px;user-select:none}",
-			"[data-conversation-scroll]:has(.dsh-ct-root)>[data-composer-seat]{display:none}"
+			composerSeatCss("dsh-ct-root")
 		].join("\n");
 		/**
-		* Insert the stylesheet once for the plugin lifetime.
+		* Insert the stylesheet — and the shared one — once for the plugin lifetime.
 		*
-		* @returns disposer that removes exactly this element.
+		* xterm's own sheet is part of this package's rules: the whole point of inlining
+		* it is that the console's markup and its styles arrive together.
+		*
+		* The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+		* rather than this file's: see `insertPluginStyles`. This sheet used to carry no
+		* `data-plugin` at all, which left it claimable by whichever module materialized
+		* next and deletable with it.
+		*
+		* @returns disposer that removes exactly this sheet.
 		*/
 		function insertTerminalStyles() {
-			const element = document.createElement("style");
-			element.setAttribute("data-dsh-cool-terminal", "");
-			element.textContent = `${XTERM_CSS}\n${TERMINAL_CSS}`;
-			document.head.appendChild(element);
-			return () => {
-				element.remove();
-			};
+			return insertPluginStyles(PACKAGE_ID, `${XTERM_CSS}\n${TERMINAL_CSS}`);
 		}
 		// src/client/locales/zh.ts
 		/**

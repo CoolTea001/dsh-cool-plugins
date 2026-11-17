@@ -13,7 +13,7 @@
  * the client face does not expose — needs this package's own Host route.
  */
 
-import { IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconTrashOutlineRegular } from '@dsh-cool/ui'
 import { requestDeleteSession, retireLegacyDeleteRow, SessionDeleteDialog, SessionDeleteMenuItem } from './session-menu.js'
 import { SessionsSection } from './settings-section.js'
 import { setSessionArchived } from './archive.js'

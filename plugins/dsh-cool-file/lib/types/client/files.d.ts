@@ -27,11 +27,15 @@
  * belongs to the page holding it.
  *
  * The page reads by default and writes only when asked. It lists entries,
- * expands them, and shows the first page of a text file; the editor — reached
- * through the header's Preview/Editor menu — replaces one file's complete text
- * and nothing else. It never creates, renames or deletes, and a save quotes the
- * freshness token of the read it started from, so a file that moved on is
- * refused instead of overwritten.
+ * expands them, and draws the selected file the way its kind is best read
+ * (`shared/kinds.ts`): a picture as the picture itself, fetched by the browser
+ * from the Host's raw route; a Markdown document as the rendered page, through
+ * the shell's own renderer; anything else as its numbered, coloured source. The
+ * editor — reached through the header's Preview/Editor switch — replaces one
+ * file's complete text and nothing else, and is what shows a document's source
+ * once Preview has started rendering it. It never creates, renames or deletes, and a
+ * save quotes the freshness token of the read it started from, so a file that
+ * moved on is refused instead of overwritten.
  *
  * The page is full-bleed, the same way the Terminal and Git tabs are: the root
  * class gives the stylesheet a handle on this subtree, the root declares the

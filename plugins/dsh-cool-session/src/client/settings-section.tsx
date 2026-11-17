@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { IconChevronDown } from '@dsh-cool/icons'
 import {
   Button, Input, Menu, Modal, type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from '@dsh-cool/ui'
 import { deleteSessions } from './api.js'
 import { failureText, reasonOf } from './reason.js'
 import type { ArchiveActivity, ArchiveResult } from './archive.js'

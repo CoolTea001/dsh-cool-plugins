@@ -11,16 +11,13 @@
  * third-party theme presets — instead of forcing a palette of its own.
  */
 /**
- * Insert the stylesheet once for the plugin lifetime.
+ * Insert this package's rules — and the shared ones — once for the plugin lifetime.
  *
- * The tag carries the platform's style-ownership record — `data-plugin` with this
- * package's id, which is what every DSH bundle writes on the tags it injects. A
- * tag carrying no attribute is claimed by whichever module materializes next and
- * deleted with it, so naming the owner here keeps the sheet this plugin's own:
- * only a reload of `dsh-cool-session` retires it, and this effect's disposer
- * removes it then anyway.
+ * The tag's ownership record, and why it matters, are `@dsh-cool/ui`'s business
+ * rather than this file's: see `insertPluginStyles`. What stays here is the
+ * plugin's own id, which is the name that ownership record carries.
  *
- * @returns disposer that removes exactly this element.
+ * @returns disposer that removes exactly this sheet.
  */
 export declare function insertStyles(): () => void;
 //# sourceMappingURL=styles.d.ts.map

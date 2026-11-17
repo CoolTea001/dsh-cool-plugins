@@ -24,14 +24,15 @@
  */
 
 import {
-  useCallback,
-  useRef,
-  type PointerEvent as ReactPointerEvent,
-  type ReactElement,
-} from 'react'
+  finiteNumber,
+  fraction,
+  readLayout as readStoredLayout,
+  writeLayout as writeStoredLayout,
+} from '@dsh-cool/ui'
 
 /** The localStorage entry holding both boundaries, as one JSON object. */
 const LAYOUT_KEY = 'dsh-cool-git.layout.v1'
+
 
 /**
  * The sidebar's width until it is dragged.
@@ -68,7 +69,16 @@ export const DIFF_MIN = 320
  */
 export const PANE_MIN = 96
 
-/** Which way a boundary moves, and so which pointer coordinate drives it. */
+/**
+ * Which way a boundary moves, and so which pointer coordinate drives it.
+ *
+ * Stated here rather than re-exported from `@dsh-cool/ui`: the package is private
+ * and source-only, so a `export ... from '@dsh-cool/ui'` in this file would be
+ * emitted into the published `.d.ts` and become an import no consumer can
+ * resolve. The two unions are the same two words, and the shared component's
+ * props are checked against them, so a drift is a compile error rather than a
+ * silent mismatch.
+ */
 export type ResizeAxis = 'col' | 'row'
 
 /** The two sizes the page remembers between visits. */
@@ -80,65 +90,30 @@ export interface GitLayout {
 }
 
 /** The layout of a page nobody has resized. */
-const DEFAULT_LAYOUT: GitLayout = { sideWidth: SIDE_DEFAULT, filesShare: 0.5 }
+export const DEFAULT_LAYOUT: GitLayout = { sideWidth: SIDE_DEFAULT, filesShare: 0.5 }
 
 /**
- * The saved layout, with every part that is missing or unusable replaced by its
- * default.
+ * The stored shape, field by field.
  *
- * A saved value is a preference written in another window size, by another version
- * of this page, in a browser that may not give the entry back at all, so it is read
- * as data rather than trusted: each field is checked on its own — a width has to be
- * a positive number, a share strictly between 0 and 1 — and anything else (an
- * unreadable entry, a JSON error, a field of the wrong shape) falls back to the
- * default for that field alone.
- *
- * @returns the layout to draw, always usable.
+ * Read as data rather than trusted as a fact: a saved value is a preference
+ * written in another window size, by another version of this page, in a browser
+ * that may not give the entry back at all. Each field is checked on its own, so
+ * one bad number costs one field rather than the whole layout. The reading and
+ * writing themselves are `@dsh-cool/ui`'s.
  */
-export function readLayout(): GitLayout {
-  let raw: string | null
-  try {
-    raw = localStorage.getItem(LAYOUT_KEY)
-  } catch {
-    // Storage is not available to this page (a sandboxed frame, or storage off):
-    // the page keeps the default layout for as long as it is open.
-    return DEFAULT_LAYOUT
-  }
-  if (raw === null) return DEFAULT_LAYOUT
+const FIELDS = {
+  sideWidth: finiteNumber(DEFAULT_LAYOUT.sideWidth),
+  filesShare: fraction(DEFAULT_LAYOUT.filesShare),
+} as const
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return DEFAULT_LAYOUT
-  }
-  const saved = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as Record<string, unknown>
-  const { sideWidth, filesShare } = saved
-  return {
-    sideWidth: typeof sideWidth === 'number' && Number.isFinite(sideWidth) && sideWidth > 0
-      ? sideWidth
-      : DEFAULT_LAYOUT.sideWidth,
-    filesShare: typeof filesShare === 'number' && Number.isFinite(filesShare) && filesShare > 0 && filesShare < 1
-      ? filesShare
-      : DEFAULT_LAYOUT.filesShare,
-  }
+/** The saved layout, with every unusable field replaced by its default. */
+export function readLayout(): GitLayout {
+  return readStoredLayout(LAYOUT_KEY, FIELDS)
 }
 
-/**
- * Record the layout.
- *
- * A storage that refuses the write (quota, or third-party storage blocked) is not
- * worth surfacing: no repository state is involved, and the drag holds for as long
- * as this page is open either way.
- *
- * @param layout - the layout to save.
- */
+/** Record the layout. A storage that refuses the write is not worth surfacing. */
 export function writeLayout(layout: GitLayout): void {
-  try {
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout))
-  } catch {
-    /* persistence is a convenience, never a precondition */
-  }
+  writeStoredLayout(LAYOUT_KEY, layout)
 }
 
 /**
@@ -210,146 +185,4 @@ export function shareOf(height: number, track: number): number {
   if (!(track > 0)) return DEFAULT_LAYOUT.filesShare
   const floor = Math.min(PANE_MIN / track, 0.5)
   return Math.min(Math.max(height / track, floor), 1 - floor)
-}
-
-/**
- * The pointer's own coordinate on one axis, in viewport pixels.
- *
- * @param axis - the boundary being dragged.
- * @param event - the pointer event.
- * @returns X for the sidebar's width, Y for the panes' divider.
- */
-function along(axis: ResizeAxis, event: ReactPointerEvent<HTMLDivElement>): number {
-  return axis === 'col' ? event.clientX : event.clientY
-}
-
-/**
- * One boundary, dragged with the pointer.
- *
- * The gesture is the platform's own width handle (client-ui-conversation's
- * `WidthHandle`), stated once for either axis and for a size rather than a width:
- * the press captures the pointer and records where it started and the size the page
- * was drawing, each move asks the caller to draw the size the pointer now implies —
- * at most once a frame, since a pointer reports more often than a page paints — and
- * the release records that one number. A press that never moved records nothing, so
- * a click on a boundary cannot overwrite a saved size with the window-clamped size
- * it happens to be drawn at.
- *
- * The two terminal paths mean different things. `onCommit` is a new size to record
- * and draw; `onEnd` is a gesture that produced no size — a click, or a pointer lost
- * mid-drag — and the caller draws the recorded layout again, which is what makes a
- * cancelled drag leave the page exactly as it found it.
- *
- * The element sits on the boundary itself, which is a 1px line a pointer cannot be
- * asked to hold, so the stylesheet puts an invisible 8px band around it and this
- * component owns the line in the middle.
- */
-export function ResizeHandle(props: {
-  /** Which axis the boundary moves along, and so which pointer coordinate drives it. */
-  readonly axis: ResizeAxis
-  /** The size the page is drawing as the gesture starts, in CSS pixels. */
-  readonly onStart: () => number
-  /** Draw the size the pointer now implies. Called at most once a frame. */
-  readonly onDrag: (size: number) => void
-  /** Record and draw the size the gesture settled on. */
-  readonly onCommit: (size: number) => void
-  /** The gesture is over without a size: draw the recorded layout again. */
-  readonly onEnd: () => void
-}): ReactElement {
-  /** Whether a gesture this component started is still running. */
-  const dragging = useRef(false)
-  /** The pointer's coordinate where the gesture started. */
-  const origin = useRef(0)
-  /** The size the page was drawing where the gesture started. */
-  const start = useRef(0)
-  /** The pointer's latest coordinate on this axis. */
-  const latest = useRef(0)
-  /** The frame awaiting the pointer's latest coordinate, if one is. */
-  const frame = useRef<number | null>(null)
-  // The handlers are installed once per gesture and outlive the render that
-  // started it, so what they call is read from here rather than closed over: a
-  // re-render during a drag (a refresh answering, the page picking up a new
-  // layout) must not leave the gesture calling a stale callback.
-  const live = useRef(props)
-  live.current = props
-
-  /** The size the pointer's latest coordinate implies. */
-  const implied = (): number => start.current + (latest.current - origin.current)
-
-  const cancelFrame = (): void => {
-    if (frame.current !== null) {
-      cancelAnimationFrame(frame.current)
-      frame.current = null
-    }
-  }
-
-  /**
-   * End the gesture, and either record a size or re-state the layout.
-   *
-   * @param element - the handle the gesture was captured on.
-   * @param pointerId - the pointer to release.
-   * @param moved - whether this release holds a size the pointer chose.
-   */
-  const settle = (element: HTMLDivElement, pointerId: number, moved: boolean): void => {
-    dragging.current = false
-    element.toggleAttribute('data-dragging', false)
-    if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId)
-    cancelFrame()
-    if (moved && latest.current !== origin.current) live.current.onCommit(implied())
-    else live.current.onEnd()
-  }
-
-  const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    // The primary button alone: a right-click on a boundary is a context menu, and
-    // a middle-click is a paste or an autoscroll, neither of them a resize.
-    if (event.button !== 0) return
-    // Before the capture, so the press neither starts a text selection nor hands
-    // the keyboard to whatever is under the pointer.
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    event.currentTarget.toggleAttribute('data-dragging', true)
-    origin.current = along(live.current.axis, event)
-    latest.current = origin.current
-    start.current = live.current.onStart()
-    dragging.current = true
-  }, [])
-
-  const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    // Capture is what keeps the moves coming once the pointer leaves this 1px line
-    // — the whole point of the gesture — so a move without it belongs to another
-    // pointer, or to a capture that has already been lost.
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    latest.current = along(live.current.axis, event)
-    if (frame.current !== null) return
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null
-      live.current.onDrag(implied())
-    })
-  }, [])
-
-  const onPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-    latest.current = along(live.current.axis, event)
-    settle(event.currentTarget, event.pointerId, true)
-  }, [])
-
-  // The end that is not a release: the pointer was cancelled, or the capture was
-  // taken away. Neither is a size the reader chose, so the page is put back.
-  const onPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!dragging.current) return
-    settle(event.currentTarget, event.pointerId, false)
-  }, [])
-
-  return (
-    <div
-      className={props.axis === 'col' ? 'dsh-cg-resize dsh-cg-col-resize' : 'dsh-cg-resize dsh-cg-row-resize'}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onPointerCancel}
-    />
-  )
 }

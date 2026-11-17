@@ -11,7 +11,7 @@
  */
 
 import * as React from 'react'
-import { Button, Input, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, Switch } from '@dsh-cool/ui'
 import type { Translate } from './locales.js'
 
 const h = React.createElement
@@ -71,9 +71,10 @@ export function StartupDialog(props: StartupDialogProps): React.ReactElement {
         placeholder: t('terminal.startupPlaceholder'),
         spellCheck: false,
         'aria-label': t('terminal.startupCommand'),
-        // The Modal layer looks for this instead of React's autoFocus, so the
-        // control that opened the dialog still gets focus back on close.
-        'data-modal-autofocus': true,
+        // The Modal layer looks for the field flagged this way instead of React's
+        // autoFocus, so the control that opened the dialog still gets focus back
+        // on close. `modalAutofocus` is `@dsh-cool/ui`'s one spelling of that flag.
+        modalAutofocus: true,
         onChange: (event: React.ChangeEvent<HTMLInputElement>) => setCommand(event.target.value),
         onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
           if (event.key === 'Enter' && !event.nativeEvent.isComposing) commit()

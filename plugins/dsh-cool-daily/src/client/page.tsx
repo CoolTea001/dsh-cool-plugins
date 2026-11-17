@@ -11,7 +11,7 @@
 
 import * as React from 'react'
 import { IconArrowUp, IconFileText, IconLoaderCircle, IconSearch, IconSettings2, IconSparkles } from '@dsh-cool/icons'
-import { Pill, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Pill, Tag } from '@dsh-cool/ui'
 
 import { deleteArticle, fetchState, markRead, startGeneration } from './api.js'
 import { ArticleView } from './article.js'

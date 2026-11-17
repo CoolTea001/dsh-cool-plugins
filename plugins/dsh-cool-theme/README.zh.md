@@ -1,4 +1,4 @@
-![dsh-cool-theme cover](https://cdn.cooltea.top/dsh-cool-theme/readme-cover-v0.11.0-zh.png)
+![dsh-cool-theme cover](https://cdn.cooltea.top/dsh-cool-theme/readme-cover-v0.11.0-zh.png.png)
 
 # dsh-cool-theme
 
@@ -17,3 +17,7 @@ DeepSeek Harness 主题插件 —— 支持深色/浅色外观切换，提供 34
 3. **侧边栏透明：** 通过开关控制 macOS 侧边栏面板透明效果
 4. **自定义主题：** 开启自定义主题后，可以创建自定义主题，支持自定义配色（配色继承当前预设主题）、背景图片/视频、CSS 样式
 5. **主题分享：** 分享自己创建的自定义主题，或者导入他人分享的自定义主题——背景图片会随主题一起导出和导入
+
+## 安装
+
+使用 DSH 的添加插件功能，输入包名：`dsh-cool-theme`

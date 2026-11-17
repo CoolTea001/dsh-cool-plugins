@@ -50,6 +50,30 @@ export declare function readFile(ctx: any, sessionId: unknown, rawPath: unknown)
  */
 export declare function readWholeFile(ctx: any, sessionId: unknown, rawPath: unknown): Promise<TextPayload>;
 /**
+ * The raw bytes of one workspace image, for the preview's `<img>`.
+ *
+ * The text routes answer JSON; this one answers a body, because what the page
+ * wants is the picture itself. Three fences keep it as narrow as the reads: the
+ * path must stay inside the workspace, the name must be an extension the shared
+ * kind table calls an image — which is the same table the page used to decide to
+ * ask — and the file must sit under the image cap, checked before it is read so
+ * an oversized file is refused rather than buffered and dropped.
+ *
+ * @param ctx - the Host plugin context.
+ * @param sessionId - the session the page belongs to, when it named one.
+ * @param rawPath - the file as a workspace path.
+ * @returns the media type and bytes, or a failure the route answers with.
+ */
+export declare function readImage(ctx: any, sessionId: unknown, rawPath: unknown): Promise<{
+    ok: true;
+    mediaType: string;
+    data: Uint8Array;
+} | {
+    ok: false;
+    error: string;
+    reason?: 'too-large';
+}>;
+/**
  * Replace one workspace text file with what the editor holds.
  *
  * Three fences stand between the page and the disk. The path must stay inside
