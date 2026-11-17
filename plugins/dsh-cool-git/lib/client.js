@@ -1186,6 +1186,7 @@ window.__ModuleLoader__.load({
 			recorded.current = size;
 			(0, react.useLayoutEffect)(() => {
 				draw(recorded.current);
+				if (options.root.current === null) queueMicrotask(() => draw(recorded.current));
 			}, [draw]);
 			/** Record a size: draw it, remember it, and publish it to React. */
 			const record = (0, react.useCallback)((next) => {
@@ -1285,7 +1286,7 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
 				...rest,
 				ref: attach,
-				children: [children, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, { ...panel.handle })]
+				children: [children, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, { ...panel.handle }, "boundary")]
 			});
 		}
 		// ../../packages/ui/src/layout/resizable-panel-css.ts

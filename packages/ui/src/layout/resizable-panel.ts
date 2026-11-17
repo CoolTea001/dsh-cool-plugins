@@ -201,8 +201,20 @@ export function useResizablePanel(options: ResizablePanelOptions): ResizablePane
   // Before the first paint: the stylesheet's own fallback is the default size,
   // and a saved boundary must not be drawn at the default for one frame and then
   // jump to where it was left.
+  //
+  // The retry is not defensive padding, it is the ordering React guarantees: a
+  // layout effect runs child-first, and a host ref is attached later in the
+  // commit, by the component that owns the element. A page root owned by an
+  // ancestor is therefore still `null` here — the draw below would be dropped and
+  // the sidebar would stay at the stylesheet's default until the next drag, which
+  // reads as "the width I saved is gone after a reload". A microtask runs after
+  // the commit has finished attaching refs and before the browser paints, so the
+  // saved size is still the first thing drawn, with no default-width frame.
   useLayoutEffect(() => {
     draw(recorded.current)
+    if (options.root.current === null) queueMicrotask(() => draw(recorded.current))
+    // `draw` is the only thing this depends on: re-running on every render would
+    // repaint the recorded size over a drag in progress.
   }, [draw])
 
   /** Record a size: draw it, remember it, and publish it to React. */

@@ -118,7 +118,9 @@ export function ResizablePanel(props: ResizablePanelProps): ReactElement {
   return (
     <aside {...rest} ref={attach}>
       {children}
-      <ResizeHandle {...panel.handle} />
+      {/* Keyed because this sits beside `children` in one array: without it React
+          has to guess which child is which on every re-render of the page. */}
+      <ResizeHandle key="boundary" {...panel.handle} />
     </aside>
   )
 }
