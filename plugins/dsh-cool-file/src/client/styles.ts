@@ -128,8 +128,12 @@ const FILES_CSS = [
   '.dsh-cf-twist svg{width:12px;height:12px;transition:transform .12s ease-out}',
   '.dsh-cf-row[data-open] .dsh-cf-twist svg{transform:rotate(90deg)}',
   '.dsh-cf-children{padding-left:16px}',
+  // One colour for every glyph in the tree — folders and files alike. The folder
+  // is told apart by its shape and by the twist before it, not by a brand tint:
+  // a coloured column of folders pulls the eye off the names it is there to
+  // introduce, and the accent is what the page spends on what the reader chose
+  // (the selected row, the caret, a link) rather than on the furniture.
   '.dsh-cf-row-icon{flex:none;display:inline-flex;color:var(--dsw-alias-label-secondary)}',
-  '.dsh-cf-row[data-type=directory] .dsh-cf-row-icon{color:var(--dsw-alias-brand-primary)}',
   '.dsh-cf-row-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
   // An entry the workspace's own ignore rules leave out. It is still a row the
   // reader can open — it is on disk — so it is dimmed by one step rather than
