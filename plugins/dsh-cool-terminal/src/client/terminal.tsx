@@ -49,13 +49,8 @@ import { CommandsDialog } from './commands-dialog.js'
 import { StartupDialog } from './startup-dialog.js'
 import { loadCommands, saveCommands, type CommandDef } from './commands.js'
 import { writeGeometry } from './geometry.js'
-import { ResizeHandle } from '@dsh-cool/ui'
-import {
-  clampSideWidth,
-  readSideLayout,
-  writeSideLayout,
-  type SideLayout,
-} from './layout.js'
+import { ResizablePanel } from '@dsh-cool/ui'
+import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
 import {
   anchorOf,
   emptySession,
@@ -930,14 +925,11 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
      *  state (`data-fade-*`) and the scrollbar gutter the list's mask reads. */
     const listScroll = React.useRef<HTMLDivElement | null>(null)
     const listWrap = React.useRef<HTMLDivElement | null>(null)
-    /** The view root, which carries the dragged sidebar width, and the sidebar
-     *  itself, whose measured edge is where a resize takes hold. */
+    /**
+     * The view root, which carries the dragged sidebar width and the
+     * mid-gesture attribute the shared stylesheet reads.
+     */
     const pageRef = React.useRef<HTMLDivElement | null>(null)
-    const sideRef = React.useRef<HTMLElement | null>(null)
-    /** The sidebar width the page draws and saves, and whether its boundary is
-     *  being dragged. */
-    const [sideLayout, setSideLayout] = React.useState<SideLayout>(readSideLayout)
-    const [resizing, setResizing] = React.useState(false)
     /** The common-commands dialog, and the commands it manages (persisted in
      *  `commands.ts`; the dialog only renders and reports changes upward). */
     const [commandsOpen, setCommandsOpen] = React.useState(false)
@@ -967,63 +959,6 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
      *  every keystroke and must not re-render when the list's identity does. */
     const commandsRef = React.useRef<readonly CommandDef[]>(commands)
     commandsRef.current = commands
-
-    /** Draw one layout: the sidebar's width as a custom property on the root.
-     *
-     * The width lives on the root rather than in the sidebar's inline style for
-     * one reason: a drag can then move it from the pointer without rendering
-     * React, which keeps the frame rate independent of how many console rows
-     * the sidebar is drawing. */
-    const drawSideWidth = React.useCallback((next: SideLayout): void => {
-      pageRef.current?.style.setProperty('--dsh-ct-side-width', `${next.sideWidth}px`)
-    }, [])
-
-    // Before the first paint: the stylesheet's fallback is the default width,
-    // and a saved boundary must not be drawn at the default for one frame and
-    // then jump to where it was left.
-    React.useLayoutEffect(() => {
-      drawSideWidth(sideLayout)
-    }, [sideLayout, drawSideWidth])
-
-    /** The view's own width, which is the room the sidebar and console share. */
-    const availableWidth = React.useCallback(
-      (): number => pageRef.current?.getBoundingClientRect().width ?? 0,
-      [],
-    )
-
-    /** Record a width: what the page draws from, and what it saves, together. */
-    const recordSideWidth = React.useCallback((next: SideLayout): void => {
-      setSideLayout(next)
-      writeSideLayout(next)
-    }, [])
-
-    /** The sidebar's on-screen edge, measured as a drag starts. */
-    const startSideResize = React.useCallback((): number => {
-      setResizing(true)
-      return sideRef.current?.getBoundingClientRect().width ?? sideLayout.sideWidth
-    }, [sideLayout.sideWidth])
-
-    /** Draw the width the pointer implies, without a React commit. */
-    const dragSideResize = React.useCallback((width: number): void => {
-      const room = availableWidth()
-      if (room <= 0) return
-      pageRef.current?.style.setProperty('--dsh-ct-side-width', `${clampSideWidth(width, room)}px`)
-    }, [availableWidth])
-
-    /** Record and draw the width the gesture settled on. */
-    const commitSideResize = React.useCallback((width: number): void => {
-      setResizing(false)
-      const room = availableWidth()
-      if (room <= 0) return
-      recordSideWidth({ sideWidth: clampSideWidth(width, room) })
-    }, [availableWidth, recordSideWidth])
-
-    /** A gesture without a width — a click, or a lost pointer — restores the
-     *  recorded layout, so a cancelled drag cannot outlive its gesture. */
-    const endSideResize = React.useCallback((): void => {
-      setResizing(false)
-      drawSideWidth(sideLayout)
-    }, [sideLayout, drawSideWidth])
 
     // Hand this mount's context to everything in the plugin closure that
     // outlives it — the keystroke path and the SSE handlers (see
@@ -1592,7 +1527,17 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       return h('div', { key: row.key, className: 'dsh-ct-ws' }, children)
     }
 
-    const sidebar = h('aside', { key: 'side', className: 'dsh-ct-side', ref: sideRef },
+    // The sidebar's own right edge is the boundary its width is dragged by; the
+    // shared panel draws it, measures the column, and records the width it is
+    // left at.
+    const sidebar = h(ResizablePanel, {
+      key: 'side',
+      className: 'dsh-ct-side',
+      root: pageRef,
+      property: '--dsh-ct-side-width',
+      bounds: SIDE_BOUNDS,
+      store: SIDE_STORE,
+    },
       h('div', { key: 'list', className: 'dsh-ct-side-list-wrap', ref: listWrap },
         h('div', { key: 'scroll', className: 'dsh-ct-side-list', ref: listScroll },
           rows.length === 0
@@ -1618,15 +1563,6 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         h(IconList, { key: 'icon' }),
         h('span', { key: 'label' }, t('commands.title'))),
       ),
-      // The sidebar's own right edge: the boundary its width is dragged by.
-      h(ResizeHandle, {
-        axis: 'col',
-        key: 'resize',
-        onStart: startSideResize,
-        onDrag: dragSideResize,
-        onCommit: commitSideResize,
-        onEnd: endSideResize,
-      }),
     )
 
     /**
@@ -1774,11 +1710,9 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     return h('div', {
       ref: pageRef,
       className: 'dsh-ct-root',
-      // One attribute for "the boundary is being dragged", which is how the
-      // whole page keeps the drag's cursor and stops selecting text under the
-      // pointer. Absent at rest, so the rules it turns on cost nothing the rest
-      // of the time.
-      'data-resizing': resizing ? 'col' : undefined,
+      // No `data-resizing` here: the shared panel sets that attribute on this
+      // very element for the length of a drag, so the page's cursor and its
+      // selection lock follow the gesture without this View re-rendering.
       // The shell's full-bleed opt-in, the same hook ui-trajectory renders:
       // it drops the transcript width handles and hands this View the whole
       // area instead of the transcript's content column.

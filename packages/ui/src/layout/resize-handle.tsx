@@ -33,6 +33,12 @@
  * it and this component owns the line in the middle. The page root carries
  * `data-resizing` for the length of a gesture, so the cursor keeps its meaning
  * while the pointer travels outside the boundary.
+ *
+ * `side` is which edge of the pane the boundary is on, and it is two facts at
+ * once: where the line is drawn, and which direction grows the pane. A sidebar
+ * on the left grows as the pointer moves right (its `end` edge); a sidebar on the
+ * right grows as the pointer moves left (its `start` edge), and a handle that
+ * ignored that would fight the pointer for the whole drag.
  */
 
 import {
@@ -55,6 +61,17 @@ export type ResizeAxis = 'col' | 'row'
 export interface ResizeHandleProps {
   /** Which axis the boundary moves along, and so which pointer coordinate drives it. */
   readonly axis: ResizeAxis
+  /**
+   * Which edge of the pane the boundary sits on.
+   *
+   * `end` is the far edge (a left sidebar's right side, an upper pane's bottom):
+   * the pane grows as the pointer moves along the axis. `start` is the near edge
+   * (a right sidebar's left side, a lower pane's top): the pane grows as the
+   * pointer moves against the axis, so the reported size is mirrored.
+   *
+   * @default 'end'
+   */
+  readonly side?: 'start' | 'end'
   /** The size the page is drawing as the gesture starts, in CSS pixels. */
   readonly onStart: () => number
   /** Draw the size the pointer now implies. Called at most once a frame. */
@@ -96,7 +113,12 @@ export function ResizeHandle(props: ResizeHandleProps): ReactElement {
   live.current = props
 
   /** The size the pointer's latest coordinate implies. */
-  const implied = (): number => start.current + (latest.current - origin.current)
+  const implied = (): number => {
+    const travel = latest.current - origin.current
+    // A boundary on the pane's near edge grows the pane as the pointer moves
+    // against the axis, so the same travel is the opposite size.
+    return start.current + (live.current.side === 'start' ? -travel : travel)
+  }
 
   const cancelFrame = (): void => {
     if (frame.current !== null) {
@@ -168,6 +190,7 @@ export function ResizeHandle(props: ResizeHandleProps): ReactElement {
     <div
       className={uiClass('resize')}
       data-axis={props.axis}
+      data-side={props.side ?? 'end'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

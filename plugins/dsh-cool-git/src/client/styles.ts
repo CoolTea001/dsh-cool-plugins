@@ -32,9 +32,8 @@
  * of the shell.
  */
 
-import { DIFF_MIN, PANE_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
-
-import { composerSeatCss, insertPluginStyles, wallpaperCss } from '@dsh-cool/ui'
+import { composerSeatCss, insertPluginStyles, resizablePanelCss, wallpaperCss } from '@dsh-cool/ui'
+import { FILES_BOUNDS, SIDE_BOUNDS } from './layout.js'
 
 /** Build-time define from tsdown.config.ts: the id the loader registers this bundle under. */
 declare const __DSH_CG_PLUGIN_ID__: string
@@ -62,20 +61,24 @@ const GIT_CSS = [
   // hands the body over.
   `.${GIT_ROOT_CLASS}{display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
   `.${GIT_ROOT_CLASS} *{box-sizing:border-box}`,
-  // The sidebar's width is the drag's to set: one custom property the page
-  // publishes on its root (see `layout.tsx`), with the default width as the rule's
-  // own fallback, so the first frame — before a saved layout has been read — is
-  // already a whole page. The floor and the cap restate the drag's bounds, and
-  // they are what keeps a width saved in a wide window from squeezing the Diff
-  // pane in a narrow one.
-  `.dsh-cg-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cg-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${DIFF_MIN}px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
+  // The width is the drag's to set: one custom property the page publishes on
+  // its root (see `layout.tsx`), with the panel's own bounds as the rule's
+  // fallback, floor and cap. Those numbers come from `SIDE_BOUNDS`, the same
+  // object the drag clamps against, so the stylesheet and the pointer cannot
+  // disagree about where the sidebar stops. What stays here is what only this
+  // page knows: the hairline seam and the transparent surface.
+  resizablePanelCss('.dsh-cg-side', {
+    property: '--dsh-cg-side-width',
+    bounds: SIDE_BOUNDS,
+    declarations: 'border-right:.5px solid var(--dsw-alias-border-l3);background:transparent;',
+  }),
   // The two panes are shares of the column rather than fixed heights: the split is
   // saved as a share, so a window that grows makes both lists longer instead of
   // leaving one at a height that no longer fits. `flex-basis:0` is what makes the
   // two panes split by those shares instead of by their content, and `min-height`
   // is the floor the drag states too — a window too short for both floors overflows
   // the sidebar, which is the honest end of a column that cannot hold two lists.
-  `.dsh-cg-pane{display:flex;flex-direction:column;flex:1 1 0;min-height:${PANE_MIN}px}`,
+  `.dsh-cg-pane{display:flex;flex-direction:column;flex:1 1 0;min-height:${FILES_BOUNDS.min}px}`,
   '.dsh-cg-files{position:relative;flex-grow:var(--dsh-cg-files-grow,1)}',
   '.dsh-cg-history{flex-grow:var(--dsh-cg-history-grow,1)}',
   '.dsh-cg-pane+.dsh-cg-pane{border-top:.5px solid var(--dsw-alias-border-l3)}',

@@ -231,16 +231,24 @@ export const UI_CSS = [
   // it covers that line and puts an invisible 8px band around itself as the hit
   // target. It takes no layout space: it is positioned on the neighbouring
   // box's own edge, so adding it moves nothing on the page.
+  //
+  // `data-side` is which edge of the pane the line is drawn on. A sidebar on the
+  // left wants its right edge, a sidebar on the right its left one, and a
+  // stacked pair the bottom of the upper pane — so the geometry is stated twice
+  // per axis rather than once, which is the price of one component serving all
+  // three.
   `.${UI_PREFIX}-resize{position:absolute;z-index:2;touch-action:none}`,
   `.${UI_PREFIX}-resize::before{content:"";position:absolute;opacity:0;transition:opacity .12s ease-out}`,
   `.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
   `.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
   // A column boundary: vertical line, horizontal hit band.
   `.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+  `.${UI_PREFIX}-resize[data-axis=col][data-side=start]{right:auto;left:-1px}`,
   `.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
   `.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
   // A row boundary: horizontal line, vertical hit band.
   `.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+  `.${UI_PREFIX}-resize[data-axis=row][data-side=start]{bottom:auto;top:-1px}`,
   `.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
   `.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
   // The page root carries `data-resizing` for the length of a gesture, so the

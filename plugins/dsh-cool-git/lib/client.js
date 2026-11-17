@@ -701,9 +701,11 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
 			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
 			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col][data-side=start]{right:auto;left:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
 			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row][data-side=start]{bottom:auto;top:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
 			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
@@ -711,7 +713,20 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
-			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+			`.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:5px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-bar=show]{--dsh-scrollbar-thumb:color-mix(in srgb,var(--dsw-alias-scrollbar-bg-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-scroll=none]{overflow:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=both]{overflow:auto}`,
+			`.${UI_PREFIX}-panel[data-scroll=x]{overflow-x:auto;overflow-y:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=y]{overflow-x:clip;overflow-y:auto}`,
+			`.${UI_PREFIX}-panel[data-shade]{mask-image:linear-gradient(#000,#000),linear-gradient(#000,#000),linear-gradient(#000,#000);mask-size:calc(100% - var(--dsh-ui-panel-gutter-x,0px)) calc(100% - var(--dsh-ui-panel-gutter-y,0px)),var(--dsh-ui-panel-gutter-x,0px) 100%,100% var(--dsh-ui-panel-gutter-y,0px);mask-position:0 0,right 0,0 bottom;mask-repeat:no-repeat}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-end]{mask-image:linear-gradient(to top,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start][data-shade-end]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`
 		].join("\n");
 		// ../../packages/ui/src/input.tsx
 		/**
@@ -783,6 +798,12 @@ window.__ModuleLoader__.load({
 		* it and this component owns the line in the middle. The page root carries
 		* `data-resizing` for the length of a gesture, so the cursor keeps its meaning
 		* while the pointer travels outside the boundary.
+		*
+		* `side` is which edge of the pane the boundary is on, and it is two facts at
+		* once: where the line is drawn, and which direction grows the pane. A sidebar
+		* on the left grows as the pointer moves right (its `end` edge); a sidebar on the
+		* right grows as the pointer moves left (its `start` edge), and a handle that
+		* ignored that would fight the pointer for the whole drag.
 		*/
 		/**
 		* The pointer's own coordinate on one axis, in viewport pixels.
@@ -809,7 +830,10 @@ window.__ModuleLoader__.load({
 			const live = (0, react.useRef)(props);
 			live.current = props;
 			/** The size the pointer's latest coordinate implies. */
-			const implied = () => start.current + (latest.current - origin.current);
+			const implied = () => {
+				const travel = latest.current - origin.current;
+				return start.current + (live.current.side === "start" ? -travel : travel);
+			};
 			const cancelFrame = () => {
 				if (frame.current !== null) {
 					cancelAnimationFrame(frame.current);
@@ -864,6 +888,7 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: uiClass("resize"),
 				"data-axis": props.axis,
+				"data-side": props.side ?? "end",
 				onPointerDown,
 				onPointerMove,
 				onPointerUp,
@@ -900,7 +925,7 @@ window.__ModuleLoader__.load({
 		* @param fields - one reader per field, in the shape the caller draws with.
 		* @returns the layout to draw, always usable.
 		*/
-		function readLayout$1(key, fields) {
+		function readLayout(key, fields) {
 			let raw;
 			try {
 				raw = window.localStorage.getItem(key);
@@ -955,10 +980,331 @@ window.__ModuleLoader__.load({
 		* @param key - the plugin's own `localStorage` entry.
 		* @param layout - the layout to save.
 		*/
-		function writeLayout$1(key, layout) {
+		function writeLayout(key, layout) {
 			try {
 				window.localStorage.setItem(key, JSON.stringify(layout));
 			} catch {}
+		}
+		/**
+		* The widest a fixed sidebar may be drawn in a page this wide.
+		*
+		* Two bounds at once: the width a sidebar stops being worth dragging past, and
+		* what is left of the page once the main pane keeps its own floor. The sidebar's
+		* floor wins when the window cannot hold both, so a narrow window still draws a
+		* whole sidebar and leaves the main pane to suffer — a sidebar narrower than its
+		* own header would have no honest reading at all.
+		*
+		* @param preferred - the width the pointer, or the saved layout, asks for.
+		* @param available - the page's width, in CSS pixels.
+		* @param bounds - the sidebar's floor and cap, and the main pane's floor.
+		* @returns the width to draw.
+		*/
+		function clampSideWidth(preferred, available, bounds) {
+			const ceiling = Math.max(bounds.min, Math.min(bounds.max, available - bounds.mainMin));
+			return Math.min(Math.max(preferred, bounds.min), ceiling);
+		}
+		// ../../packages/ui/src/layout/resize-gesture.ts
+		/**
+		* The owner's half of a resize gesture, wired once.
+		*
+		* `ResizeHandle` owns the pointer: capture, one callback a frame, a click that
+		* records nothing, a cancel that puts the page back. What it cannot own is what
+		* a boundary *means* — whether the size is a width or a share of a track, which
+		* custom property draws it, and where it is remembered. Every page that has one
+		* used to write that half by hand, in the same order, and the order is the part
+		* that is easy to get subtly wrong:
+		*
+		* - `onStart` measures the box on screen rather than reading the saved layout,
+		*   because the stylesheet is what clamps a saved size to the window it is drawn
+		*   in — the edge the pointer took hold of is the drawn one, not the preference
+		*   behind it;
+		* - `onDrag` clamps against the room available *now*, so a drag that runs into
+		*   the floor of the neighbouring pane stops where the pointer does;
+		* - `onCommit` draws and records the same fitted number, so what a reload
+		*   restores is exactly what was on screen;
+		* - `onEnd` draws the recorded layout again, which is what makes a cancelled
+		*   drag leave nothing behind.
+		*
+		* The page root carries `data-resizing` for the length of a gesture, written
+		* here rather than by the page: the attribute is a fact about the gesture, and
+		* putting it in the page's state would re-render the whole page on a press and a
+		* release — for a cursor. The shared stylesheet is what reads it (see
+		* `UI_CSS`), and the attribute outlives a cancelled drag only if the unmount
+		* cleanup fails, which is why that cleanup is not optional.
+		*/
+		/**
+		* Wire one boundary to a `ResizeHandle`.
+		*
+		* @param spec - what the boundary means on this page.
+		* @returns the callbacks a `ResizeHandle` takes, plus the axis and side it should render.
+		*/
+		function useResizeGesture(spec) {
+			const live = (0, react.useRef)(spec);
+			live.current = spec;
+			/**
+			* The element this gesture marked, kept so the cleanup can unmark it.
+			*
+			* Read at cleanup time, `root.current` would already be null: React detaches
+			* host refs before the effects that watch them clean up. The attribute would
+			* then outlive the component that set it, which for a sidebar toggled shut
+			* mid-drag means a page stuck wearing `col-resize`.
+			*/
+			const marked = (0, react.useRef)(null);
+			/** Mark, or unmark, the page as mid-gesture. */
+			const mark = (0, react.useCallback)((axis) => {
+				const root = axis === null ? marked.current : live.current.root.current;
+				if (root === null) return;
+				if (axis === null) {
+					root.removeAttribute("data-resizing");
+					marked.current = null;
+				} else {
+					root.setAttribute("data-resizing", axis);
+					marked.current = root;
+				}
+			}, []);
+			const onStart = (0, react.useCallback)(() => {
+				mark(live.current.axis);
+				return live.current.measure();
+			}, [mark]);
+			const onDrag = (0, react.useCallback)((size) => {
+				const room = live.current.room();
+				if (!(room > 0)) return;
+				live.current.draw(live.current.fit(size, room));
+			}, []);
+			const onCommit = (0, react.useCallback)((size) => {
+				mark(null);
+				const room = live.current.room();
+				if (!(room > 0)) return;
+				live.current.persist(live.current.fit(size, room));
+			}, [mark]);
+			const onEnd = (0, react.useCallback)(() => {
+				mark(null);
+				live.current.restore();
+			}, [mark]);
+			(0, react.useEffect)(() => () => mark(null), [mark]);
+			return {
+				axis: spec.axis,
+				side: spec.side,
+				onStart,
+				onDrag,
+				onCommit,
+				onEnd
+			};
+		}
+		// ../../packages/ui/src/layout/resizable-panel.ts
+		/**
+		* A boundary the reader drags, remembered between visits — the owner's half.
+		*
+		* `ResizeHandle` owns the pointer: capture, one callback a frame, a click that
+		* records nothing, a cancel that puts the page back. What it cannot own is what
+		* a boundary *means* — whether the number is a width or a share of a track,
+		* which custom property draws it, and where it is remembered. Every page that
+		* had one wrote that half by hand, in the same order, and the order is the part
+		* that is easy to get subtly wrong:
+		*
+		* - `onStart` measures the box on screen rather than reading the recorded value,
+		*   because the stylesheet is what clamps a saved size to the window it is drawn
+		*   in — the edge the pointer took hold of is the drawn one, not the preference
+		*   behind it;
+		* - `onDrag` clamps against the room available *now*, so a drag that runs into
+		*   the floor of the neighbouring pane stops where the pointer does;
+		* - `onCommit` draws and records the same fitted number, so what a reload
+		*   restores is exactly what was on screen at the release;
+		* - `onEnd` draws the recorded value again, which is what makes a cancelled drag
+		*   leave nothing behind.
+		*
+		* The page root carries `data-resizing` for the length of a gesture, written
+		* here rather than by the page: the attribute is a fact about the gesture, and
+		* putting it in the page's state would re-render the whole page on a press and a
+		* release — for a cursor. The shared stylesheet is what reads it (see
+		* `UI_CSS`), and the unmount cleanup is not optional: without it a page that
+		* goes away mid-drag leaves the whole document wearing `col-resize`.
+		*
+		* ## The two units
+		*
+		* `measure` answers in **drawn** pixels — how tall or wide the box is on screen.
+		* `fit` converts that into the **recorded** unit, which is what `draw` paints and
+		* `persist` saves. For a sidebar the two are the same thing (a width in pixels);
+		* for a split between stacked panes they are not, because the split is saved as a
+		* share of its track so that a window that grows makes both panes longer instead
+		* of leaving one at a height that no longer fits. Naming the difference here is
+		* what lets one hook serve both without a mode flag.
+		*/
+		/**
+		* Read one remembered size.
+		*
+		* Exported beside the hook because it is the half worth testing: a page's first
+		* frame is drawn from it, and a value another version wrote has to be rejected
+		* rather than trusted.
+		*
+		* @param store - the entry, field and unit to read.
+		* @param fallback - what an unusable value becomes.
+		* @returns the size to draw, always usable.
+		*/
+		function readPanelSize(store, fallback) {
+			if (store === void 0) return fallback;
+			const field = store.field ?? "sideWidth";
+			const reader = store.unit === "share" ? fraction(fallback) : finiteNumber(fallback);
+			return readLayout(store.key, { [field]: reader })[field] ?? fallback;
+		}
+		/**
+		* Record one size, leaving every other field of the entry alone.
+		*
+		* One entry may hold several boundaries — the Git tab keeps its sidebar's width
+		* and its pane split under one key — so a write that replaced the whole object
+		* would erase its neighbours. Reading the entry back and merging is the only way
+		* to keep that promise without this module owning the other fields.
+		*
+		* @param store - the entry and field to write.
+		* @param size - the size to save.
+		*/
+		function writePanelSize(store, size) {
+			if (store === void 0) return;
+			const field = store.field ?? "sideWidth";
+			let saved = {};
+			try {
+				const raw = window.localStorage.getItem(store.key);
+				const parsed = raw === null ? null : JSON.parse(raw);
+				if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) saved = { ...parsed };
+			} catch {
+				saved = {};
+			}
+			saved[field] = size;
+			writeLayout(store.key, saved);
+		}
+		/**
+		* Drive one resizable boundary: measure it, fit it, draw it, remember it.
+		*
+		* @param options - the root and pane to measure, the unit's arithmetic, the bounds and the store.
+		* @returns the recorded size, and the handle that sets it.
+		*/
+		function useResizablePanel(options) {
+			const { root, axis, side, bounds, store, measure, room, fit, draw } = options;
+			/** The recorded size the page draws and saves. */
+			const [size, setSize] = (0, react.useState)(() => readPanelSize(store, bounds.fallback));
+			const recorded = (0, react.useRef)(size);
+			recorded.current = size;
+			(0, react.useLayoutEffect)(() => {
+				draw(recorded.current);
+			}, [draw]);
+			/** Record a size: draw it, remember it, and publish it to React. */
+			const record = (0, react.useCallback)((next) => {
+				draw(next);
+				writePanelSize(store, next);
+				recorded.current = next;
+				setSize(next);
+			}, [draw, store]);
+			const handle = useResizeGesture({
+				root,
+				axis,
+				side,
+				measure,
+				room,
+				fit,
+				draw,
+				persist: record,
+				restore: (0, react.useCallback)(() => draw(recorded.current), [draw])
+			});
+			return {
+				size,
+				handle,
+				resize: record,
+				restore: handle.onEnd
+			};
+		}
+		/**
+		* The pixel arithmetic of a sidebar: clamp against the room the page has.
+		*
+		* Stated here rather than inline at each call site so the two callers that need
+		* it — the hook's owner and the panel component — read one function.
+		*
+		* @param bounds - the sidebar's floor, cap and the neighbour's floor.
+		* @returns a fit function for {@link useResizablePanel}.
+		*/
+		function widthFit(bounds) {
+			return (preferred, room) => clampSideWidth(preferred, room, bounds);
+		}
+		// ../../packages/ui/src/layout/resizable-panel-view.tsx
+		/**
+		* A panel beside an absorbing pane, with the reader setting its width.
+		*
+		* The shape three pages share: a fixed column on one side of the page, a
+		* neighbouring pane taking the rest, and a boundary between them that the reader
+		* drags. What this component owns is only the seam — the column's box, the
+		* boundary on its edge, and the width both of them are measured against. The page
+		* keeps its root, its surface, its rows and its own chrome: a component that
+		* painted a canvas would cover a theme's wallpaper for the whole tab, and that
+		* decision is the page's to make.
+		*
+		* The width is written to a custom property on the page root rather than to this
+		* element's inline style, because that is what lets a drag move the boundary from
+		* the pointer without rendering React — the frame rate of a drag stays
+		* independent of how many rows the column happens to be drawing. Only the
+		* release renders, and only to record what was chosen.
+		*
+		* Everything drawn inside is the caller's: the header, the scrolling list, the
+		* footer. This component adds no padding, no surface and no text, so a page's own
+		* rhythm survives being wrapped in it unchanged.
+		*/
+		/**
+		* Render a panel whose width the reader drags.
+		*
+		* The element is an `<aside>` and takes any attribute one takes, so a page that
+		* already had `className` and `aria-label` on its sidebar keeps both.
+		*
+		* @param props - the page root, the property and bounds, the side, and the column's contents.
+		* @returns the aside element with its boundary.
+		*/
+		function ResizablePanel(props) {
+			const { root, property, bounds, store, side = "end", paneRef, children, ...rest } = props;
+			/** This column's own box, which is what a drag measures and what the boundary is placed on. */
+			const pane = (0, react.useRef)(null);
+			/** Fill the caller's ref from the same element the component measures. */
+			const attach = (0, react.useCallback)((element) => {
+				pane.current = element;
+				if (typeof paneRef === "function") paneRef(element);
+				else if (paneRef !== void 0 && paneRef !== null) paneRef.current = element;
+			}, [paneRef]);
+			/** The room the boundary may move through: the page's own width. */
+			const room = (0, react.useCallback)(() => root.current?.getBoundingClientRect().width ?? 0, [root]);
+			/** Paint one width on the page root, without rendering. */
+			const draw = (0, react.useCallback)((width) => {
+				root.current?.style.setProperty(property, `${width}px`);
+			}, [root, property]);
+			const panel = useResizablePanel({
+				root,
+				axis: "col",
+				side,
+				bounds,
+				store,
+				measure: (0, react.useCallback)(() => pane.current?.getBoundingClientRect().width ?? bounds.fallback, [bounds.fallback]),
+				room,
+				fit: widthFit(bounds),
+				draw
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+				...rest,
+				ref: attach,
+				children: [children, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, { ...panel.handle })]
+			});
+		}
+		// ../../packages/ui/src/layout/resizable-panel-css.ts
+		/**
+		* Build the geometry rule for one resizable panel.
+		*
+		* The result is one selector and one declaration block, meant to be appended to
+		* the consuming plugin's own stylesheet — which is where the seam and the
+		* surface live. Nothing here is inserted by this package: `insertPluginStyles`
+		* owns the tag, and a second tag would be a second thing to leak.
+		*
+		* @param selector - the panel's own class, including the leading dot.
+		* @param options - the property to draw, the shared bounds, the unit, extra declarations.
+		* @returns one CSS rule.
+		*/
+		function resizablePanelCss(selector, options) {
+			const { property, bounds, declarations = "" } = options;
+			const ceiling = `min(${bounds.max}px,calc(100% - ${bounds.mainMin}px))`;
+			return `${selector}{position:relative;flex:none;display:flex;flex-direction:column;box-sizing:border-box;min-height:0;width:var(${property},${bounds.fallback}px);min-width:${bounds.min}px;max-width:${ceiling};${declarations}}`;
 		}
 		// ../../packages/ui/src/shell/composer-seat.ts
 		/**
@@ -2595,97 +2941,102 @@ window.__ModuleLoader__.load({
 		* repository state: they are a preference for a window, kept in localStorage under
 		* this plugin's own key, the way the Terminal tab keeps its own.
 		*
-		* Every bound is stated once, here, and `styles.ts` interpolates these constants
-		* into the rules that enforce them at rest. A drag and a stylesheet that disagreed
-		* about the narrowest sidebar would be a divider that stops where the pointer does
-		* not; two numbers in two files would drift.
+		* Both boundaries are driven by `@dsh-cool/ui`, and the bounds below are the one
+		* statement of what each may be: the drag clamps against them, `styles.ts` builds
+		* its rules from them, and a saved value is validated by them when it is read.
+		* A drag and a stylesheet that disagreed about the narrowest sidebar would be a
+		* divider that stops where the pointer does not; there is one object to change.
 		*
-		* A drag never renders React. The pointer writes the boundary's own custom
-		* property on the page root — `--dsh-cg-side-width`, `--dsh-cg-files-grow` and
-		* `--dsh-cg-history-grow` — and only the release records one layout, into the
-		* page's state and localStorage together. That keeps the frame rate of a drag
-		* independent of how many thousand diff rows the page happens to be drawing; DSH's
-		* own transcript width handle (client-ui-conversation's `ConversationWidthControls`)
-		* makes the same trade for the same reason.
+		* The two boundaries differ in one way, and it is why they are stated separately:
+		* a sidebar's width is a preference for the window ("I put it at this width"), so
+		* it is saved in pixels; the split divides a track, so it is saved as a share and
+		* a window that grows makes both panes longer instead of leaving one at a height
+		* that no longer fits.
 		*/
 		/** The localStorage entry holding both boundaries, as one JSON object. */
 		const LAYOUT_KEY = "dsh-cool-git.layout.v1";
-		/** The layout of a page nobody has resized. */
-		const DEFAULT_LAYOUT = {
-			sideWidth: 340,
-			filesShare: .5
+		/**
+		* The sidebar's width until it is dragged.
+		*
+		* The width this page was designed at (see the toolbar rules in `styles.ts`), and
+		* the width the stylesheet falls back to for the frames before the saved layout is
+		* published.
+		*/
+		const SIDE_DEFAULT = 340;
+		/**
+		* The narrowest the sidebar may be drawn.
+		*
+		* The toolbar sets this floor rather than the lists do: two parts of that row may
+		* give ground — the branch's name first, down to the icon alone, and then the
+		* Workspace's name — while Refresh beside them is fixed. Shorter than this and both
+		* names are gone and that control would run over the sidebar's own edge.
+		*/
+		const SIDE_MIN = 260;
+		/** The widest a drag may leave the sidebar, however wide the window is. */
+		const SIDE_MAX = 560;
+		/** The narrowest the Diff pane may be drawn, whatever the sidebar asks for. */
+		const DIFF_MIN = 320;
+		/**
+		* The shortest either sidebar pane may be drawn.
+		*
+		* A pane header is 30px and a changed-path row 26px, so this is a header and a
+		* couple of rows: the point below which a pane stops being a list. Both the drag
+		* and the panes' own `min-height` state it, so a window resized *after* a split was
+		* dragged still keeps each pane on screen.
+		*/
+		const PANE_MIN = 96;
+		/** The sidebar's bounds: a pixel width between a floor and a cap. */
+		const SIDE_BOUNDS = {
+			fallback: SIDE_DEFAULT,
+			min: SIDE_MIN,
+			max: SIDE_MAX,
+			mainMin: DIFF_MIN
 		};
 		/**
-		* The stored shape, field by field.
+		* The split's bounds.
 		*
-		* Read as data rather than trusted as a fact: a saved value is a preference
-		* written in another window size, by another version of this page, in a browser
-		* that may not give the entry back at all. Each field is checked on its own, so
-		* one bad number costs one field rather than the whole layout. The reading and
-		* writing themselves are `@dsh-cool/ui`'s.
+		* `fallback` and `max` are shares, because that is the unit that is saved;
+		* `min` and `mainMin` are pane floors in pixels of the track, because that is
+		* the unit the drag clamps in. The share that is saved is derived from the
+		* clamped pixel height, so a track too short to hold both floors leaves one pane
+		* at its floor rather than at a share that no longer fits.
 		*/
-		const FIELDS = {
-			sideWidth: finiteNumber(DEFAULT_LAYOUT.sideWidth),
-			filesShare: fraction(DEFAULT_LAYOUT.filesShare)
+		const FILES_BOUNDS = {
+			fallback: .5,
+			min: PANE_MIN,
+			max: 1,
+			mainMin: PANE_MIN
 		};
-		/** The saved layout, with every unusable field replaced by its default. */
-		function readLayout() {
-			return readLayout$1(LAYOUT_KEY, FIELDS);
-		}
-		/** Record the layout. A storage that refuses the write is not worth surfacing. */
-		function writeLayout(layout) {
-			writeLayout$1(LAYOUT_KEY, layout);
-		}
+		/** Where the sidebar's width is remembered. */
+		const SIDE_STORE = {
+			key: LAYOUT_KEY,
+			field: "sideWidth"
+		};
+		/** Where the split's share is remembered. */
+		const FILES_STORE = {
+			key: LAYOUT_KEY,
+			field: "filesShare",
+			unit: "share"
+		};
 		/**
-		* The widest the sidebar may be drawn in a page this wide.
+		* The vertical run the two sidebar panes share, below the toolbar row.
 		*
-		* Two bounds at once: the width a sidebar stops being worth dragging past, and
-		* what is left of the page once the Diff pane keeps its own floor. The sidebar's
-		* floor wins when the window cannot hold both, so a narrow window still draws a
-		* whole sidebar and leaves the Diff pane to suffer — a sidebar narrower than its
-		* own toolbar would have no honest reading at all.
+		* Measured from the sidebar's own bottom to the changed-path pane's top: the
+		* toolbar and the split between the panes take the difference, so this is the
+		* only height both panes' shares can be fractions of.
 		*
-		* @param available - the page's width, in CSS pixels.
-		* @returns the widest sidebar to draw.
+		* @param column - the sidebar, which owns the track.
+		* @param first - the upper pane, whose top is where the track starts.
+		* @returns the track's height in CSS pixels, or 0 when either box is not mounted.
 		*/
-		function sideWidthCeiling(available) {
-			return Math.max(260, Math.min(560, available - 320));
+		function trackHeight(column, first) {
+			const host = column.current;
+			const upper = first.current;
+			if (host === null || upper === null) return 0;
+			return host.getBoundingClientRect().bottom - upper.getBoundingClientRect().top;
 		}
 		/**
-		* Clamp a preferred sidebar width to what this page can draw.
-		*
-		* @param preferred - the width the pointer, or the saved layout, asks for.
-		* @param available - the page's width, in CSS pixels.
-		* @returns the width to draw.
-		*/
-		function clampSideWidth(preferred, available) {
-			return Math.min(Math.max(preferred, 260), sideWidthCeiling(available));
-		}
-		/**
-		* The tallest the Changed files pane may be drawn, inside the track it shares
-		* with Commit history.
-		*
-		* A track too short to hold both floors leaves the one pane at its floor, which is
-		* the same answer the stylesheet's own `min-height` gives.
-		*
-		* @param track - the height the two panes share, in CSS pixels.
-		* @returns the tallest the upper pane may be.
-		*/
-		function splitCeiling(track) {
-			return Math.max(96, track - 96);
-		}
-		/**
-		* Clamp a preferred Changed files height to the track it shares with Commit history.
-		*
-		* @param preferred - the height the pointer asks for, in CSS pixels.
-		* @param track - the height the two panes share, in CSS pixels.
-		* @returns the height to draw.
-		*/
-		function clampFilesHeight(preferred, track) {
-			return Math.min(Math.max(preferred, 96), splitCeiling(track));
-		}
-		/**
-		* The share of one track a pane height means.
+		* The share of the track a pane height means.
 		*
 		* The share rather than the height is what gets saved: the CSS grows the two panes
 		* by their shares, so a split dragged in a short window is still the same split
@@ -2698,9 +3049,10 @@ window.__ModuleLoader__.load({
 		* @returns the share to draw and save.
 		*/
 		function shareOf(height, track) {
-			if (!(track > 0)) return DEFAULT_LAYOUT.filesShare;
-			const floor = Math.min(96 / track, .5);
-			return Math.min(Math.max(height / track, floor), 1 - floor);
+			if (!(track > 0)) return FILES_BOUNDS.fallback;
+			const floor = FILES_BOUNDS.min;
+			const wanted = Math.min(Math.max(height, floor), Math.max(floor, track - FILES_BOUNDS.mainMin));
+			return Math.min(Math.max(wanted / track, 1e-4), .9999);
 		}
 		// src/client/styles.ts
 		/**
@@ -2743,8 +3095,12 @@ window.__ModuleLoader__.load({
 			composerSeatCss(GIT_ROOT_CLASS),
 			`.${GIT_ROOT_CLASS}{display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
 			`.${GIT_ROOT_CLASS} *{box-sizing:border-box}`,
-			`.dsh-cg-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cg-side-width,340px);min-width:260px;max-width:min(560px,calc(100% - 320px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
-			`.dsh-cg-pane{display:flex;flex-direction:column;flex:1 1 0;min-height:96px}`,
+			resizablePanelCss(".dsh-cg-side", {
+				property: "--dsh-cg-side-width",
+				bounds: SIDE_BOUNDS,
+				declarations: "border-right:.5px solid var(--dsw-alias-border-l3);background:transparent;"
+			}),
+			`.dsh-cg-pane{display:flex;flex-direction:column;flex:1 1 0;min-height:${FILES_BOUNDS.min}px}`,
 			".dsh-cg-files{position:relative;flex-grow:var(--dsh-cg-files-grow,1)}",
 			".dsh-cg-history{flex-grow:var(--dsh-cg-history-grow,1)}",
 			".dsh-cg-pane+.dsh-cg-pane{border-top:.5px solid var(--dsw-alias-border-l3)}",
@@ -3762,9 +4118,36 @@ window.__ModuleLoader__.load({
 		function GitView(props) {
 			const { t } = props;
 			const page = (0, react.useRef)(null);
-			/** The sidebar itself, and the changed-path pane at the top of it. */
-			const side = (0, react.useRef)(null);
+			/** The changed-path pane at the top of the sidebar: the split's own box. */
 			const filesPane = (0, react.useRef)(null);
+			/** The sidebar's column, which is the track the two panes share. */
+			const column = (0, react.useRef)(null);
+			/**
+			* The split between the two panes, driven by `@dsh-cool/ui`.
+			*
+			* The unit here is a share rather than a height, which is why the hook takes
+			* the arithmetic instead of assuming a width: a height dragged in a short
+			* window is saved as the fraction of the track it took, so a window that grows
+			* makes both lists longer instead of leaving one at a height that no longer
+			* fits. The two custom properties are the panes' flex-grow, written together
+			* so the divider between them can never be drawn from two different layouts.
+			*/
+			const split = useResizablePanel({
+				root: page,
+				axis: "row",
+				side: "end",
+				bounds: FILES_BOUNDS,
+				store: FILES_STORE,
+				measure: () => filesPane.current?.getBoundingClientRect().height ?? 0,
+				room: () => trackHeight(column, filesPane),
+				fit: (height, track) => shareOf(height, track),
+				draw: (share) => {
+					const root = page.current;
+					if (root === null) return;
+					root.style.setProperty("--dsh-cg-files-grow", `${share}`);
+					root.style.setProperty("--dsh-cg-history-grow", `${1 - share}`);
+				}
+			});
 			/**
 			* Which repository read owns the page.
 			*
@@ -3855,119 +4238,7 @@ window.__ModuleLoader__.load({
 			const [doc, setDoc] = (0, react.useState)(() => remembered.doc);
 			/** The failure the dialog is stating, or null while none is open. */
 			const [error, setError] = (0, react.useState)(null);
-			/** The two boundaries' sizes, read from storage before the first paint. */
-			const [layout, setLayout] = (0, react.useState)(readLayout);
-			/** The boundary a drag is holding, or null at rest. */
-			const [resizing, setResizing] = (0, react.useState)(null);
 			useComposerSeatSuppression(page);
-			/**
-			* Draw one layout: the page's two boundaries, as custom properties on the root.
-			*
-			* The sizes live on the root rather than in each element's own inline style for
-			* two reasons. A drag can then move them from the pointer without rendering
-			* React — the Diff pane holds thousands of rows, and a render per pointer frame
-			* would cost all of them — and one publish states both panes' shares together,
-			* so the divider between them can never be drawn from two different layouts.
-			*/
-			const publish = (0, react.useCallback)((next) => {
-				const root = page.current;
-				if (root === null) return;
-				root.style.setProperty("--dsh-cg-side-width", `${next.sideWidth}px`);
-				root.style.setProperty("--dsh-cg-files-grow", `${next.filesShare}`);
-				root.style.setProperty("--dsh-cg-history-grow", `${1 - next.filesShare}`);
-			}, []);
-			(0, react.useLayoutEffect)(() => {
-				publish(layout);
-			}, [layout, publish]);
-			/**
-			* Record one layout: what the page draws from, and what it saves.
-			*
-			* The two are written together on purpose. A size drawn but not saved is one the
-			* next visit forgets; a size saved but not drawn is a drag that looks like it did
-			* nothing until the tab is reopened.
-			*/
-			const record = (0, react.useCallback)((next) => {
-				setLayout(next);
-				writeLayout(next);
-			}, []);
-			/** The page's own width, which is the room the sidebar and the Diff pane share. */
-			const available = (0, react.useCallback)(() => page.current?.getBoundingClientRect().width ?? 0, []);
-			/** The vertical run the two sidebar panes share, below the toolbar row. */
-			const trackHeight = (0, react.useCallback)(() => {
-				const host = side.current;
-				const first = filesPane.current;
-				if (host === null || first === null) return 0;
-				return host.getBoundingClientRect().bottom - first.getBoundingClientRect().top;
-			}, []);
-			/**
-			* Where the sidebar's edge is, as a drag starts.
-			*
-			* Measured off the box rather than read from the layout: the stylesheet is what
-			* clamps a saved width to the window it is drawn in, so the edge on screen — not
-			* the preference behind it — is where the pointer has actually taken hold.
-			*/
-			const startSideResize = (0, react.useCallback)(() => {
-				setResizing("col");
-				return side.current?.getBoundingClientRect().width ?? layout.sideWidth;
-			}, [layout.sideWidth]);
-			/** Draw the sidebar width the pointer implies, for this frame. */
-			const dragSideResize = (0, react.useCallback)((width) => {
-				const root = page.current;
-				const room = available();
-				if (root === null || room <= 0) return;
-				root.style.setProperty("--dsh-cg-side-width", `${clampSideWidth(width, room)}px`);
-			}, [available]);
-			/** Record the sidebar width the gesture settled on. */
-			const commitSideResize = (0, react.useCallback)((width) => {
-				setResizing(null);
-				const room = available();
-				if (room <= 0) return;
-				record({
-					...layout,
-					sideWidth: clampSideWidth(width, room)
-				});
-			}, [
-				available,
-				layout,
-				record
-			]);
-			/** Where the divider between the panes is, as a drag starts: the upper pane's height. */
-			const startSplitResize = (0, react.useCallback)(() => {
-				setResizing("row");
-				return filesPane.current?.getBoundingClientRect().height ?? layout.filesShare * trackHeight();
-			}, [layout.filesShare, trackHeight]);
-			/** Draw the split the pointer implies, for this frame. */
-			const dragSplitResize = (0, react.useCallback)((height) => {
-				const root = page.current;
-				const track = trackHeight();
-				if (root === null || track <= 0) return;
-				const share = shareOf(clampFilesHeight(height, track), track);
-				root.style.setProperty("--dsh-cg-files-grow", `${share}`);
-				root.style.setProperty("--dsh-cg-history-grow", `${1 - share}`);
-			}, [trackHeight]);
-			/** Record the split the gesture settled on. */
-			const commitSplitResize = (0, react.useCallback)((height) => {
-				setResizing(null);
-				const track = trackHeight();
-				if (track <= 0) return;
-				record({
-					...layout,
-					filesShare: shareOf(clampFilesHeight(height, track), track)
-				});
-			}, [
-				layout,
-				record,
-				trackHeight
-			]);
-			/**
-			* A gesture that produced no size — a click on a boundary, or a pointer lost
-			* mid-drag — draws the recorded layout again, so the preview a cancelled drag
-			* left on screen cannot outlive the gesture.
-			*/
-			const endResize = (0, react.useCallback)(() => {
-				setResizing(null);
-				publish(layout);
-			}, [layout, publish]);
 			/** Open the error dialog on one failed action. */
 			const reportError = (0, react.useCallback)((next) => {
 				setError(next);
@@ -4895,12 +5166,15 @@ window.__ModuleLoader__.load({
 				className: GIT_ROOT_CLASS,
 				"data-dsh-cool-git": "view",
 				"data-conversation-composer-overlay": "",
-				"data-resizing": resizing ?? void 0,
 				style: PAGE,
 				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
-						ref: side,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)(ResizablePanel, {
 						className: "dsh-cg-side",
+						root: page,
+						paneRef: column,
+						property: "--dsh-cg-side-width",
+						bounds: SIDE_BOUNDS,
+						store: SIDE_STORE,
 						children: [
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SideHead, {
 								t,
@@ -4971,13 +5245,7 @@ window.__ModuleLoader__.load({
 										onStageAll: handleStageAll,
 										onDiscardAll: handleDiscardAll
 									})
-								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, {
-									axis: "row",
-									onStart: startSplitResize,
-									onDrag: dragSplitResize,
-									onCommit: commitSplitResize,
-									onEnd: endResize
-								})]
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, { ...split.handle })]
 							}),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 								className: "dsh-cg-pane dsh-cg-history",
@@ -5012,13 +5280,6 @@ window.__ModuleLoader__.load({
 										})
 									})
 								})]
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, {
-								axis: "col",
-								onStart: startSideResize,
-								onDrag: dragSideResize,
-								onCommit: commitSideResize,
-								onEnd: endResize
 							})
 						]
 					}),

@@ -12,8 +12,8 @@
  * as a single JS file and would never fetch a sibling `.css` asset.
  */
 
-import { composerSeatCss, insertPluginStyles } from '@dsh-cool/ui'
-import { MAIN_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
+import { composerSeatCss, insertPluginStyles, resizablePanelCss } from '@dsh-cool/ui'
+import { SIDE_BOUNDS } from './layout.js'
 
 /**
  * The id the loader registers this bundle under, which is the name the sheet's
@@ -50,13 +50,18 @@ export const TERMINAL_CSS = [
   // (#151517), and presets can move either, so the column stops competing with
   // the background it is laid on. The hairline seam is what still separates the
   // two halves of the tab.
-  // The sidebar's width is the drag's to set: one custom property the page
-  // publishes on its root (see `layout.ts`), with the default width as the
-  // rule's own fallback, so the first frame — before a saved layout has been
-  // read — is already a whole page. The floor and the cap restate the drag's
-  // bounds, which is what keeps a width saved in a wide window from squeezing
-  // the console in a narrow one.
-  `.dsh-ct-side{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;width:var(--dsh-ct-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${MAIN_MIN}px));box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
+  //
+  // The width is the drag's to set: one custom property the page publishes on
+  // its root (see `layout.ts`), with the panel's own bounds as the rule's
+  // fallback, floor and cap. Those three numbers come from `SIDE_BOUNDS`, the
+  // same object the drag clamps against, so the stylesheet and the pointer
+  // cannot disagree about where the sidebar stops. What stays here is what only
+  // this page knows: the hairline seam and the transparent surface.
+  resizablePanelCss('.dsh-ct-side', {
+    property: '--dsh-ct-side-width',
+    bounds: SIDE_BOUNDS,
+    declarations: 'border-right:.5px solid var(--dsw-alias-border-l3);background:transparent;',
+  }),
   // The boundary itself is `@dsh-cool/ui`'s: one element, one hit band, one hover
   // cue, shared with the Git and Files tabs. What stays here is what is stated on
   // this page's own root — the cursor and the selection lock for a gesture.

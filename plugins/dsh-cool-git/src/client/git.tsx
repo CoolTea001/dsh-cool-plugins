@@ -71,7 +71,9 @@ import {
   Menu,
   Modal,
   Tooltip,
+  ResizablePanel,
   ResizeHandle,
+  useResizablePanel,
   useComposerSeatSuppression,
   useModalLayer,
   type MenuEntry,
@@ -139,13 +141,12 @@ import {
 } from '@dsh-cool/icons'
 import { displayPath, parsePatch, type DiffDoc, type DiffFile, type DiffLine } from './diff.js'
 import {
-  clampFilesHeight,
-  clampSideWidth,
-  readLayout,
+  FILES_BOUNDS,
+  FILES_STORE,
+  SIDE_BOUNDS,
+  SIDE_STORE,
   shareOf,
-  writeLayout,
-  type GitLayout,
-  type ResizeAxis,
+  trackHeight,
 } from './layout.js'
 import type { MessageKey, Translate } from './locales.js'
 import { GIT_ROOT_CLASS } from './styles.js'
@@ -1040,9 +1041,38 @@ export function GitView(props: {
 }): ReactElement {
   const { t } = props
   const page = useRef<HTMLDivElement | null>(null)
-  /** The sidebar itself, and the changed-path pane at the top of it. */
-  const side = useRef<HTMLElement | null>(null)
+  /** The changed-path pane at the top of the sidebar: the split's own box. */
   const filesPane = useRef<HTMLElement | null>(null)
+  /** The sidebar's column, which is the track the two panes share. */
+  const column = useRef<HTMLElement | null>(null)
+  /**
+   * The split between the two panes, driven by `@dsh-cool/ui`.
+   *
+   * The unit here is a share rather than a height, which is why the hook takes
+   * the arithmetic instead of assuming a width: a height dragged in a short
+   * window is saved as the fraction of the track it took, so a window that grows
+   * makes both lists longer instead of leaving one at a height that no longer
+   * fits. The two custom properties are the panes' flex-grow, written together
+   * so the divider between them can never be drawn from two different layouts.
+   */
+  const split = useResizablePanel({
+    root: page,
+    axis: 'row',
+    side: 'end',
+    bounds: FILES_BOUNDS,
+    store: FILES_STORE,
+    // The pane's own drawn height is what the pointer took hold of; the track it
+    // shares with Commit history is what the share is a fraction of.
+    measure: () => filesPane.current?.getBoundingClientRect().height ?? 0,
+    room: () => trackHeight(column, filesPane),
+    fit: (height, track) => shareOf(height, track),
+    draw: (share) => {
+      const root = page.current
+      if (root === null) return
+      root.style.setProperty('--dsh-cg-files-grow', `${share}`)
+      root.style.setProperty('--dsh-cg-history-grow', `${1 - share}`)
+    },
+  })
   /**
    * Which repository read owns the page.
    *
@@ -1146,124 +1176,11 @@ export function GitView(props: {
   const [doc, setDoc] = useState<DocState | null>(() => remembered.doc)
   /** The failure the dialog is stating, or null while none is open. */
   const [error, setError] = useState<GitError | null>(null)
-  /** The two boundaries' sizes, read from storage before the first paint. */
-  const [layout, setLayout] = useState<GitLayout>(readLayout)
-  /** The boundary a drag is holding, or null at rest. */
-  const [resizing, setResizing] = useState<ResizeAxis | null>(null)
 
   // Layout effect, not a passive one: the composer seat is already in the tree
   // when this View mounts, and a passive effect would paint one frame of an
   // input this page cannot use.
   useComposerSeatSuppression(page)
-
-  /**
-   * Draw one layout: the page's two boundaries, as custom properties on the root.
-   *
-   * The sizes live on the root rather than in each element's own inline style for
-   * two reasons. A drag can then move them from the pointer without rendering
-   * React — the Diff pane holds thousands of rows, and a render per pointer frame
-   * would cost all of them — and one publish states both panes' shares together,
-   * so the divider between them can never be drawn from two different layouts.
-   */
-  const publish = useCallback((next: GitLayout): void => {
-    const root = page.current
-    if (root === null) return
-    root.style.setProperty('--dsh-cg-side-width', `${next.sideWidth}px`)
-    root.style.setProperty('--dsh-cg-files-grow', `${next.filesShare}`)
-    root.style.setProperty('--dsh-cg-history-grow', `${1 - next.filesShare}`)
-  }, [])
-
-  // Before the first paint, not after: the stylesheet's own fallback is the
-  // default layout, and a saved boundary must not be drawn at the default for one
-  // frame and then jump to where it was left.
-  useLayoutEffect(() => {
-    publish(layout)
-  }, [layout, publish])
-
-  /**
-   * Record one layout: what the page draws from, and what it saves.
-   *
-   * The two are written together on purpose. A size drawn but not saved is one the
-   * next visit forgets; a size saved but not drawn is a drag that looks like it did
-   * nothing until the tab is reopened.
-   */
-  const record = useCallback((next: GitLayout): void => {
-    setLayout(next)
-    writeLayout(next)
-  }, [])
-
-  /** The page's own width, which is the room the sidebar and the Diff pane share. */
-  const available = useCallback((): number => page.current?.getBoundingClientRect().width ?? 0, [])
-
-  /** The vertical run the two sidebar panes share, below the toolbar row. */
-  const trackHeight = useCallback((): number => {
-    const host = side.current
-    const first = filesPane.current
-    if (host === null || first === null) return 0
-    return host.getBoundingClientRect().bottom - first.getBoundingClientRect().top
-  }, [])
-
-  /**
-   * Where the sidebar's edge is, as a drag starts.
-   *
-   * Measured off the box rather than read from the layout: the stylesheet is what
-   * clamps a saved width to the window it is drawn in, so the edge on screen — not
-   * the preference behind it — is where the pointer has actually taken hold.
-   */
-  const startSideResize = useCallback((): number => {
-    setResizing('col')
-    return side.current?.getBoundingClientRect().width ?? layout.sideWidth
-  }, [layout.sideWidth])
-
-  /** Draw the sidebar width the pointer implies, for this frame. */
-  const dragSideResize = useCallback((width: number): void => {
-    const root = page.current
-    const room = available()
-    if (root === null || room <= 0) return
-    root.style.setProperty('--dsh-cg-side-width', `${clampSideWidth(width, room)}px`)
-  }, [available])
-
-  /** Record the sidebar width the gesture settled on. */
-  const commitSideResize = useCallback((width: number): void => {
-    setResizing(null)
-    const room = available()
-    if (room <= 0) return
-    record({ ...layout, sideWidth: clampSideWidth(width, room) })
-  }, [available, layout, record])
-
-  /** Where the divider between the panes is, as a drag starts: the upper pane's height. */
-  const startSplitResize = useCallback((): number => {
-    setResizing('row')
-    return filesPane.current?.getBoundingClientRect().height ?? layout.filesShare * trackHeight()
-  }, [layout.filesShare, trackHeight])
-
-  /** Draw the split the pointer implies, for this frame. */
-  const dragSplitResize = useCallback((height: number): void => {
-    const root = page.current
-    const track = trackHeight()
-    if (root === null || track <= 0) return
-    const share = shareOf(clampFilesHeight(height, track), track)
-    root.style.setProperty('--dsh-cg-files-grow', `${share}`)
-    root.style.setProperty('--dsh-cg-history-grow', `${1 - share}`)
-  }, [trackHeight])
-
-  /** Record the split the gesture settled on. */
-  const commitSplitResize = useCallback((height: number): void => {
-    setResizing(null)
-    const track = trackHeight()
-    if (track <= 0) return
-    record({ ...layout, filesShare: shareOf(clampFilesHeight(height, track), track) })
-  }, [layout, record, trackHeight])
-
-  /**
-   * A gesture that produced no size — a click on a boundary, or a pointer lost
-   * mid-drag — draws the recorded layout again, so the preview a cancelled drag
-   * left on screen cannot outlive the gesture.
-   */
-  const endResize = useCallback((): void => {
-    setResizing(null)
-    publish(layout)
-  }, [layout, publish])
 
   /** Open the error dialog on one failed action. */
   const reportError = useCallback((next: GitError): void => {
@@ -2218,13 +2135,22 @@ export function GitView(props: {
       // declare: the shell then drops the transcript width handles and gives
       // this View the whole conversation body.
       data-conversation-composer-overlay=""
-      // One attribute for "a boundary is being dragged", which is how the whole
-      // page keeps the drag's cursor and stops selecting text under the pointer.
-      // Absent at rest, so the rules it turns on cost nothing the rest of the time.
-      data-resizing={resizing ?? undefined}
+      // No `data-resizing` here: the boundaries set that attribute on this very
+      // element for the length of a drag, so the page's cursor and its selection
+      // lock follow the gesture without this View re-rendering.
       style={PAGE}
     >
-      <aside ref={side} className="dsh-cg-side">
+      {/* The sidebar's right edge is the boundary its width is dragged by; the
+          shared panel draws it, measures the column, and records the width it is
+          left at. What is inside stays this page's own chrome. */}
+      <ResizablePanel
+        className="dsh-cg-side"
+        root={page}
+        paneRef={column}
+        property="--dsh-cg-side-width"
+        bounds={SIDE_BOUNDS}
+        store={SIDE_STORE}
+      >
         <SideHead
           t={t}
           status={status}
@@ -2310,13 +2236,7 @@ export function GitView(props: {
               onDiscardAll={handleDiscardAll}
             />
           </div>
-          <ResizeHandle
-            axis="row"
-            onStart={startSplitResize}
-            onDrag={dragSplitResize}
-            onCommit={commitSplitResize}
-            onEnd={endResize}
-          />
+          <ResizeHandle {...split.handle} />
         </section>
 
         <section className="dsh-cg-pane dsh-cg-history">
@@ -2348,16 +2268,7 @@ export function GitView(props: {
           </div>
         </section>
 
-        {/* The sidebar's own right edge, which is the boundary its width is
-            measured to. */}
-        <ResizeHandle
-          axis="col"
-          onStart={startSideResize}
-          onDrag={dragSideResize}
-          onCommit={commitSideResize}
-          onEnd={endResize}
-        />
-      </aside>
+      </ResizablePanel>
 
       <main className="dsh-cg-main">
         <DiffPane

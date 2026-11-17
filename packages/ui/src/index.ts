@@ -76,6 +76,21 @@ export {
 } from './layout/layout-store.js'
 export type { LayoutField } from './layout/layout-store.js'
 
+// Panels: the gesture wired to a remembered size, and the shape a sidebar takes.
+export { ResizablePanel } from './layout/resizable-panel-view.js'
+export type { ResizablePanelProps } from './layout/resizable-panel-view.js'
+export { readPanelSize, useResizablePanel, widthFit, writePanelSize } from './layout/resizable-panel.js'
+export type {
+  PanelBounds,
+  PanelStore,
+  ResizablePanelApi,
+  ResizablePanelOptions,
+} from './layout/resizable-panel.js'
+export { resizablePanelCss } from './layout/resizable-panel-css.js'
+export type { ResizablePanelCssOptions } from './layout/resizable-panel-css.js'
+export { useResizeGesture } from './layout/resize-gesture.js'
+export type { GestureSpec } from './layout/resize-gesture.js'
+
 // The scroll panels: the pointer's bar, and the dissolving edge.
 export { PanelScroll } from './panel/panel-scroll.js'
 export type { PanelScrollProps } from './panel/panel-scroll.js'

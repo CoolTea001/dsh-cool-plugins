@@ -308,9 +308,11 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
 			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
 			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col][data-side=start]{right:auto;left:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
 			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row][data-side=start]{bottom:auto;top:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
 			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
@@ -318,7 +320,20 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
-			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+			`.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:5px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-bar=show]{--dsh-scrollbar-thumb:color-mix(in srgb,var(--dsw-alias-scrollbar-bg-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-scroll=none]{overflow:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=both]{overflow:auto}`,
+			`.${UI_PREFIX}-panel[data-scroll=x]{overflow-x:auto;overflow-y:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=y]{overflow-x:clip;overflow-y:auto}`,
+			`.${UI_PREFIX}-panel[data-shade]{mask-image:linear-gradient(#000,#000),linear-gradient(#000,#000),linear-gradient(#000,#000);mask-size:calc(100% - var(--dsh-ui-panel-gutter-x,0px)) calc(100% - var(--dsh-ui-panel-gutter-y,0px)),var(--dsh-ui-panel-gutter-x,0px) 100%,100% var(--dsh-ui-panel-gutter-y,0px);mask-position:0 0,right 0,0 bottom;mask-repeat:no-repeat}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-end]{mask-image:linear-gradient(to top,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start][data-shade-end]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`
 		].join("\n");
 		// src/shared/contract.ts
 		/** Every route below this prefix is owned by this plugin. */

@@ -9,91 +9,71 @@
  * repository state: they are a preference for a window, kept in localStorage under
  * this plugin's own key, the way the Terminal tab keeps its own.
  *
- * Every bound is stated once, here, and `styles.ts` interpolates these constants
- * into the rules that enforce them at rest. A drag and a stylesheet that disagreed
- * about the narrowest sidebar would be a divider that stops where the pointer does
- * not; two numbers in two files would drift.
+ * Both boundaries are driven by `@dsh-cool/ui`, and the bounds below are the one
+ * statement of what each may be: the drag clamps against them, `styles.ts` builds
+ * its rules from them, and a saved value is validated by them when it is read.
+ * A drag and a stylesheet that disagreed about the narrowest sidebar would be a
+ * divider that stops where the pointer does not; there is one object to change.
  *
- * A drag never renders React. The pointer writes the boundary's own custom
- * property on the page root — `--dsh-cg-side-width`, `--dsh-cg-files-grow` and
- * `--dsh-cg-history-grow` — and only the release records one layout, into the
- * page's state and localStorage together. That keeps the frame rate of a drag
- * independent of how many thousand diff rows the page happens to be drawing; DSH's
- * own transcript width handle (client-ui-conversation's `ConversationWidthControls`)
- * makes the same trade for the same reason.
+ * The two boundaries differ in one way, and it is why they are stated separately:
+ * a sidebar's width is a preference for the window ("I put it at this width"), so
+ * it is saved in pixels; the split divides a track, so it is saved as a share and
+ * a window that grows makes both panes longer instead of leaving one at a height
+ * that no longer fits.
  */
+/** The localStorage entry holding both boundaries, as one JSON object. */
+export declare const LAYOUT_KEY = "dsh-cool-git.layout.v1";
+/** The sidebar's bounds: a pixel width between a floor and a cap. */
+export declare const SIDE_BOUNDS: {
+    fallback: number;
+    min: number;
+    max: number;
+    mainMin: number;
+};
 /**
- * The sidebar's width until it is dragged.
+ * The split's bounds.
  *
- * The width this page was designed at (see the toolbar rules in `styles.ts`), and
- * the width the stylesheet falls back to for the frames before the saved layout is
- * published.
+ * `fallback` and `max` are shares, because that is the unit that is saved;
+ * `min` and `mainMin` are pane floors in pixels of the track, because that is
+ * the unit the drag clamps in. The share that is saved is derived from the
+ * clamped pixel height, so a track too short to hold both floors leaves one pane
+ * at its floor rather than at a share that no longer fits.
  */
-export declare const SIDE_DEFAULT = 340;
+export declare const FILES_BOUNDS: {
+    fallback: number;
+    min: number;
+    max: number;
+    mainMin: number;
+};
+/** Where the sidebar's width is remembered. */
+export declare const SIDE_STORE: {
+    key: string;
+    field: string;
+};
+/** Where the split's share is remembered. */
+export declare const FILES_STORE: {
+    readonly key: "dsh-cool-git.layout.v1";
+    readonly field: "filesShare";
+    readonly unit: "share";
+};
 /**
- * The narrowest the sidebar may be drawn.
+ * The vertical run the two sidebar panes share, below the toolbar row.
  *
- * The toolbar sets this floor rather than the lists do: two parts of that row may
- * give ground — the branch's name first, down to the icon alone, and then the
- * Workspace's name — while Refresh beside them is fixed. Shorter than this and both
- * names are gone and that control would run over the sidebar's own edge.
- */
-export declare const SIDE_MIN = 260;
-/** The widest a drag may leave the sidebar, however wide the window is. */
-export declare const SIDE_MAX = 560;
-/** The narrowest the Diff pane may be drawn, whatever the sidebar asks for. */
-export declare const DIFF_MIN = 320;
-/**
- * The shortest either sidebar pane may be drawn.
+ * Measured from the sidebar's own bottom to the changed-path pane's top: the
+ * toolbar and the split between the panes take the difference, so this is the
+ * only height both panes' shares can be fractions of.
  *
- * A pane header is 30px and a changed-path row 26px, so this is a header and a
- * couple of rows: the point below which a pane stops being a list. Both the drag
- * and the panes' own `min-height` state it, so a window resized *after* a split was
- * dragged still keeps each pane on screen.
+ * @param column - the sidebar, which owns the track.
+ * @param first - the upper pane, whose top is where the track starts.
+ * @returns the track's height in CSS pixels, or 0 when either box is not mounted.
  */
-export declare const PANE_MIN = 96;
+export declare function trackHeight(column: {
+    readonly current: HTMLElement | null;
+}, first: {
+    readonly current: HTMLElement | null;
+}): number;
 /**
- * Which way a boundary moves, and so which pointer coordinate drives it.
- *
- * Stated here rather than re-exported from `@dsh-cool/ui`: the package is private
- * and source-only, so a `export ... from '@dsh-cool/ui'` in this file would be
- * emitted into the published `.d.ts` and become an import no consumer can
- * resolve. The two unions are the same two words, and the shared component's
- * props are checked against them, so a drift is a compile error rather than a
- * silent mismatch.
- */
-export type ResizeAxis = 'col' | 'row';
-/** The two sizes the page remembers between visits. */
-export interface GitLayout {
-    /** The sidebar's width, in CSS pixels. */
-    readonly sideWidth: number;
-    /** The share of the sidebar's pane track that Changed files takes, from 0 to 1. */
-    readonly filesShare: number;
-}
-/** The layout of a page nobody has resized. */
-export declare const DEFAULT_LAYOUT: GitLayout;
-/** The saved layout, with every unusable field replaced by its default. */
-export declare function readLayout(): GitLayout;
-/** Record the layout. A storage that refuses the write is not worth surfacing. */
-export declare function writeLayout(layout: GitLayout): void;
-/**
- * Clamp a preferred sidebar width to what this page can draw.
- *
- * @param preferred - the width the pointer, or the saved layout, asks for.
- * @param available - the page's width, in CSS pixels.
- * @returns the width to draw.
- */
-export declare function clampSideWidth(preferred: number, available: number): number;
-/**
- * Clamp a preferred Changed files height to the track it shares with Commit history.
- *
- * @param preferred - the height the pointer asks for, in CSS pixels.
- * @param track - the height the two panes share, in CSS pixels.
- * @returns the height to draw.
- */
-export declare function clampFilesHeight(preferred: number, track: number): number;
-/**
- * The share of one track a pane height means.
+ * The share of the track a pane height means.
  *
  * The share rather than the height is what gets saved: the CSS grows the two panes
  * by their shares, so a split dragged in a short window is still the same split

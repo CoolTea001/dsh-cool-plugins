@@ -56,13 +56,13 @@ import {
   type ReactElement,
 } from 'react'
 import { IconChevronRight, IconEye, IconEyeOff, IconFile, IconFolder, IconRotateCw } from '@dsh-cool/icons'
-import { ResizeHandle, PanelScroll, useComposerSeatSuppression } from '@dsh-cool/ui'
+import { PanelScroll, ResizablePanel, useComposerSeatSuppression } from '@dsh-cool/ui'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 
 import { CodePreview } from './code.js'
 import { CodeEditor, EDIT_HIGHLIGHT_CHARS } from './editor.js'
 import { ImageView } from './image.js'
-import { clampSideWidth, readLayout, writeLayout, type FileLayout } from './layout.js'
+import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
 import type { Translate } from './locales.js'
 import { MarkdownPreview } from './markdown.js'
 import { ModeSwitch, modePanelId, readMode, writeMode, type FilesMode } from './mode.js'
@@ -386,8 +386,6 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const { t } = props
   const sessionId = typeof props?.sessionId === 'string' ? props.sessionId : undefined
   const page = useRef<HTMLDivElement | null>(null)
-  /** The sidebar itself, whose measured width is where a drag takes hold. */
-  const side = useRef<HTMLElement | null>(null)
 
   /**
    * The browsing shape this session's workspace was left in, read once during
@@ -475,86 +473,6 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * generation belongs to a tree that is no longer on screen and is dropped.
    */
   const generation = useRef(0)
-  /** The sidebar width the page draws and saves. */
-  const [layout, setLayout] = useState<FileLayout>(readLayout)
-  /** Whether this page's own boundary is being dragged. */
-  const [resizing, setResizing] = useState(false)
-
-  /**
-   * Draw one layout: the sidebar's width, as a custom property on the root.
-   *
-   * The width lives on the root rather than in the sidebar's inline style for one
-   * reason: a drag can then move it from the pointer without rendering React,
-   * which keeps the frame rate independent of how many file rows the tree holds.
-   */
-  const publish = useCallback((next: FileLayout): void => {
-    page.current?.style.setProperty('--dsh-cf-side-width', `${next.sideWidth}px`)
-  }, [])
-
-  // Before the first paint: the stylesheet's own fallback is the default width,
-  // and a saved boundary must not be drawn at the default for one frame and then
-  // jump to where it was left.
-  useLayoutEffect(() => {
-    publish(layout)
-  }, [layout, publish])
-
-  /** The page's own width, which is the room the sidebar and the preview share. */
-  const available = useCallback((): number => page.current?.getBoundingClientRect().width ?? 0, [])
-
-  /**
-   * Record one layout: what the page draws from, and what it saves.
-   *
-   * The two are written together on purpose. A width drawn but not saved is one
-   * the next visit forgets; a width saved but not drawn is a drag that looks like
-   * it did nothing until the tab is reopened.
-   */
-  const record = useCallback((next: FileLayout): void => {
-    setLayout(next)
-    writeLayout(next)
-  }, [])
-
-  /**
-   * Where the sidebar's edge is, as a drag starts.
-   *
-   * Measured off the box rather than read from the layout: the stylesheet is what
-   * clamps a saved width to the window it is drawn in, so the edge on screen —
-   * not the preference behind it — is where the pointer has actually taken hold.
-   */
-  const startSideResize = useCallback((): number => {
-    setResizing(true)
-    return side.current?.getBoundingClientRect().width ?? layout.sideWidth
-  }, [layout.sideWidth])
-
-  /** Draw the sidebar width the pointer implies, for this frame. */
-  const dragSideResize = useCallback(
-    (width: number): void => {
-      const room = available()
-      if (room <= 0) return
-      page.current?.style.setProperty('--dsh-cf-side-width', `${clampSideWidth(width, room)}px`)
-    },
-    [available],
-  )
-
-  /** Record the sidebar width the gesture settled on. */
-  const commitSideResize = useCallback(
-    (width: number): void => {
-      setResizing(false)
-      const room = available()
-      if (room <= 0) return
-      record({ sideWidth: clampSideWidth(width, room) })
-    },
-    [available, record],
-  )
-
-  /**
-   * A gesture that produced no width — a click on the boundary, or a pointer lost
-   * mid-drag — draws the recorded layout again, so the preview a cancelled drag
-   * left on screen cannot outlive the gesture.
-   */
-  const endResize = useCallback((): void => {
-    setResizing(false)
-    publish(layout)
-  }, [layout, publish])
 
   // Layout effect, not a passive one: the composer seat is already in the tree
   // when this View mounts, and a passive effect would paint one frame of an
@@ -1433,14 +1351,22 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       // views declare: the shell then drops the transcript width handles and
       // gives this View the whole conversation body.
       data-conversation-composer-overlay=""
-      // One attribute for "the boundary is being dragged", which is how the
-      // whole page keeps the drag's cursor and stops selecting text under the
-      // pointer. Absent at rest, so the rules it turns on cost nothing the rest
-      // of the time.
-      data-resizing={resizing ? 'col' : undefined}
+      // No `data-resizing` here: the shared panel sets that attribute on this
+      // very element for the length of a drag, so the page's cursor and its
+      // selection lock follow the gesture without this View re-rendering.
       style={PAGE}
     >
-      <aside ref={side} className="dsh-cf-side" aria-label={t('side.root')}>
+      {/* The sidebar's own right edge is the boundary its width is dragged by;
+          the shared panel draws it, measures the column, and records the width
+          it is left at. Everything inside stays this page's own chrome. */}
+      <ResizablePanel
+        className="dsh-cf-side"
+        aria-label={t('side.root')}
+        root={page}
+        property="--dsh-cf-side-width"
+        bounds={SIDE_BOUNDS}
+        store={SIDE_STORE}
+      >
         <div className="dsh-cf-side-head">
           <div className="dsh-cf-side-title" title={workspaceName}>
             <span className="dsh-cf-side-name">{workspaceName}</span>
@@ -1480,16 +1406,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
           {drawLevel('')}
         </PanelScroll>
 
-        {/* The sidebar's own right edge, which is the boundary its width is
-            measured to. */}
-        <ResizeHandle
-          axis="col"
-          onStart={startSideResize}
-          onDrag={dragSideResize}
-          onCommit={commitSideResize}
-          onEnd={endResize}
-        />
-      </aside>
+      </ResizablePanel>
 
       <section className="dsh-cf-main">
         {selected === null ? (

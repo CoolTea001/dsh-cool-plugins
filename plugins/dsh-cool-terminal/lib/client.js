@@ -13181,9 +13181,11 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-resize::after{content:"";position:absolute}`,
 			`.${UI_PREFIX}-resize:hover::before,.${UI_PREFIX}-resize[data-dragging]::before{opacity:1}`,
 			`.${UI_PREFIX}-resize[data-axis=col]{top:0;right:-1px;bottom:0;width:1px;cursor:col-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=col][data-side=start]{right:auto;left:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::after{inset:0 -4px}`,
 			`.${UI_PREFIX}-resize[data-axis=col]::before{inset:0;background:linear-gradient(to bottom,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 1px 100% no-repeat}`,
 			`.${UI_PREFIX}-resize[data-axis=row]{right:0;bottom:-1px;left:0;height:1px;cursor:row-resize}`,
+			`.${UI_PREFIX}-resize[data-axis=row][data-side=start]{bottom:auto;top:-1px}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::after{inset:-4px 0}`,
 			`.${UI_PREFIX}-resize[data-axis=row]::before{inset:0;background:linear-gradient(to right,transparent,var(--dsw-alias-label-caption) 50%,transparent) center / 100% 1px no-repeat}`,
 			`[data-resizing=col],[data-resizing=col] *{cursor:col-resize}`,
@@ -13191,7 +13193,20 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-quiet-scroll{--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:hover{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
 			`.${UI_PREFIX}-quiet-scroll:focus-visible{--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2)}`,
-			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`
+			`html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+			`.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:5px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-bar=show]{--dsh-scrollbar-thumb:color-mix(in srgb,var(--dsw-alias-scrollbar-bg-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+			`.${UI_PREFIX}-panel[data-scroll=none]{overflow:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=both]{overflow:auto}`,
+			`.${UI_PREFIX}-panel[data-scroll=x]{overflow-x:auto;overflow-y:clip}`,
+			`.${UI_PREFIX}-panel[data-scroll=y]{overflow-x:clip;overflow-y:auto}`,
+			`.${UI_PREFIX}-panel[data-shade]{mask-image:linear-gradient(#000,#000),linear-gradient(#000,#000),linear-gradient(#000,#000);mask-size:calc(100% - var(--dsh-ui-panel-gutter-x,0px)) calc(100% - var(--dsh-ui-panel-gutter-y,0px)),var(--dsh-ui-panel-gutter-x,0px) 100%,100% var(--dsh-ui-panel-gutter-y,0px);mask-position:0 0,right 0,0 bottom;mask-repeat:no-repeat}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-end]{mask-image:linear-gradient(to top,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start][data-shade-end]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`
 		].join("\n");
 		// ../../packages/ui/src/input.tsx
 		/**
@@ -13263,6 +13278,12 @@ window.__ModuleLoader__.load({
 		* it and this component owns the line in the middle. The page root carries
 		* `data-resizing` for the length of a gesture, so the cursor keeps its meaning
 		* while the pointer travels outside the boundary.
+		*
+		* `side` is which edge of the pane the boundary is on, and it is two facts at
+		* once: where the line is drawn, and which direction grows the pane. A sidebar
+		* on the left grows as the pointer moves right (its `end` edge); a sidebar on the
+		* right grows as the pointer moves left (its `start` edge), and a handle that
+		* ignored that would fight the pointer for the whole drag.
 		*/
 		/**
 		* The pointer's own coordinate on one axis, in viewport pixels.
@@ -13289,7 +13310,10 @@ window.__ModuleLoader__.load({
 			const live = (0, react.useRef)(props);
 			live.current = props;
 			/** The size the pointer's latest coordinate implies. */
-			const implied = () => start.current + (latest.current - origin.current);
+			const implied = () => {
+				const travel = latest.current - origin.current;
+				return start.current + (live.current.side === "start" ? -travel : travel);
+			};
 			const cancelFrame = () => {
 				if (frame.current !== null) {
 					cancelAnimationFrame(frame.current);
@@ -13344,6 +13368,7 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				className: uiClass("resize"),
 				"data-axis": props.axis,
+				"data-side": props.side ?? "end",
 				onPointerDown,
 				onPointerMove,
 				onPointerUp,
@@ -13357,6 +13382,20 @@ window.__ModuleLoader__.load({
 			return {
 				fallback,
 				read: (raw) => typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : fallback
+			};
+		}
+		/**
+		* A reader for one share field, stored as a fraction strictly between 0 and 1.
+		*
+		* A split is saved as a share rather than a size so that a boundary dragged in a
+		* short window is the same split when the window grows. The strict bounds are
+		* what keep a saved `0` or `1` — a pane collapsed to nothing, by an older version
+		* or a hand-edited entry — from leaving a pane that can never be dragged back.
+		*/
+		function fraction(fallback) {
+			return {
+				fallback,
+				read: (raw) => typeof raw === "number" && Number.isFinite(raw) && raw > 0 && raw < 1 ? raw : fallback
 			};
 		}
 		/**
@@ -13425,6 +13464,327 @@ window.__ModuleLoader__.load({
 			try {
 				window.localStorage.setItem(key, JSON.stringify(layout));
 			} catch {}
+		}
+		/**
+		* The widest a fixed sidebar may be drawn in a page this wide.
+		*
+		* Two bounds at once: the width a sidebar stops being worth dragging past, and
+		* what is left of the page once the main pane keeps its own floor. The sidebar's
+		* floor wins when the window cannot hold both, so a narrow window still draws a
+		* whole sidebar and leaves the main pane to suffer — a sidebar narrower than its
+		* own header would have no honest reading at all.
+		*
+		* @param preferred - the width the pointer, or the saved layout, asks for.
+		* @param available - the page's width, in CSS pixels.
+		* @param bounds - the sidebar's floor and cap, and the main pane's floor.
+		* @returns the width to draw.
+		*/
+		function clampSideWidth(preferred, available, bounds) {
+			const ceiling = Math.max(bounds.min, Math.min(bounds.max, available - bounds.mainMin));
+			return Math.min(Math.max(preferred, bounds.min), ceiling);
+		}
+		// ../../packages/ui/src/layout/resize-gesture.ts
+		/**
+		* The owner's half of a resize gesture, wired once.
+		*
+		* `ResizeHandle` owns the pointer: capture, one callback a frame, a click that
+		* records nothing, a cancel that puts the page back. What it cannot own is what
+		* a boundary *means* — whether the size is a width or a share of a track, which
+		* custom property draws it, and where it is remembered. Every page that has one
+		* used to write that half by hand, in the same order, and the order is the part
+		* that is easy to get subtly wrong:
+		*
+		* - `onStart` measures the box on screen rather than reading the saved layout,
+		*   because the stylesheet is what clamps a saved size to the window it is drawn
+		*   in — the edge the pointer took hold of is the drawn one, not the preference
+		*   behind it;
+		* - `onDrag` clamps against the room available *now*, so a drag that runs into
+		*   the floor of the neighbouring pane stops where the pointer does;
+		* - `onCommit` draws and records the same fitted number, so what a reload
+		*   restores is exactly what was on screen;
+		* - `onEnd` draws the recorded layout again, which is what makes a cancelled
+		*   drag leave nothing behind.
+		*
+		* The page root carries `data-resizing` for the length of a gesture, written
+		* here rather than by the page: the attribute is a fact about the gesture, and
+		* putting it in the page's state would re-render the whole page on a press and a
+		* release — for a cursor. The shared stylesheet is what reads it (see
+		* `UI_CSS`), and the attribute outlives a cancelled drag only if the unmount
+		* cleanup fails, which is why that cleanup is not optional.
+		*/
+		/**
+		* Wire one boundary to a `ResizeHandle`.
+		*
+		* @param spec - what the boundary means on this page.
+		* @returns the callbacks a `ResizeHandle` takes, plus the axis and side it should render.
+		*/
+		function useResizeGesture(spec) {
+			const live = (0, react.useRef)(spec);
+			live.current = spec;
+			/**
+			* The element this gesture marked, kept so the cleanup can unmark it.
+			*
+			* Read at cleanup time, `root.current` would already be null: React detaches
+			* host refs before the effects that watch them clean up. The attribute would
+			* then outlive the component that set it, which for a sidebar toggled shut
+			* mid-drag means a page stuck wearing `col-resize`.
+			*/
+			const marked = (0, react.useRef)(null);
+			/** Mark, or unmark, the page as mid-gesture. */
+			const mark = (0, react.useCallback)((axis) => {
+				const root = axis === null ? marked.current : live.current.root.current;
+				if (root === null) return;
+				if (axis === null) {
+					root.removeAttribute("data-resizing");
+					marked.current = null;
+				} else {
+					root.setAttribute("data-resizing", axis);
+					marked.current = root;
+				}
+			}, []);
+			const onStart = (0, react.useCallback)(() => {
+				mark(live.current.axis);
+				return live.current.measure();
+			}, [mark]);
+			const onDrag = (0, react.useCallback)((size) => {
+				const room = live.current.room();
+				if (!(room > 0)) return;
+				live.current.draw(live.current.fit(size, room));
+			}, []);
+			const onCommit = (0, react.useCallback)((size) => {
+				mark(null);
+				const room = live.current.room();
+				if (!(room > 0)) return;
+				live.current.persist(live.current.fit(size, room));
+			}, [mark]);
+			const onEnd = (0, react.useCallback)(() => {
+				mark(null);
+				live.current.restore();
+			}, [mark]);
+			(0, react.useEffect)(() => () => mark(null), [mark]);
+			return {
+				axis: spec.axis,
+				side: spec.side,
+				onStart,
+				onDrag,
+				onCommit,
+				onEnd
+			};
+		}
+		// ../../packages/ui/src/layout/resizable-panel.ts
+		/**
+		* A boundary the reader drags, remembered between visits — the owner's half.
+		*
+		* `ResizeHandle` owns the pointer: capture, one callback a frame, a click that
+		* records nothing, a cancel that puts the page back. What it cannot own is what
+		* a boundary *means* — whether the number is a width or a share of a track,
+		* which custom property draws it, and where it is remembered. Every page that
+		* had one wrote that half by hand, in the same order, and the order is the part
+		* that is easy to get subtly wrong:
+		*
+		* - `onStart` measures the box on screen rather than reading the recorded value,
+		*   because the stylesheet is what clamps a saved size to the window it is drawn
+		*   in — the edge the pointer took hold of is the drawn one, not the preference
+		*   behind it;
+		* - `onDrag` clamps against the room available *now*, so a drag that runs into
+		*   the floor of the neighbouring pane stops where the pointer does;
+		* - `onCommit` draws and records the same fitted number, so what a reload
+		*   restores is exactly what was on screen at the release;
+		* - `onEnd` draws the recorded value again, which is what makes a cancelled drag
+		*   leave nothing behind.
+		*
+		* The page root carries `data-resizing` for the length of a gesture, written
+		* here rather than by the page: the attribute is a fact about the gesture, and
+		* putting it in the page's state would re-render the whole page on a press and a
+		* release — for a cursor. The shared stylesheet is what reads it (see
+		* `UI_CSS`), and the unmount cleanup is not optional: without it a page that
+		* goes away mid-drag leaves the whole document wearing `col-resize`.
+		*
+		* ## The two units
+		*
+		* `measure` answers in **drawn** pixels — how tall or wide the box is on screen.
+		* `fit` converts that into the **recorded** unit, which is what `draw` paints and
+		* `persist` saves. For a sidebar the two are the same thing (a width in pixels);
+		* for a split between stacked panes they are not, because the split is saved as a
+		* share of its track so that a window that grows makes both panes longer instead
+		* of leaving one at a height that no longer fits. Naming the difference here is
+		* what lets one hook serve both without a mode flag.
+		*/
+		/**
+		* Read one remembered size.
+		*
+		* Exported beside the hook because it is the half worth testing: a page's first
+		* frame is drawn from it, and a value another version wrote has to be rejected
+		* rather than trusted.
+		*
+		* @param store - the entry, field and unit to read.
+		* @param fallback - what an unusable value becomes.
+		* @returns the size to draw, always usable.
+		*/
+		function readPanelSize(store, fallback) {
+			if (store === void 0) return fallback;
+			const field = store.field ?? "sideWidth";
+			const reader = store.unit === "share" ? fraction(fallback) : finiteNumber(fallback);
+			return readLayout(store.key, { [field]: reader })[field] ?? fallback;
+		}
+		/**
+		* Record one size, leaving every other field of the entry alone.
+		*
+		* One entry may hold several boundaries — the Git tab keeps its sidebar's width
+		* and its pane split under one key — so a write that replaced the whole object
+		* would erase its neighbours. Reading the entry back and merging is the only way
+		* to keep that promise without this module owning the other fields.
+		*
+		* @param store - the entry and field to write.
+		* @param size - the size to save.
+		*/
+		function writePanelSize(store, size) {
+			if (store === void 0) return;
+			const field = store.field ?? "sideWidth";
+			let saved = {};
+			try {
+				const raw = window.localStorage.getItem(store.key);
+				const parsed = raw === null ? null : JSON.parse(raw);
+				if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) saved = { ...parsed };
+			} catch {
+				saved = {};
+			}
+			saved[field] = size;
+			writeLayout(store.key, saved);
+		}
+		/**
+		* Drive one resizable boundary: measure it, fit it, draw it, remember it.
+		*
+		* @param options - the root and pane to measure, the unit's arithmetic, the bounds and the store.
+		* @returns the recorded size, and the handle that sets it.
+		*/
+		function useResizablePanel(options) {
+			const { root, axis, side, bounds, store, measure, room, fit, draw } = options;
+			/** The recorded size the page draws and saves. */
+			const [size, setSize] = (0, react.useState)(() => readPanelSize(store, bounds.fallback));
+			const recorded = (0, react.useRef)(size);
+			recorded.current = size;
+			(0, react.useLayoutEffect)(() => {
+				draw(recorded.current);
+			}, [draw]);
+			/** Record a size: draw it, remember it, and publish it to React. */
+			const record = (0, react.useCallback)((next) => {
+				draw(next);
+				writePanelSize(store, next);
+				recorded.current = next;
+				setSize(next);
+			}, [draw, store]);
+			const handle = useResizeGesture({
+				root,
+				axis,
+				side,
+				measure,
+				room,
+				fit,
+				draw,
+				persist: record,
+				restore: (0, react.useCallback)(() => draw(recorded.current), [draw])
+			});
+			return {
+				size,
+				handle,
+				resize: record,
+				restore: handle.onEnd
+			};
+		}
+		/**
+		* The pixel arithmetic of a sidebar: clamp against the room the page has.
+		*
+		* Stated here rather than inline at each call site so the two callers that need
+		* it — the hook's owner and the panel component — read one function.
+		*
+		* @param bounds - the sidebar's floor, cap and the neighbour's floor.
+		* @returns a fit function for {@link useResizablePanel}.
+		*/
+		function widthFit(bounds) {
+			return (preferred, room) => clampSideWidth(preferred, room, bounds);
+		}
+		// ../../packages/ui/src/layout/resizable-panel-view.tsx
+		/**
+		* A panel beside an absorbing pane, with the reader setting its width.
+		*
+		* The shape three pages share: a fixed column on one side of the page, a
+		* neighbouring pane taking the rest, and a boundary between them that the reader
+		* drags. What this component owns is only the seam — the column's box, the
+		* boundary on its edge, and the width both of them are measured against. The page
+		* keeps its root, its surface, its rows and its own chrome: a component that
+		* painted a canvas would cover a theme's wallpaper for the whole tab, and that
+		* decision is the page's to make.
+		*
+		* The width is written to a custom property on the page root rather than to this
+		* element's inline style, because that is what lets a drag move the boundary from
+		* the pointer without rendering React — the frame rate of a drag stays
+		* independent of how many rows the column happens to be drawing. Only the
+		* release renders, and only to record what was chosen.
+		*
+		* Everything drawn inside is the caller's: the header, the scrolling list, the
+		* footer. This component adds no padding, no surface and no text, so a page's own
+		* rhythm survives being wrapped in it unchanged.
+		*/
+		/**
+		* Render a panel whose width the reader drags.
+		*
+		* The element is an `<aside>` and takes any attribute one takes, so a page that
+		* already had `className` and `aria-label` on its sidebar keeps both.
+		*
+		* @param props - the page root, the property and bounds, the side, and the column's contents.
+		* @returns the aside element with its boundary.
+		*/
+		function ResizablePanel(props) {
+			const { root, property, bounds, store, side = "end", paneRef, children, ...rest } = props;
+			/** This column's own box, which is what a drag measures and what the boundary is placed on. */
+			const pane = (0, react.useRef)(null);
+			/** Fill the caller's ref from the same element the component measures. */
+			const attach = (0, react.useCallback)((element) => {
+				pane.current = element;
+				if (typeof paneRef === "function") paneRef(element);
+				else if (paneRef !== void 0 && paneRef !== null) paneRef.current = element;
+			}, [paneRef]);
+			/** The room the boundary may move through: the page's own width. */
+			const room = (0, react.useCallback)(() => root.current?.getBoundingClientRect().width ?? 0, [root]);
+			/** Paint one width on the page root, without rendering. */
+			const draw = (0, react.useCallback)((width) => {
+				root.current?.style.setProperty(property, `${width}px`);
+			}, [root, property]);
+			const panel = useResizablePanel({
+				root,
+				axis: "col",
+				side,
+				bounds,
+				store,
+				measure: (0, react.useCallback)(() => pane.current?.getBoundingClientRect().width ?? bounds.fallback, [bounds.fallback]),
+				room,
+				fit: widthFit(bounds),
+				draw
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("aside", {
+				...rest,
+				ref: attach,
+				children: [children, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ResizeHandle, { ...panel.handle })]
+			});
+		}
+		// ../../packages/ui/src/layout/resizable-panel-css.ts
+		/**
+		* Build the geometry rule for one resizable panel.
+		*
+		* The result is one selector and one declaration block, meant to be appended to
+		* the consuming plugin's own stylesheet — which is where the seam and the
+		* surface live. Nothing here is inserted by this package: `insertPluginStyles`
+		* owns the tag, and a second tag would be a second thing to leak.
+		*
+		* @param selector - the panel's own class, including the leading dot.
+		* @param options - the property to draw, the shared bounds, the unit, extra declarations.
+		* @returns one CSS rule.
+		*/
+		function resizablePanelCss(selector, options) {
+			const { property, bounds, declarations = "" } = options;
+			const ceiling = `min(${bounds.max}px,calc(100% - ${bounds.mainMin}px))`;
+			return `${selector}{position:relative;flex:none;display:flex;flex-direction:column;box-sizing:border-box;min-height:0;width:var(${property},${bounds.fallback}px);min-width:${bounds.min}px;max-width:${ceiling};${declarations}}`;
 		}
 		// ../../packages/icons/src/icon.tsx
 		/**
@@ -14296,64 +14656,32 @@ window.__ModuleLoader__.load({
 		*
 		* The tab is a fixed sidebar beside an absorbing console pane, and the reader
 		* sets the sidebar's width by dragging its right edge. That width is a
-		* preference for a window — not workspace state — so it is kept in
-		* localStorage under this plugin's own key, the way the console list and its
-		* selection are.
+		* preference for a window — not workspace state — so it is kept in localStorage
+		* under this plugin's own key, the way the console list and its selection are.
 		*
-		* Every bound is stated once, here, and `styles.ts` interpolates these
-		* constants into the rules that enforce them at rest. A drag and a stylesheet
-		* that disagreed about the narrowest sidebar would be a divider that stops
-		* where the pointer does not; two numbers in two files would drift.
-		*
-		* A drag never renders React. The pointer writes the width to the page root's
-		* own custom property — `--dsh-ct-side-width` — and only the release records
-		* one layout, into the page's state and localStorage together. That keeps the
-		* frame rate of a drag independent of how many console rows the sidebar
-		* happens to be drawing; DSH's own transcript width handle makes the same trade
-		* for the same reason.
+		* Every bound is stated once, here, and `styles.ts` builds its rule from the same
+		* object, as does the drag itself (see `@dsh-cool/ui`'s `resizablePanelCss` and
+		* `useResizablePanel`). A drag and a stylesheet that disagreed about the
+		* narrowest sidebar would be a divider that stops where the pointer does not;
+		* the object below is what makes that impossible rather than merely unlikely.
 		*/
 		/** The localStorage entry holding the sidebar width, as one JSON object. */
 		const LAYOUT_KEY = "dsh-cool-terminal.layout.v1";
 		/**
-		* The stored shape, field by field.
+		* The sidebar's bounds, as the shared package wants them.
 		*
-		* Read as data rather than trusted as a fact: the width has to be a positive
-		* finite number, and anything else — an unreadable entry, a JSON error, a field
-		* of the wrong shape — falls back to the default. The reading and writing
-		* themselves are `@dsh-cool/ui`'s.
+		* Read by the drag (which clamps against it), by the stylesheet (which builds
+		* `min-width` and `max-width` from it), and by the hook (which falls back to it
+		* when nothing usable is stored).
 		*/
-		const FIELDS = { sideWidth: finiteNumber({ sideWidth: 256 }.sideWidth) };
-		/** The saved layout, with every unusable field replaced by its default. */
-		function readSideLayout() {
-			return readLayout(LAYOUT_KEY, FIELDS);
-		}
-		/** Record the layout. A storage that refuses the write is not worth surfacing. */
-		function writeSideLayout(layout) {
-			writeLayout(LAYOUT_KEY, layout);
-		}
-		/**
-		* The widest the sidebar may be drawn in a page this wide.
-		*
-		* Two bounds at once: the width a sidebar stops being worth dragging past, and
-		* what is left of the page once the console keeps its own floor. The sidebar's
-		* floor wins when the window cannot hold both, so a narrow window still draws a
-		* whole sidebar and leaves the console to suffer — a sidebar narrower than its
-		* own header would have no honest reading at all.
-		* @param available - the page's width, in CSS pixels.
-		* @returns the widest sidebar to draw.
-		*/
-		function sideWidthCeiling(available) {
-			return Math.min(560, Math.max(220, available - 320));
-		}
-		/**
-		* Clamp a preferred sidebar width to what this page can draw.
-		* @param preferred - the width the pointer, or the saved layout, asks for.
-		* @param available - the page's width, in CSS pixels.
-		* @returns the width to draw.
-		*/
-		function clampSideWidth(preferred, available) {
-			return Math.min(Math.max(preferred, 220), sideWidthCeiling(available));
-		}
+		const SIDE_BOUNDS = {
+			fallback: 256,
+			min: 220,
+			max: 560,
+			mainMin: 320
+		};
+		/** Where the width is remembered. A storage that refuses the write is not worth surfacing. */
+		const SIDE_STORE = { key: LAYOUT_KEY };
 		/** A fresh line: nothing typed, nothing captured, nothing to distrust yet. */
 		function emptyLine() {
 			return {
@@ -15783,14 +16111,11 @@ window.__ModuleLoader__.load({
 				*  state (`data-fade-*`) and the scrollbar gutter the list's mask reads. */
 				const listScroll = react.useRef(null);
 				const listWrap = react.useRef(null);
-				/** The view root, which carries the dragged sidebar width, and the sidebar
-				*  itself, whose measured edge is where a resize takes hold. */
+				/**
+				* The view root, which carries the dragged sidebar width and the
+				* mid-gesture attribute the shared stylesheet reads.
+				*/
 				const pageRef = react.useRef(null);
-				const sideRef = react.useRef(null);
-				/** The sidebar width the page draws and saves, and whether its boundary is
-				*  being dragged. */
-				const [sideLayout, setSideLayout] = react.useState(readSideLayout);
-				const [resizing, setResizing] = react.useState(false);
 				/** The common-commands dialog, and the commands it manages (persisted in
 				*  `commands.ts`; the dialog only renders and reports changes upward). */
 				const [commandsOpen, setCommandsOpen] = react.useState(false);
@@ -15820,49 +16145,6 @@ window.__ModuleLoader__.load({
 				*  every keystroke and must not re-render when the list's identity does. */
 				const commandsRef = react.useRef(commands);
 				commandsRef.current = commands;
-				/** Draw one layout: the sidebar's width as a custom property on the root.
-				*
-				* The width lives on the root rather than in the sidebar's inline style for
-				* one reason: a drag can then move it from the pointer without rendering
-				* React, which keeps the frame rate independent of how many console rows
-				* the sidebar is drawing. */
-				const drawSideWidth = react.useCallback((next) => {
-					pageRef.current?.style.setProperty("--dsh-ct-side-width", `${next.sideWidth}px`);
-				}, []);
-				react.useLayoutEffect(() => {
-					drawSideWidth(sideLayout);
-				}, [sideLayout, drawSideWidth]);
-				/** The view's own width, which is the room the sidebar and console share. */
-				const availableWidth = react.useCallback(() => pageRef.current?.getBoundingClientRect().width ?? 0, []);
-				/** Record a width: what the page draws from, and what it saves, together. */
-				const recordSideWidth = react.useCallback((next) => {
-					setSideLayout(next);
-					writeSideLayout(next);
-				}, []);
-				/** The sidebar's on-screen edge, measured as a drag starts. */
-				const startSideResize = react.useCallback(() => {
-					setResizing(true);
-					return sideRef.current?.getBoundingClientRect().width ?? sideLayout.sideWidth;
-				}, [sideLayout.sideWidth]);
-				/** Draw the width the pointer implies, without a React commit. */
-				const dragSideResize = react.useCallback((width) => {
-					const room = availableWidth();
-					if (room <= 0) return;
-					pageRef.current?.style.setProperty("--dsh-ct-side-width", `${clampSideWidth(width, room)}px`);
-				}, [availableWidth]);
-				/** Record and draw the width the gesture settled on. */
-				const commitSideResize = react.useCallback((width) => {
-					setResizing(false);
-					const room = availableWidth();
-					if (room <= 0) return;
-					recordSideWidth({ sideWidth: clampSideWidth(width, room) });
-				}, [availableWidth, recordSideWidth]);
-				/** A gesture without a width — a click, or a lost pointer — restores the
-				*  recorded layout, so a cancelled drag cannot outlive its gesture. */
-				const endSideResize = react.useCallback(() => {
-					setResizing(false);
-					drawSideWidth(sideLayout);
-				}, [sideLayout, drawSideWidth]);
 				react.useEffect(() => {
 					const context = {
 						commands: () => commandsRef.current,
@@ -16347,10 +16629,13 @@ window.__ModuleLoader__.load({
 						className: "dsh-ct-ws"
 					}, children);
 				};
-				const sidebar = h("aside", {
+				const sidebar = h(ResizablePanel, {
 					key: "side",
 					className: "dsh-ct-side",
-					ref: sideRef
+					root: pageRef,
+					property: "--dsh-ct-side-width",
+					bounds: SIDE_BOUNDS,
+					store: SIDE_STORE
 				}, h("div", {
 					key: "list",
 					className: "dsh-ct-side-list-wrap",
@@ -16372,14 +16657,7 @@ window.__ModuleLoader__.load({
 					title: t("commands.title"),
 					"aria-label": t("commands.title"),
 					onClick: () => setCommandsOpen(true)
-				}, h(IconList, { key: "icon" }), h("span", { key: "label" }, t("commands.title")))), h(ResizeHandle, {
-					axis: "col",
-					key: "resize",
-					onStart: startSideResize,
-					onDrag: dragSideResize,
-					onCommit: commitSideResize,
-					onEnd: endSideResize
-				}));
+				}, h(IconList, { key: "icon" }), h("span", { key: "label" }, t("commands.title")))));
 				/**
 				* The completion popup, positioned against the caret inside its console's
 				* screen wrapper.
@@ -16501,7 +16779,6 @@ window.__ModuleLoader__.load({
 				return h("div", {
 					ref: pageRef,
 					className: "dsh-ct-root",
-					"data-resizing": resizing ? "col" : void 0,
 					"data-conversation-composer-overlay": ""
 				}, sidebar, main, commandsDialog, removeDialog, startupDialog);
 			}
@@ -16580,7 +16857,11 @@ window.__ModuleLoader__.load({
 		const XTERM_CSS = "/**\n * Copyright (c) 2014 The xterm.js authors. All rights reserved.\n * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)\n * https://github.com/chjj/term.js\n * @license MIT\n *\n * Permission is hereby granted, free of charge, to any person obtaining a copy\n * of this software and associated documentation files (the \"Software\"), to deal\n * in the Software without restriction, including without limitation the rights\n * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n * copies of the Software, and to permit persons to whom the Software is\n * furnished to do so, subject to the following conditions:\n *\n * The above copyright notice and this permission notice shall be included in\n * all copies or substantial portions of the Software.\n *\n * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\n * THE SOFTWARE.\n *\n * Originally forked from (with the author's permission):\n *   Fabrice Bellard's javascript vt100 for jslinux:\n *   http://bellard.org/jslinux/\n *   Copyright (c) 2011 Fabrice Bellard\n *   The original design remains. The terminal itself\n *   has been extended to include xterm CSI codes, among\n *   other features.\n */\n\n/**\n *  Default styles for xterm.js\n */\n\n.xterm {\n    cursor: text;\n    position: relative;\n    user-select: none;\n    -ms-user-select: none;\n    -webkit-user-select: none;\n}\n\n.xterm.focus,\n.xterm:focus {\n    outline: none;\n}\n\n.xterm .xterm-helpers {\n    position: absolute;\n    top: 0;\n    /**\n     * The z-index of the helpers must be higher than the canvases in order for\n     * IMEs to appear on top.\n     */\n    z-index: 5;\n}\n\n.xterm .xterm-helper-textarea {\n    padding: 0;\n    border: 0;\n    margin: 0;\n    /* Move textarea out of the screen to the far left, so that the cursor is not visible */\n    position: absolute;\n    opacity: 0;\n    left: -9999em;\n    top: 0;\n    width: 0;\n    height: 0;\n    z-index: -5;\n    /** Prevent wrapping so the IME appears against the textarea at the correct position */\n    white-space: nowrap;\n    overflow: hidden;\n    resize: none;\n}\n\n.xterm .composition-view {\n    /* TODO: Composition position got messed up somewhere */\n    background: #000;\n    color: #FFF;\n    display: none;\n    position: absolute;\n    white-space: nowrap;\n    z-index: 1;\n}\n\n.xterm .composition-view.active {\n    display: block;\n}\n\n.xterm .xterm-viewport {\n    /* On OS X this is required in order for the scroll bar to appear fully opaque */\n    background-color: #000;\n    overflow-y: scroll;\n    cursor: default;\n    position: absolute;\n    right: 0;\n    left: 0;\n    top: 0;\n    bottom: 0;\n}\n\n.xterm .xterm-screen {\n    position: relative;\n}\n\n.xterm .xterm-screen canvas {\n    position: absolute;\n    left: 0;\n    top: 0;\n}\n\n.xterm-char-measure-element {\n    display: inline-block;\n    visibility: hidden;\n    position: absolute;\n    top: 0;\n    left: -9999em;\n    line-height: normal;\n}\n\n.xterm.enable-mouse-events {\n    /* When mouse events are enabled (eg. tmux), revert to the standard pointer cursor */\n    cursor: default;\n}\n\n.xterm.xterm-cursor-pointer,\n.xterm .xterm-cursor-pointer {\n    cursor: pointer;\n}\n\n.xterm.column-select.focus {\n    /* Column selection mode */\n    cursor: crosshair;\n}\n\n.xterm .xterm-accessibility:not(.debug),\n.xterm .xterm-message {\n    position: absolute;\n    left: 0;\n    top: 0;\n    bottom: 0;\n    right: 0;\n    z-index: 10;\n    color: transparent;\n    pointer-events: none;\n}\n\n.xterm .xterm-accessibility-tree:not(.debug) *::selection {\n  color: transparent;\n}\n\n.xterm .xterm-accessibility-tree {\n  font-family: monospace;\n  user-select: text;\n  white-space: pre;\n}\n\n.xterm .xterm-accessibility-tree > div {\n  transform-origin: left;\n  width: fit-content;\n}\n\n.xterm .live-region {\n    position: absolute;\n    left: -9999px;\n    width: 1px;\n    height: 1px;\n    overflow: hidden;\n}\n\n.xterm-dim {\n    /* Dim should not apply to background, so the opacity of the foreground color is applied\n     * explicitly in the generated class and reset to 1 here */\n    opacity: 1 !important;\n}\n\n.xterm-underline-1 { text-decoration: underline; }\n.xterm-underline-2 { text-decoration: double underline; }\n.xterm-underline-3 { text-decoration: wavy underline; }\n.xterm-underline-4 { text-decoration: dotted underline; }\n.xterm-underline-5 { text-decoration: dashed underline; }\n\n.xterm-overline {\n    text-decoration: overline;\n}\n\n.xterm-overline.xterm-underline-1 { text-decoration: overline underline; }\n.xterm-overline.xterm-underline-2 { text-decoration: overline double underline; }\n.xterm-overline.xterm-underline-3 { text-decoration: overline wavy underline; }\n.xterm-overline.xterm-underline-4 { text-decoration: overline dotted underline; }\n.xterm-overline.xterm-underline-5 { text-decoration: overline dashed underline; }\n\n.xterm-strikethrough {\n    text-decoration: line-through;\n}\n\n.xterm-screen .xterm-decoration-container .xterm-decoration {\n	z-index: 6;\n	position: absolute;\n}\n\n.xterm-screen .xterm-decoration-container .xterm-decoration.xterm-decoration-top-layer {\n	z-index: 7;\n}\n\n.xterm-decoration-overview-ruler {\n    z-index: 8;\n    position: absolute;\n    top: 0;\n    right: 0;\n    pointer-events: none;\n}\n\n.xterm-decoration-top {\n    z-index: 2;\n    position: relative;\n}\n\n\n\n/* Derived from vs/base/browser/ui/scrollbar/media/scrollbar.css */\n\n/* xterm.js customization: Override xterm's cursor style */\n.xterm .xterm-scrollable-element > .scrollbar {\n    cursor: default;\n}\n\n/* Arrows */\n.xterm .xterm-scrollable-element > .scrollbar > .scra {\n	cursor: pointer;\n	font-size: 11px !important;\n}\n\n.xterm .xterm-scrollable-element > .visible {\n	opacity: 1;\n\n	/* Background rule added for IE9 - to allow clicks on dom node */\n	background:rgba(0,0,0,0);\n\n	transition: opacity 100ms linear;\n	/* In front of peek view */\n	z-index: 11;\n}\n.xterm .xterm-scrollable-element > .invisible {\n	opacity: 0;\n	pointer-events: none;\n}\n.xterm .xterm-scrollable-element > .invisible.fade {\n	transition: opacity 800ms linear;\n}\n\n/* Scrollable Content Inset Shadow */\n.xterm .xterm-scrollable-element > .shadow {\n	position: absolute;\n	display: none;\n}\n.xterm .xterm-scrollable-element > .shadow.top {\n	display: block;\n	top: 0;\n	left: 3px;\n	height: 3px;\n	width: 100%;\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 0 6px 6px -6px inset;\n}\n.xterm .xterm-scrollable-element > .shadow.left {\n	display: block;\n	top: 3px;\n	left: 0;\n	height: 100%;\n	width: 3px;\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 6px 0 6px -6px inset;\n}\n.xterm .xterm-scrollable-element > .shadow.top-left-corner {\n	display: block;\n	top: 0;\n	left: 0;\n	height: 3px;\n	width: 3px;\n}\n.xterm .xterm-scrollable-element > .shadow.top.left {\n	box-shadow: var(--vscode-scrollbar-shadow, #000) 6px 0 6px -6px inset;\n}\n";
 		const TERMINAL_CSS = [
 			".dsh-ct-root{display:flex;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}",
-			`.dsh-ct-side{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;width:var(--dsh-ct-side-width,256px);min-width:220px;max-width:min(560px,calc(100% - 320px));box-sizing:border-box;border-right:.5px solid var(--dsw-alias-border-l3);background:transparent}`,
+			resizablePanelCss(".dsh-ct-side", {
+				property: "--dsh-ct-side-width",
+				bounds: SIDE_BOUNDS,
+				declarations: "border-right:.5px solid var(--dsw-alias-border-l3);background:transparent;"
+			}),
 			".dsh-ct-root[data-resizing=col],.dsh-ct-root[data-resizing=col] *{user-select:none;cursor:col-resize}",
 			".dsh-ct-side-list-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}",
 			".dsh-ct-side-list{flex:1;min-height:0;overflow:auto;padding:8px 6px 10px;mask-image:none;mask-repeat:no-repeat;mask-position:0 0;mask-size:calc(100% - var(--dsh-ct-fade-right,0px)) 100%}",

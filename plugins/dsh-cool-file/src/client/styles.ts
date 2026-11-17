@@ -32,7 +32,7 @@
  *    keeps its opaque canvas.
  */
 
-import { composerSeatCss, insertPluginStyles, wallpaperCss } from '@dsh-cool/ui'
+import { composerSeatCss, insertPluginStyles, resizablePanelCss, wallpaperCss } from '@dsh-cool/ui'
 import { CODE_LINE_HEIGHT } from './code.js'
 
 /**
@@ -42,7 +42,7 @@ import { CODE_LINE_HEIGHT } from './code.js'
  * only other reader of it is that record.
  */
 const PACKAGE_ID = 'dsh-cool-file'
-import { PREVIEW_MIN, SIDE_DEFAULT, SIDE_MAX, SIDE_MIN } from './layout.js'
+import { SIDE_BOUNDS } from './layout.js'
 
 /** Class the Files View renders on its root; the stylesheet's only anchor. */
 export const FILES_ROOT_CLASS = 'dsh-cf-root'
@@ -66,38 +66,23 @@ const FILES_CSS = [
   // hands the body over.
   `.${FILES_ROOT_CLASS}{--dsh-cf-measure:900px;display:flex;flex:1 1 auto;flex-direction:row;box-sizing:border-box;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
   `.${FILES_ROOT_CLASS} *{box-sizing:border-box}`,
-  // The sidebar's width is the drag's to set: one custom property the page publishes
-  // on its root (see `layout.ts`), with the default width as the rule's own fallback,
-  // so the first frame — before a saved layout has been read — is already a whole
-  // page. The floor and the cap restate the drag's bounds, which is what keeps a
-  // width saved in a wide window from squeezing the preview in a narrow one.
-  `.dsh-cf-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cf-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${PREVIEW_MIN}px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3)}`,
+  // The width is the drag's to set: one custom property the page publishes on
+  // its root (see `layout.ts`), with the panel's own bounds as the rule's
+  // fallback, floor and cap. Those numbers come from `SIDE_BOUNDS`, the same
+  // object the drag clamps against, so the stylesheet and the pointer cannot
+  // disagree about where the sidebar stops. What stays here is what only this
+  // page knows: the hairline seam.
+  resizablePanelCss('.dsh-cf-side', {
+    property: '--dsh-cf-side-width',
+    bounds: SIDE_BOUNDS,
+    declarations: 'border-right:.5px solid var(--dsw-alias-border-l3);',
+  }),
 
-  // The boundary itself. It is the hairline the sidebar already draws (`.5px`, a
-  // seam rather than a rule), with an invisible band around it as the hit target:
-  // the handle element is 1px wide so that it covers that hairline, and its
-  // `::after` reaches 4px either side, because half a pixel is not something a
-  // pointer can be asked to hold. It takes no layout space — it is positioned on
-  // the sidebar's own edge — so adding it moves nothing on the page.
-  //
-  // `::before` is the indicator: the line brightens on hover and stays lit for the
-  // length of a drag, which is what makes a boundary read as draggable at rest.
-  // The boundary itself is `@dsh-cool/ui`'s: one element, one hit band, one hover
-  // cue, shared with the Git and Terminal tabs.
-  // The sidebar's width is the drag's to set: one custom property the page publishes
-  // on its root (see `layout.ts`), with the default width as the rule's own fallback,
-  // so the first frame — before a saved layout has been read — is already a whole
-  // page. The floor and the cap restate the drag's bounds, which is what keeps a
-  // width saved in a wide window from squeezing the preview in a narrow one.
-  `.dsh-cf-side{position:relative;flex:none;display:flex;flex-direction:column;width:var(--dsh-cf-side-width,${SIDE_DEFAULT}px);min-width:${SIDE_MIN}px;max-width:min(${SIDE_MAX}px,calc(100% - ${PREVIEW_MIN}px));min-height:0;border-right:.5px solid var(--dsw-alias-border-l3)}`,
-
-  // The boundary itself is `@dsh-cool/ui`'s: the element is 1px wide so that it
-  // covers the sidebar's own hairline, and the shared sheet gives it the invisible
-  // hit band and the hover cue. What stays here is what is stated on this page's
-  // own root, which is the cursor for the length of a gesture.
-  // While the boundary is being dragged the whole page takes the axis's cursor and
-  // stops selecting text: the pointer leaves a 1px line at the first frame of a
-  // drag, and a crossed row would otherwise highlight under it.
+  // The boundary itself is `@dsh-cool/ui`'s: one element, one hit band, one
+  // hover cue, shared with the Git and Terminal tabs. What stays here is what is
+  // stated on this page's own root — the selection lock for a gesture. The
+  // pointer leaves a 1px line at the first frame of a drag, and a crossed row
+  // would otherwise highlight under it.
   `.${FILES_ROOT_CLASS}[data-resizing],.${FILES_ROOT_CLASS}[data-resizing] *{user-select:none}`,
 
   // 3. Sidebar chrome: one row, the workspace's name on the left and Refresh on
