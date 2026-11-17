@@ -207,6 +207,10 @@ export function wallpaperCss(rootClass: string): string {
  *    its own canvas has to clear the two tokens it paints with for the image to
  *    show through. The rule is scoped by the plugin's own root class, so a
  *    profile without the theme never matches it.
+ * 5. The panel scrollport — the bar and the edge mask, stated once for the two
+ *    components that draw them.
+ * 6. The toggle button — one pressed state, one set of control metrics, so a
+ *    toggle in a toolbar and a toggle in a settings row are the same control.
  */
 export const UI_CSS = [
   // 1. The page frame.
@@ -335,4 +339,82 @@ export const UI_CSS = [
   `.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
   `.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
   `.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+
+  // 6. The toggle button and its group.
+  //
+  // The metrics are the shell's own control scale — 36px with a 12px radius and
+  // 14px type at `md`, 28px with 8px and 12.5px at `sm` — so a toggle sits in a
+  // row of buttons without the row growing a second rhythm. They are stated here
+  // rather than borrowed from `Button` because the pressed state has to be ours:
+  // see the note in `toggle/toggle.tsx` about out-ranking the shell's own
+  // `:hover` rules from a stylesheet this package does not own.
+  //
+  // Paint is keyed on `[aria-pressed=true]`, the attribute a screen reader reads,
+  // so the visible state cannot drift from the announced one. The two fills are
+  // the families DSH already paints its selected chips and filled buttons with,
+  // which is what makes a theme's retint reach a toggle for free.
+  //
+  // Every unpressed rule is scoped to `[aria-pressed=false]` rather than merely
+  // coming earlier in the sheet. A pressed toggle has a fill to keep, and a
+  // hover rule that matched both states would leave that fill winning or losing
+  // on source order alone — the kind of tie that survives review and breaks on
+  // the next edit.
+  `.${UI_PREFIX}-toggle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:none;gap:6px;height:36px;padding:0 14px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:14px;line-height:22px;white-space:nowrap;cursor:pointer;transition:background-color .12s ease,color .12s ease}`,
+  `.${UI_PREFIX}-toggle[data-size=sm]{height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm);font-size:12.5px;line-height:18px}`,
+  // An icon-only toggle is square, and the icon is the whole box: without this
+  // the control keeps a labelled button's padding and reads as a wide box
+  // holding a small glyph.
+  `.${UI_PREFIX}-toggle[data-square]{width:36px;padding:0}`,
+  `.${UI_PREFIX}-toggle[data-size=sm][data-square]{width:28px}`,
+  `.${UI_PREFIX}-toggle-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none}`,
+  // Hover and press move the fill only: a toggle that also changed its type
+  // weight would make the row twitch as the pointer crosses it.
+  `@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=false]:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}`,
+  `.${UI_PREFIX}-toggle[aria-pressed=false]:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}`,
+  // The hairline is an inset ring rather than a border: a border that appeared
+  // on hover would move the label, and a stroke drawn inside the box stays crisp
+  // at fractional device ratios.
+  `.${UI_PREFIX}-toggle[data-variant=outline]{box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3)}`,
+  `@media (hover:hover){.${UI_PREFIX}-toggle[data-variant=outline][aria-pressed=false]:hover:not(:disabled){box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l4)}}`,
+  // The pressed fills. `soft` is the quiet neutral press a peer in a row wants;
+  // `solid` is the accent fill for the one toggle that is the row's subject.
+  `.${UI_PREFIX}-toggle[aria-pressed=true]{color:var(--dsw-alias-label-primary)}`,
+  `.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]{background:var(--dsw-alias-button-ghost-active-fill);box-shadow:inset 0 0 0 1px var(--dsw-alias-button-ghost-active-border)}`,
+  `@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]:hover:not(:disabled){background:var(--dsw-alias-button-ghost-active-hover);color:var(--dsw-alias-label-primary)}}`,
+  `.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]:active:not(:disabled){background:var(--dsw-alias-button-ghost-active-hover)}`,
+  // `box-shadow:none` is load-bearing: it clears the outline ring, so the accent
+  // fill is not framed by a hairline that the variant asked for.
+  `.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);box-shadow:none}`,
+  `@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover);color:var(--dsw-alias-label-primary-foreground)}}`,
+  `.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]:active:not(:disabled){background:var(--dsw-alias-button-primary-hover)}`,
+  // The ring the shell gives every control, at the same width and token, so a
+  // keyboard reader meets one focus language across the window.
+  `.${UI_PREFIX}-toggle:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}`,
+  // A disabled toggle keeps whatever state it is in — a pressed one still reads
+  // as pressed — so the only thing disabled changes is the pointer cue.
+  `.${UI_PREFIX}-toggle:disabled{cursor:not-allowed;opacity:.4}`,
+
+  // The group. It owns the row's direction, which is also the arrow keys' axis,
+  // and in the attached shape it owns the corners and the seam between buttons.
+  //
+  // The gap keeps a row of glyphs reading as siblings rather than one long
+  // control. Attached closes it and pulls each button back over its
+  // neighbour's hairline by that hairline's own width, so the seam is one line
+  // instead of two.
+  `.${UI_PREFIX}-toggle-group{display:inline-flex;align-items:center;gap:4px}`,
+  `.${UI_PREFIX}-toggle-group[data-orientation=vertical]{flex-direction:column;align-items:stretch}`,
+  `.${UI_PREFIX}-toggle-group[data-attached]{gap:0}`,
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:first-child){margin-inline-start:calc(-1 * var(--dsh-hairline-width,.5px))}`,
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:first-child){margin-block-start:calc(-1 * var(--dsh-hairline-width,.5px))}`,
+  // Only the outer corners stay round: the sides that meet are squared off so
+  // the buttons sit flush. The four corners are named per orientation, because
+  // "the side that meets" is the inline one in a row and the block one in a
+  // column.
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:first-child){border-start-start-radius:0;border-end-start-radius:0}`,
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:last-child){border-start-end-radius:0;border-end-end-radius:0}`,
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:first-child){border-start-start-radius:0;border-start-end-radius:0}`,
+  `.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:last-child){border-end-start-radius:0;border-end-end-radius:0}`,
+  // The pressed button and the focused one are raised above their neighbours so
+  // their fill and their ring are not clipped by the button drawn over them.
+  `.${UI_PREFIX}-toggle-group[data-attached]>.${UI_PREFIX}-toggle[aria-pressed=true],.${UI_PREFIX}-toggle-group[data-attached]>.${UI_PREFIX}-toggle:focus-visible{position:relative;z-index:1}`,
 ].join('\n')

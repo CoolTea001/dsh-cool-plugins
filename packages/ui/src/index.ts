@@ -98,6 +98,19 @@ export { PanelShadow } from './panel/panel-shadow.js'
 export type { PanelShadowProps } from './panel/panel-shadow.js'
 export type { PanelAxis, PanelScrollDirection } from './panel/scrollport.js'
 
+// Toggles: one button that stays pressed, and the row that holds one stop for
+// a set of them.
+export { Toggle } from './toggle/toggle.js'
+export type { ToggleActiveVariant, ToggleProps, ToggleSize, ToggleVariant } from './toggle/toggle.js'
+export { ToggleGroup } from './toggle/toggle-group.js'
+export type {
+  ToggleGroupItem,
+  ToggleGroupMultipleProps,
+  ToggleGroupOrientation,
+  ToggleGroupProps,
+  ToggleGroupSingleProps,
+} from './toggle/toggle-group.js'
+
 // Shell hand-offs a full-height page owes the Conversation around it.
 export { suppressComposerSeat, useComposerSeatSuppression } from './shell/composer-seat.js'
 
