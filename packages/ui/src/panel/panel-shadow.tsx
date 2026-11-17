@@ -77,7 +77,7 @@ export interface PanelShadowProps extends Omit<HTMLAttributes<HTMLDivElement>, '
   /**
    * The bar's width, in CSS pixels.
    *
-   * @default 6
+   * @default 5
    */
   readonly barWidth?: number
   /**

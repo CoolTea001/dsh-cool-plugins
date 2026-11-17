@@ -287,7 +287,7 @@ export const UI_CSS = [
   // `opacity`, because `opacity` on the element would also fade the pane's
   // content. `0%` therefore keeps a fully transparent thumb that still
   // occupies its width.
-  `.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:6px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+  `.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:5px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
   `.${UI_PREFIX}-panel[data-bar=show]{--dsh-scrollbar-thumb:color-mix(in srgb,var(--dsw-alias-scrollbar-bg-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
   // Direction is stated per axis instead of being a side effect of
   // `overflow:auto`: a vertical list that grows a horizontal bar for an

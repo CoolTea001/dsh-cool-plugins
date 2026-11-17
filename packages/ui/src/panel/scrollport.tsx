@@ -63,7 +63,7 @@ export type PanelScrollDirection = 'none' | 'both' | 'x' | 'y'
 export type PanelAxis = 'x' | 'y'
 
 /** The bar's width when the caller does not choose one, in CSS pixels. */
-const BAR_WIDTH = 6
+const BAR_WIDTH = 5
 
 /** How long the bar lingers after the pointer leaves, in seconds. */
 const HIDE_DELAY = 1
@@ -335,7 +335,7 @@ export interface ScrollportProps extends HTMLAttributes<HTMLDivElement> {
   readonly direction?: PanelScrollDirection
   /** The thumb's alpha, 0..1. Defaults to 1. */
   readonly barOpacity?: number
-  /** The bar's width in CSS pixels. Defaults to 6. */
+  /** The bar's width in CSS pixels. Defaults to 5. */
   readonly barWidth?: number
   /** Seconds the bar stays after the pointer leaves. Defaults to 1. */
   readonly hideDelay?: number
