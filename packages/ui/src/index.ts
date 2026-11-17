@@ -51,6 +51,7 @@
 
 // The stylesheet: one insertion path, the shared rules, and the class-name helper.
 export {
+  PANEL_VARS,
   UI_CSS,
   UI_PREFIX,
   composerSeatCss,
@@ -74,6 +75,13 @@ export {
   writeLayout,
 } from './layout/layout-store.js'
 export type { LayoutField } from './layout/layout-store.js'
+
+// The scroll panels: the pointer's bar, and the dissolving edge.
+export { PanelScroll } from './panel/panel-scroll.js'
+export type { PanelScrollProps } from './panel/panel-scroll.js'
+export { PanelShadow } from './panel/panel-shadow.js'
+export type { PanelShadowProps } from './panel/panel-shadow.js'
+export type { PanelAxis, PanelScrollDirection } from './panel/scrollport.js'
 
 // Shell hand-offs a full-height page owes the Conversation around it.
 export { suppressComposerSeat, useComposerSeatSuppression } from './shell/composer-seat.js'

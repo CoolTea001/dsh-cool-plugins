@@ -103,6 +103,32 @@ export function insertPluginStyles(pluginId: string, extraCss?: string): () => v
 export const UI_PREFIX = 'dsh-ui'
 
 /**
+ * The custom properties the scroll panels and {@link UI_CSS} agree on.
+ *
+ * They are written by `Scrollport` as inline style and read by the rules below.
+ * Naming them in one place is what keeps a rule and the component that feeds it
+ * from drifting apart after a rename — the same reason the class names go
+ * through {@link uiClass}.
+ *
+ * `gutterX`/`gutterY` are the odd ones out: they are not configuration but a
+ * measurement, written on every scroll pass. The edge masks need them because a
+ * mask covers the scrollbar as well as the rows, and a faded thumb is a bar the
+ * reader cannot see to grab.
+ */
+export const PANEL_VARS = {
+  /** The thumb's alpha, as a CSS percentage. */
+  barAlpha: '--dsh-ui-panel-bar-alpha',
+  /** The bar's width. */
+  barWidth: '--dsh-ui-panel-bar-width',
+  /** How far an edge shade reaches in from the edge. */
+  shade: '--dsh-ui-panel-shade',
+  /** The measured width of the vertical scrollbar, or `0px`. */
+  gutterX: '--dsh-ui-panel-gutter-x',
+  /** The measured height of the horizontal scrollbar, or `0px`. */
+  gutterY: '--dsh-ui-panel-gutter-y',
+} as const
+
+/**
  * Build a shared class name from a suffix.
  *
  * Callers write `uiClass('resize')` rather than `'dsh-ui-resize'`, so the
@@ -239,4 +265,66 @@ export const UI_CSS = [
   // canvas tokens inside the page root lets it through, and names nothing about
   // the page's parts. Everything raised above the canvas keeps its fill.
   `html.ct-bg-on .${UI_PREFIX}-page[data-surface=canvas]{--dsw-alias-bg-base:transparent;--dsw-alias-bg-layer-1:transparent}`,
+
+  // 5. The panel scrollport — `PanelScroll` and `PanelShadow`, one element.
+  //
+  // The bar is the platform's, not ours. `scrollbar.css` in the app sets the
+  // width, the pill shape and the track for every scrollport and reads
+  // `--dsh-scrollbar-*` for the rest, so the rules here only ever rebind those
+  // variables. A pane that styled `::-webkit-scrollbar` itself would be a
+  // second bar with its own width, shape and colour, drifting from every list
+  // beside it — which is exactly why `--dsh-scrollbar-width` is rebound rather
+  // than the pseudo-element.
+  //
+  // Visibility is a colour and never a `display`: the bar keeps its box at all
+  // times, so the rows do not shift when the pointer crosses the edge, and the
+  // thumb is there to be grabbed the instant it is painted. `data-bar` is
+  // written by the component only while the pointer, the keyboard focus or a
+  // scroll gesture is using the pane, and left standing for the caller's
+  // `hideDelay` afterwards.
+  //
+  // Alpha is `color-mix` with the platform token rather than a plain
+  // `opacity`, because `opacity` on the element would also fade the pane's
+  // content. `0%` therefore keeps a fully transparent thumb that still
+  // occupies its width.
+  `.${UI_PREFIX}-panel{position:relative;box-sizing:border-box;min-width:0;min-height:0;--dsh-ui-panel-bar-alpha:100%;--dsh-ui-panel-bar-width:6px;--dsh-scrollbar-width:var(--dsh-ui-panel-bar-width);--dsh-scrollbar-thumb:transparent;--dsh-scrollbar-thumb-hover:color-mix(in srgb,var(--dsw-alias-scrollbar-hover-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+  `.${UI_PREFIX}-panel[data-bar=show]{--dsh-scrollbar-thumb:color-mix(in srgb,var(--dsw-alias-scrollbar-bg-l2) var(--dsh-ui-panel-bar-alpha),transparent)}`,
+  // Direction is stated per axis instead of being a side effect of
+  // `overflow:auto`: a vertical list that grows a horizontal bar for an
+  // overflowing pixel advertises a gesture with nothing behind it.
+  //
+  // `none` is `clip` and not `hidden`, and the difference is the whole meaning
+  // of the word: an `overflow:hidden` box is still a scroll container — a
+  // `scrollTop` write moves it, and so does focusing a control below the fold,
+  // which leaves the pane silently shifted under a header. `clip` creates no
+  // scrollport at all, so nothing can move the content and the box needs no
+  // scrollbar plumbing. The same holds for the blocked axis of `x` and `y`:
+  // `hidden` there would leave a scrollable axis with no bar to show for it.
+  `.${UI_PREFIX}-panel[data-scroll=none]{overflow:clip}`,
+  `.${UI_PREFIX}-panel[data-scroll=both]{overflow:auto}`,
+  `.${UI_PREFIX}-panel[data-scroll=x]{overflow-x:auto;overflow-y:clip}`,
+  `.${UI_PREFIX}-panel[data-scroll=y]{overflow-x:clip;overflow-y:auto}`,
+  // The edge shade (`PanelShadow`). It is a mask, so the rows lose alpha at the
+  // end that hides content and whatever is behind the pane shows through; a veil
+  // in the pane's own colour would instead be a band sitting on the list, which
+  // is what breaks as soon as the page is transparent over a wallpaper.
+  //
+  // A mask covers the scrollbar too, so the box is split into three layers: the
+  // content rectangle, which is the one that fades, and two opaque strips over
+  // the measured gutters. The measured strips are `--dsh-ui-panel-gutter-x/y`,
+  // written by the component on every scroll pass; when a pane has no bar they
+  // are `0px` and the strip has no area. Sizing the whole mask down instead
+  // hides the thumb outright, which is the failure this layering exists to
+  // avoid.
+  //
+  // Layer order is fixed and the same for both axes — content, right gutter,
+  // bottom gutter — so only the first gradient's direction changes with the
+  // shade axis, and the three `mask-*` lists never fall out of step.
+  `.${UI_PREFIX}-panel[data-shade]{mask-image:linear-gradient(#000,#000),linear-gradient(#000,#000),linear-gradient(#000,#000);mask-size:calc(100% - var(--dsh-ui-panel-gutter-x,0px)) calc(100% - var(--dsh-ui-panel-gutter-y,0px)),var(--dsh-ui-panel-gutter-x,0px) 100%,100% var(--dsh-ui-panel-gutter-y,0px);mask-position:0 0,right 0,0 bottom;mask-repeat:no-repeat}`,
+  `.${UI_PREFIX}-panel[data-shade=y][data-shade-start]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+  `.${UI_PREFIX}-panel[data-shade=y][data-shade-end]{mask-image:linear-gradient(to top,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+  `.${UI_PREFIX}-panel[data-shade=y][data-shade-start][data-shade-end]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+  `.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+  `.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
+  `.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
 ].join('\n')
