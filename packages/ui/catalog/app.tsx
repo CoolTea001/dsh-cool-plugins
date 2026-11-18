@@ -6,11 +6,13 @@
  * box, a theme switch, a filter row) is a second question the reader did not ask.
  * The icon catalog made the same trade: it is a header and a wall of glyphs.
  *
- * One flat list, ordered by name. The components split into two kinds — the ones
- * this package draws and the shell controls it re-exports — but a reader looks a
- * component up by its name, not by who owns it, so the split earns a heading
- * only in the entry's own source line. Alphabetical order is the one ordering a
- * reader can predict without knowing how the package is organised.
+ * One flat list, ordered by name. The components split into three kinds — the
+ * ones this package draws (`own.tsx`), the shell controls a plugin reaches for
+ * first (`shell.tsx`), and the rest of the shell's atoms (`more.tsx`) — but a
+ * reader looks a component up by its name, not by who owns it, so the split
+ * earns a heading only in the entry's own source line. Alphabetical order is the
+ * one ordering a reader can predict without knowing how the package is
+ * organised.
  *
  * The selection lives in the URL hash, because a catalog is something a reader
  * links to: "look at the toggle pressed state" should be one click away for the
@@ -19,12 +21,13 @@
 
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 import { SHELL_ENTRIES } from './shell.js'
+import { MORE_ENTRIES } from './more.js'
 import { OWN_ENTRIES } from './own.js'
 import type { CatalogEntry } from './types.js'
 import { PropsTable } from './ui.js'
 
 /** Every entry, in the one order the sidebar shows and nothing else depends on. */
-const ALL: readonly CatalogEntry[] = [...OWN_ENTRIES, ...SHELL_ENTRIES].sort((left, right) =>
+const ALL: readonly CatalogEntry[] = [...OWN_ENTRIES, ...SHELL_ENTRIES, ...MORE_ENTRIES].sort((left, right) =>
   left.name.localeCompare(right.name, 'en'),
 )
 

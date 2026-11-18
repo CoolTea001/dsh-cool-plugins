@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-util-workspace-path": "0.2.2-rc.3",
     "@dsh-cool/icons": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
