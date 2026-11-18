@@ -1,14 +1,13 @@
 /**
- * The rest of the shell's controls: the primitives the first pass left out.
+ * A second shelf of shell controls: the atoms `shell.tsx` does not carry.
  *
  * `shell.tsx` covers the ten controls a plugin reaches for first — a button, a
- * field, a dialog, a tab strip. The package ships sixty-nine components, and
- * the other fifty-nine were reachable but undocumented, which made the catalog
- * read as "this is everything" when it was a sample. This file closes the part
- * of that gap that can be drawn here without new third-party dependencies: the
- * atoms whose whole surface is React, tokens and the shell's own icon set.
+ * field, a dialog, a tab strip. This file adds the seven beside them whose whole
+ * surface is React, tokens and the shell's own icon set, so a reader can see a
+ * checkbox or a menu without leaving the page.
  *
- * Two groups are deliberately still absent:
+ * The list is a decision, not a census. Most of the shell's sixty-nine exports
+ * are deliberately not here:
  *
  * - **The Markdown and code families** — `MarkdownText`, `CodeBlock`,
  *   `DiffBlock`, `TerminalBlock`, `JsonTree` and neighbours — pull in Shiki,
@@ -18,6 +17,15 @@
  *   `PluginArtwork*` and their kin. They already have a catalog of their own in
  *   `packages/icons`, and a second wall of glyphs here would answer a question
  *   nobody asked on this page.
+ * - **The chrome that only means something in place.** `AnimatedRows`,
+ *   `DisclosureRow`, `InlineEditor`, `MenuGroup`, `MenuSurface`, `PathLabel`,
+ *   `TextShimmer`, `ConnectionIndicator` and `ZoomControls` are parts of a
+ *   larger surface: a list that animates between renders, a material a menu
+ *   floats on, a path that truncates against a real sidebar's width, an edit
+ *   that only means its affordance beside the label it replaces. Drawn in a tile
+ *   they were a blank box or a fragment without its context, which taught a
+ *   reader less than the source would have. They stay reachable, documented by
+ *   their own code.
  *
  * The same two rules as `shell.tsx` apply to every entry below: the component is
  * the shell's own source (never a redraw), and the props table is a copy
@@ -27,23 +35,14 @@
  */
 
 import { useState, type ReactElement } from 'react'
-import { AnimatedRows } from '@deepseek-ai/dsh-client-ui-primitives/src/AnimatedRows.tsx'
 import { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives/src/Checkbox.tsx'
-import { ConnectionIndicator } from '@deepseek-ai/dsh-client-ui-primitives/src/ConnectionIndicator.tsx'
-import { DisclosureRow } from '@deepseek-ai/dsh-client-ui-primitives/src/DisclosureRow.tsx'
 import { HoverCard } from '@deepseek-ai/dsh-client-ui-primitives/src/HoverCard.tsx'
 import { HoverCardGroup } from '@deepseek-ai/dsh-client-ui-primitives/src/HoverCardGroup.tsx'
-import { InlineEditor } from '@deepseek-ai/dsh-client-ui-primitives/src/InlineEditor.tsx'
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives/src/Menu.tsx'
-import { MenuGroup } from '@deepseek-ai/dsh-client-ui-primitives/src/MenuGroup.tsx'
-import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives/src/MenuSurface.tsx'
-import { PathLabel } from '@deepseek-ai/dsh-client-ui-primitives/src/PathLabel.tsx'
 import { RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives/src/RiskConfirmation.tsx'
 import { ShortcutKeys } from '@deepseek-ai/dsh-client-ui-primitives/src/ShortcutKeys.tsx'
 import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives/src/StateDot.tsx'
-import { TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives/src/TextShimmer.tsx'
 import { Toast } from '@deepseek-ai/dsh-client-ui-primitives/src/Toast.tsx'
-import { ZoomControls } from '@deepseek-ai/dsh-client-ui-primitives/src/ZoomControls.tsx'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives/src/Button.tsx'
 import { IconChevronRight, IconCopy, IconPlus, IconTrash } from '@dsh-cool/icons'
 import type { CatalogEntry } from './types.js'
@@ -96,26 +95,6 @@ function StateDotDemo(): ReactElement {
   )
 }
 
-function TextShimmerDemo(): ReactElement {
-  return (
-    <Variants>
-      <Variant label="idle">
-        <TextShimmer>Waiting for input</TextShimmer>
-      </Variant>
-      <Variant label="active">
-        <TextShimmer active>Thinking about the next step</TextShimmer>
-      </Variant>
-      <Variant label="nested fragments">
-        <TextShimmer active>
-          <span>Reading</span>
-          <span data-shimmer-decoration> · </span>
-          <TextShimmer>four files</TextShimmer>
-        </TextShimmer>
-      </Variant>
-    </Variants>
-  )
-}
-
 function ShortcutKeysDemo(): ReactElement {
   return (
     <Variants size="sm">
@@ -127,125 +106,6 @@ function ShortcutKeysDemo(): ReactElement {
       </Variant>
       <Variant label="tooltip variant">
         <ShortcutKeys keys={['⌘', '+', 'S']} variant="tooltip" />
-      </Variant>
-    </Variants>
-  )
-}
-
-function DisclosureRowDemo(): ReactElement {
-  const [open, setOpen] = useState(true)
-  const [runningOpen, setRunningOpen] = useState(false)
-  return (
-    <Variants size="lg">
-      <Variant label="open · with content">
-        <DisclosureRow
-          icon={<IconChevronRight />}
-          title="Ran 3 commands"
-          open={open}
-          expandable
-          onToggle={() => { setOpen(!open) }}
-          expandOnRowClick
-        >
-          <p className="demo-prose">The row expands to whatever the owner renders below it.</p>
-        </DisclosureRow>
-      </Variant>
-      <Variant label="collapsed · inline summary">
-        <DisclosureRow
-          icon={<IconChevronRight />}
-          title="Edited 2 files"
-          open={false}
-          expandable
-          onToggle={() => {}}
-          collapsedContent={<span className="demo-muted">· branch.ts, git.tsx</span>}
-        />
-      </Variant>
-      <Variant label="running">
-        {/* `running` belongs to the header alone: a control inside the body would
-            be shimmered and clipped with it, which is why the toggle lives
-            outside the row rather than inside its children. */}
-        <DisclosureRow
-          icon={<IconCopy />}
-          title="Running the test suite"
-          open={runningOpen}
-          expandable
-          running
-          onToggle={() => { setRunningOpen(!runningOpen) }}
-        >
-          <p className="demo-prose">The header shimmers until the owner clears `running`.</p>
-        </DisclosureRow>
-      </Variant>
-    </Variants>
-  )
-}
-
-function ConnectionIndicatorDemo(): ReactElement {
-  const [state, setState] = useState<'disconnected' | 'connecting' | 'recovered'>('disconnected')
-  const labels = {
-    disconnectedLabel: 'Connection lost',
-    connectingLabel: 'Reconnecting',
-    recoveredLabel: 'Reconnected',
-    reconnectActionLabel: 'Reconnect now',
-    restartActionLabel: 'Restart the attempt',
-  }
-  return (
-    <>
-      <Variants size="sm">
-        <Variant label="disconnected">
-          <ConnectionIndicator state="disconnected" {...labels} onReconnect={() => { setState('connecting') }} />
-        </Variant>
-        <Variant label="connecting">
-          <ConnectionIndicator state="connecting" {...labels} onReconnect={() => {}} />
-        </Variant>
-        <Variant label="recovered">
-          <ConnectionIndicator state="recovered" {...labels} onReconnect={() => {}} />
-        </Variant>
-        <Variant label="state undefined · nothing drawn">
-          <ConnectionIndicator state={undefined} {...labels} onReconnect={() => {}} />
-        </Variant>
-      </Variants>
-      <Variants size="sm">
-        <Variant label="live · press to reconnect">
-          <Button variant="outline" size="sm" onClick={() => { setState(state === 'disconnected' ? 'connecting' : 'disconnected') }}>
-            {state === 'disconnected' ? 'Simulate an outage' : 'Reset'}
-          </Button>
-        </Variant>
-      </Variants>
-    </>
-  )
-}
-
-function InlineEditorDemo(): ReactElement {
-  const [value, setValue] = useState('session-name')
-  const [committed, setCommitted] = useState('session-name')
-  return (
-    <Variants>
-      <Variant label="editing">
-        <InlineEditor
-          value={value}
-          label="Session name"
-          onChange={setValue}
-          onSave={() => { setCommitted(value) }}
-          onCancel={() => { setValue(committed) }}
-        />
-      </Variant>
-      <Variant label="committed value">
-        <p className="demo-prose">{committed}</p>
-      </Variant>
-    </Variants>
-  )
-}
-
-function PathLabelDemo(): ReactElement {
-  return (
-    <Variants>
-      <Variant label="long path">
-        <PathLabel path="/home/dev/projects/dsh-cool-plugins/packages/ui/src/input.tsx" />
-      </Variant>
-      <Variant label="short path">
-        <PathLabel path="src/index.ts" />
-      </Variant>
-      <Variant label="root">
-        <PathLabel path="/" />
       </Variant>
     </Variants>
   )
@@ -302,26 +162,6 @@ function MenuDemo(): ReactElement {
         </Variant>
       </Variants>
     </>
-  )
-}
-
-function MenuSurfaceDemo(): ReactElement {
-  return (
-    <Variants size="sm">
-      <Variant label="surface">
-        <MenuSurface className="demo-menu-surface">
-          <MenuGroup label="Recent">
-            <span className="demo-list-row">session-one</span>
-            <span className="demo-list-row">session-two</span>
-          </MenuGroup>
-        </MenuSurface>
-      </Variant>
-      <Variant label="compact">
-        <MenuSurface compact className="demo-menu-surface">
-          <span className="demo-list-row">Dense rows</span>
-        </MenuSurface>
-      </Variant>
-    </Variants>
   )
 }
 
@@ -416,74 +256,6 @@ function ToastDemo(): ReactElement {
   )
 }
 
-function AnimatedRowsDemo(): ReactElement {
-  const [rows, setRows] = useState(['alpha', 'beta', 'gamma'])
-  const [ready, setReady] = useState(true)
-  const shuffle = (): void => {
-    setRows((current) => [...current].reverse())
-  }
-  const add = (): void => {
-    setRows((current) => [...current, `row-${current.length + 1}`])
-  }
-  return (
-    <>
-      <Variants size="sm">
-        <Variant label="shuffle">
-          <Button variant="outline" onClick={shuffle}>Reverse</Button>
-        </Variant>
-        <Variant label="add a row">
-          <Button variant="outline" onClick={add}>Add</Button>
-        </Variant>
-        <Variant label="ready">
-          <Button variant="outline" onClick={() => { setReady(!ready) }}>{ready ? 'Mark not ready' : 'Mark ready'}</Button>
-        </Variant>
-      </Variants>
-      <Variants size="lg">
-        <Variant label="rows" span>
-          <AnimatedRows className="demo-animated-rows" rowKeys={rows} ready={ready} resetKey="demo">
-            {rows.map((row) => (
-              <div key={row} data-row-key={row} className="demo-list-row">{row}</div>
-            ))}
-          </AnimatedRows>
-        </Variant>
-      </Variants>
-    </>
-  )
-}
-
-function ZoomControlsDemo(): ReactElement {
-  const [zoom, setZoom] = useState(1)
-  const labels = {
-    controls: 'Zoom controls',
-    menu: 'Zoom options',
-    out: 'Zoom out',
-    into: 'Zoom in',
-    value: (percent: number) => `${percent}%`,
-  }
-  return (
-    <Variants size="sm">
-      <Variant label="visible">
-        {/* The cluster positions itself against its nearest positioned ancestor,
-            the way it does against a document pane in the product. The demo box
-            supplies that ancestor so it stays inside the tile. */}
-        <div className="demo-zoom-stage">
-          <ZoomControls
-            zoom={zoom}
-            fit={{ label: 'Fit', selected: false, onSelect: () => { setZoom(1) } }}
-            labels={labels}
-            visible
-            onZoom={setZoom}
-            onActiveChange={() => {}}
-          />
-        </div>
-      </Variant>
-      <Variant label="current zoom">
-        <p className="demo-prose">{Math.round(zoom * 100)}%</p>
-      </Variant>
-    </Variants>
-  )
-}
-
 /** Every entry this file adds, in the one order the catalog sorts them into. */
 export const MORE_ENTRIES: readonly CatalogEntry[] = [
   {
@@ -516,19 +288,6 @@ export const MORE_ENTRIES: readonly CatalogEntry[] = [
     ],
   },
   {
-    id: 'text-shimmer',
-    name: 'TextShimmer',
-    summary: 'Text with a shared highlight while the work it labels is running, still selectable and readable.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/TextShimmer.tsx',
-    Demo: TextShimmerDemo,
-    props: [
-      { name: 'children', type: 'ReactNode', description: 'The text. Nested `TextShimmer` instances inherit the outer activity.' },
-      { name: 'active', type: 'boolean', default: 'false', description: 'Runs the highlight. An idle shimmer draws plain text.' },
-      { name: 'className', type: 'string', description: 'Class for the outer span.' },
-      { name: 'contentClassName', type: 'string', description: 'Layout class applied equally to the base and decorative copy.' },
-    ],
-  },
-  {
     id: 'shortcut-keys',
     name: 'ShortcutKeys',
     summary: 'Keycaps for one binding, drawn as a chord with visible separators when a `+` is among the keys.',
@@ -538,72 +297,6 @@ export const MORE_ENTRIES: readonly CatalogEntry[] = [
       { name: 'keys', type: 'readonly string[]', description: 'The labels in order. A `+` entry is drawn as a separator, not a key.' },
       { name: 'variant', type: "'plain' | 'tooltip'", default: "'plain'", description: '`tooltip` is the smaller pairing used inside a tooltip bubble.' },
       { name: 'className', type: 'string', description: 'Extra class for layout placement.' },
-    ],
-  },
-  {
-    id: 'disclosure-row',
-    name: 'DisclosureRow',
-    summary: 'A collapsible row: a leading mark, a title, and the body or inline summary the owner supplies.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/DisclosureRow.tsx',
-    Demo: DisclosureRowDemo,
-    props: [
-      { name: 'icon', type: 'ReactNode', description: 'The leading mark.' },
-      { name: 'title', type: 'string', description: 'The row\'s text.' },
-      { name: 'open', type: 'boolean', description: 'Whether the body is showing. The owner holds it.' },
-      { name: 'expandable', type: 'boolean', description: 'Whether the row may open at all.' },
-      { name: 'onToggle', type: '() => void', description: 'Receives the toggle request.' },
-      { name: 'running', type: 'boolean', default: 'false', description: 'Shimmers the header while its operation is in flight.' },
-      { name: 'expandOnRowClick', type: 'boolean', default: 'false', description: 'Makes the whole title row the target instead of a chevron.' },
-      { name: 'previewChevron', type: 'boolean', default: 'false', description: 'Swaps the collapsed icon for a chevron on hover.' },
-      { name: 'keepContentWhenOpen', type: 'boolean', default: 'false', description: 'Keeps `collapsedContent` inline while open.' },
-      { name: 'collapsedContent', type: 'ReactNode', description: 'The summary drawn beside the title while collapsed.' },
-      { name: 'headerAccessory', type: 'ReactNode', description: 'An independent action beside the title, outside the disclosure target.' },
-      { name: 'children', type: 'ReactNode', description: 'The body.' },
-      { name: 'className', type: 'string', description: 'Class for the outer element.' },
-      { name: 'titleClassName', type: 'string', description: 'Class for the title text.' },
-    ],
-  },
-  {
-    id: 'connection-indicator',
-    name: 'ConnectionIndicator',
-    summary: 'The inline recovery control: an outage, a retry attempt, or the confirmation that the link is back.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/ConnectionIndicator.tsx',
-    Demo: ConnectionIndicatorDemo,
-    props: [
-      { name: 'state', type: "'disconnected' | 'connecting' | 'recovered' | undefined", description: 'Which feedback is showing. `undefined` draws nothing at all.' },
-      { name: 'disconnectedLabel', type: 'string', description: 'The outage text, which must name the retry action.' },
-      { name: 'connectingLabel', type: 'string', description: 'The retry text; attempt dots follow it.' },
-      { name: 'recoveredLabel', type: 'string', description: 'The recovery confirmation.' },
-      { name: 'reconnectActionLabel', type: 'string', description: 'The accessible name for the outage action.' },
-      { name: 'restartActionLabel', type: 'string', description: 'The accessible name for replacing an active attempt.' },
-      { name: 'onReconnect', type: '() => void', description: 'Requests an immediate reconnect.' },
-    ],
-  },
-  {
-    id: 'inline-editor',
-    name: 'InlineEditor',
-    summary: 'A one-line edit that grows in place: Enter saves, Escape cancels, and the owner holds the draft.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/InlineEditor.tsx',
-    Demo: InlineEditorDemo,
-    props: [
-      { name: 'value', type: 'string', description: 'The draft the control renders.' },
-      { name: 'label', type: 'string', description: 'The accessible name. Required.' },
-      { name: 'onChange', type: '(value: string) => void', description: 'Receives every keystroke. The control never writes.' },
-      { name: 'onSave', type: '() => void', description: 'Called on Enter.' },
-      { name: 'onCancel', type: '() => void', description: 'Called on Escape.' },
-      { name: 'className', type: 'string', description: 'Extra class for layout placement.' },
-    ],
-  },
-  {
-    id: 'path-label',
-    name: 'PathLabel',
-    summary: 'A file path that keeps its basename readable: the directory truncates from the left before the name does.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/PathLabel.tsx',
-    Demo: PathLabelDemo,
-    props: [
-      { name: 'path', type: 'string', description: 'The path to draw. The basename keeps its space; the directory gives way.' },
-      { name: 'className', type: 'string', description: 'Extra class for layout placement.' },
-      { name: '…rest', type: 'HTMLAttributes<HTMLSpanElement>', description: 'Span attributes pass through, except `children` and `title` — the label owns both.' },
     ],
   },
   {
@@ -628,30 +321,6 @@ export const MORE_ENTRIES: readonly CatalogEntry[] = [
       { name: 'footer', type: 'readonly MenuEntry[]', description: 'Rows pinned below the list.' },
       { name: 'submenuBackLabel', type: 'string', description: 'The localized return action inside a submenu.' },
       { name: 'children', type: 'ReactNode', description: 'Custom popup content instead of `items`.' },
-    ],
-  },
-  {
-    id: 'menu-surface',
-    name: 'MenuSurface',
-    summary: 'The material a menu sits on: the fill, the blur, the elevation and the group headings.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/MenuSurface.tsx',
-    Demo: MenuSurfaceDemo,
-    props: [
-      { name: 'compact', type: 'boolean', default: 'false', description: 'Matches the shared compact menu\'s smaller outer radius.' },
-      { name: 'phase', type: "'enter' | 'dismiss' | 'replace'", description: 'Fades the surface and its material without isolating the backdrop.' },
-      { name: 'children', type: 'ReactNode', description: 'The rows. Wrap them in `MenuGroup` to get sticky headings.' },
-      { name: '…rest', type: 'HTMLAttributes<HTMLDivElement>', description: 'Div attributes pass through, including `className`.' },
-    ],
-  },
-  {
-    id: 'menu-group',
-    name: 'MenuGroup',
-    summary: 'A named section inside a menu, with an id it owns and a heading that sticks to the scroll top.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/MenuGroup.tsx',
-    Demo: MenuSurfaceDemo,
-    props: [
-      { name: 'label', type: 'string', description: 'The heading text, which also names the section for a screen reader.' },
-      { name: 'children', type: 'ReactNode', description: 'The rows in the section.' },
     ],
   },
   {
@@ -702,38 +371,6 @@ export const MORE_ENTRIES: readonly CatalogEntry[] = [
       { name: 'holdMs', type: 'number', description: 'Full-opacity hold before the fade starts.' },
       { name: 'actions', type: 'readonly { label, prefix?, onClick }[]', description: 'Inline actions drawn after the text, e.g. Undo.' },
       { name: 'anchor', type: 'HTMLElement | null', description: 'Positions the banner against a window other than the page\'s own.' },
-    ],
-  },
-  {
-    id: 'animated-rows',
-    name: 'AnimatedRows',
-    summary: 'A list that animates rows into place when the order changes, and only once it is told it is ready.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/AnimatedRows.tsx',
-    Demo: AnimatedRowsDemo,
-    props: [
-      { name: 'children', type: 'ReactNode', description: 'The rows. Each needs a `data-row-key` matching `rowKeys`.' },
-      { name: 'rowKeys', type: 'readonly string[]', description: 'The keys in DOM order, which is how the move is measured.' },
-      { name: 'ready', type: 'boolean', description: 'Arms the animation. Rows arriving before this settle instantly.' },
-      { name: 'resetKey', type: 'string', description: 'Changing it replaces the view, so the rows settle instead of sliding.' },
-      { name: 'className', type: 'string', description: 'Class for the list element. Required.' },
-      { name: 'role', type: 'AriaRole', description: 'The list\'s role, when the rows are not a plain list.' },
-      { name: 'label', type: 'string', description: 'The list\'s accessible name.' },
-    ],
-  },
-  {
-    id: 'zoom-controls',
-    name: 'ZoomControls',
-    summary: 'The document zoom cluster: a stepper, an exact-size menu, and a fit-to-width action.',
-    file: '@deepseek-ai/dsh-client-ui-primitives/src/ZoomControls.tsx',
-    Demo: ZoomControlsDemo,
-    props: [
-      { name: 'zoom', type: 'number', description: 'The current factor. The owner holds it.' },
-      { name: 'onZoom', type: '(zoom: number) => void', description: 'Receives the factor a press asks for.' },
-      { name: 'fit', type: '{ label, selected, onSelect }', description: 'The fit-to-width action, and whether it is the current mode.' },
-      { name: 'labels', type: 'DocumentZoomLabels', description: 'Every string the control draws. Required: the component owns no copy.' },
-      { name: 'visible', type: 'boolean', description: 'Whether the cluster is drawn at all.' },
-      { name: 'onActiveChange', type: '(active: boolean) => void', description: 'Reports whether the menu is open, so the owner can dim the page.' },
-      { name: 'className', type: 'string', description: 'Extra class for layout placement.' },
     ],
   },
 ]

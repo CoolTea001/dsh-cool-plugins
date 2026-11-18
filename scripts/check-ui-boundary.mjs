@@ -12,14 +12,15 @@
  *      the API description back in the plugin: five hand-written ambient `.d.ts`
  *      files (829 lines) used to describe "the subset this plugin uses", and two
  *      of them already disagreed about `Button`'s variants. The declarations are
- *      gone; `@dsh-cool/ui` is the one place allowed to name that module.
+ *      gone; `@dsh-cool/ui` is the one place allowed to name that module for a
+ *      plugin, and `@dsh-cool/icons` the one place allowed to name it for icons.
  *
- *   2. A published `.d.ts` mentioning a workspace package. `@dsh-cool/ui` is
- *      private and source-only, so a declaration emitted with an
- *      `import ... from '@dsh-cool/ui'` in it is a file npm consumers cannot
- *      resolve — the package installs, then fails to typecheck for the reader.
- *      This is checked against the built output, not the source, because the
- *      source is allowed to import it: the build is what ships.
+ * 2. A published `.d.ts` mentioning a workspace package. `@dsh-cool/ui` and
+ *    `@dsh-cool/icons` are private and source-only, so a declaration emitted
+ *    with an `import ... from '@dsh-cool/ui'` in it is a file npm consumers
+ *    cannot resolve — the package installs, then fails to typecheck for the
+ *    reader. This is checked against the built output, not the source, because
+ *    the source is allowed to import it: the build is what ships.
  *
  * A third check is about the house style rather than the module graph: no plugin
  * draws an ad-hoc `<svg>` and no stylesheet names a literal colour. Icons come
@@ -28,11 +29,30 @@
 import { globSync, readFileSync } from 'node:fs'
 import { relative } from 'node:path'
 
-/** The one package allowed to import the shell's primitives module. */
-const PRIMITIVES_OWNER = 'packages/ui/'
+/**
+ * The packages allowed to import the shell's primitives module.
+ *
+ * `packages/ui` re-exports the controls with their real types; `packages/icons`
+ * re-exports the icon half of the same package as `@dsh-cool/icons/shell`, so a
+ * plugin can reach both icon collections through one dependency. A plugin is
+ * never on this list: it imports one of the two, not the shell module.
+ */
+const PRIMITIVES_OWNERS = ['packages/ui/', 'packages/icons/']
 
 /** The module that must not be imported anywhere else. */
 const PRIMITIVES_MODULE = '@deepseek-ai/dsh-client-ui-primitives'
+
+/** A statement that loads the primitives module, as opposed to naming it. */
+const IMPORT_OF_PRIMITIVES = new RegExp(
+  String.raw`(?:^|\n)\s*(?:import|export)\b[^;\n]*?from\s*['"]${PRIMITIVES_MODULE.replace(/[/.]/g, '\\$&')}['"]`,
+  'g',
+)
+
+/** A `require(...)` or dynamic `import(...)` of the primitives module. */
+const REQUIRE_OF_PRIMITIVES = new RegExp(
+  String.raw`\b(?:require|import)\s*\(\s*['"]${PRIMITIVES_MODULE.replace(/[/.]/g, '\\$&')}['"]`,
+  'g',
+)
 
 /** Build outputs a published package ships; declarations are what consumers read. */
 const PUBLISHED_TYPES = ['plugins/*/lib/types/**/*.d.ts']
@@ -47,14 +67,27 @@ function fail(file, message) {
   failures.push(`${relative(process.cwd(), file)}: ${message}`)
 }
 
-// 1. Exactly one importer of the shell primitives.
-for (const file of globSync('plugins/*/src/**/*.{ts,tsx}')) {
+// 1. Only the two owner packages name the shell primitives.
+//
+// Plugins are the case with history: they reach the module only through an
+// owner. The packages are scanned too, so a third owner cannot appear by
+// accident — an icon imported from the shell belongs in `@dsh-cool/icons/shell`,
+// not in a second re-export.
+for (const file of [
+  ...globSync('plugins/*/src/**/*.{ts,tsx}'),
+  ...globSync('packages/*/src/**/*.{ts,tsx}'),
+]) {
+  if (PRIMITIVES_OWNERS.some((owner) => file.startsWith(owner))) continue
   const source = readFileSync(file, 'utf8')
-  if (!source.includes(`'${PRIMITIVES_MODULE}'`) && !source.includes(`"${PRIMITIVES_MODULE}"`)) continue
+  // Match a real module reference, not the bare name: the build preset lists the
+  // specifier in its seed table as a string, which is a fact about the runtime
+  // module table rather than an import.
+  const references = [...source.matchAll(IMPORT_OF_PRIMITIVES), ...source.matchAll(REQUIRE_OF_PRIMITIVES)]
+  if (references.length === 0) continue
   fail(
     file,
     `imports ${PRIMITIVES_MODULE} directly — import it from '@dsh-cool/ui' instead, `
-      + 'so the API description stays in one place',
+      + "or an icon from '@dsh-cool/icons/shell', so the API description stays in one place",
   )
 }
 
