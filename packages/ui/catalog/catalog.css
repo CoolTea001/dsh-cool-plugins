@@ -1,0 +1,661 @@
+/**
+ * The catalog's own chrome: a header, a sidebar, a preview panel.
+ *
+ * It is deliberately quiet, and it borrows the shell's tokens rather than
+ * inventing a palette — the page's subject is the components, and chrome that
+ * competed with them would make a preview of a quiet control look like a preview
+ * of a busy one. There is no dark appearance: `tokens.css` carries the light
+ * values only, so the page has exactly one.
+ *
+ * Three regions, one grid. The header is fixed height, the sidebar is a fixed
+ * width with its own scroll, and the preview is the only thing that grows. That
+ * arrangement is what lets a component's preview be taller than the window
+ * without the sidebar scrolling out from under the reader.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* The page draws itself from the shell's own type scale and surface rules.
+   Three things were not true before this and are what "the same design language
+   as DSH" means here:
+
+   1. **Sizes come from the scale, not from numbers.** Every size below is one of
+      the shell's steps — 11 / 12 / 13 / 14 / 16 / 20 / 24 — written as its
+      composite `font:` shorthand so the line height and family come with it.
+      The page body is `--dsw-font-s-14`; a tile caption is `--dsw-font-xs-13`.
+   2. **Borders are hairlines.** The shell draws 0.5px, and a page next to it that
+      drew 1px reads as a different product.
+   3. **Surfaces curve on a superellipse.** `--dsw-corner-shape` is the profile
+      every rounded surface in the shell uses. */
+:root {
+  color-scheme: light;
+  font-family: var(--dsw-font-family);
+  font: var(--dsw-font-s-14);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* `corner-shape` does not inherit, so it takes the universal selector the way
+   the shell's own corner-shape sheet applies it. Engines without support keep
+   their circular corners; the declaration is simply ignored. */
+@supports (corner-shape: superellipse(1.5)) {
+  *,
+  *::before,
+  *::after {
+    corner-shape: var(--dsw-corner-shape, round);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+code {
+  font-family: var(--ds-font-family-code);
+}
+
+.catalog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Headings keep the browser's outline role but not its default scale: an
+   untouched `h1` would arrive at 32px and `h2` at 24px, neither of which belongs
+   on a page whose body is 14px. `h1` takes the body size — the brand in the
+   header is a wordmark, not a section title. `h2` is the entry's name and the
+   one heading a reader scans for, so it takes the pairing the shell gives a
+   section title of its own (`AgentPresetSection`): 18px at weight 600. That
+   step is not one of the composite tokens — the scale stops at 16 and resumes at
+   20 — and the shell states it the same way, as a bare size and weight. */
+h1 {
+  font: inherit;
+}
+
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+/* ---------- 1. The header ---------- */
+
+.topbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-height: 56px;
+  /* The same 20px the sidebar's entries start at: the title sits above that
+     column, so a 24px gutter would step 4px right of everything it heads. */
+  padding: 0 20px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+/* One line of type whose two parts differ in size, so the bar centres the pair
+   while the pair baselines internally. Centring each part on its own would drop
+   the shorter one by half the size difference; leaving the pair uncentred — the
+   first version — put both against the top edge of a 56px bar and left the
+   space below them reading as a broken header. */
+.topbar-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-s-strong-14);
+  white-space: nowrap;
+}
+
+.brand-meta {
+  margin: 0;
+  color: var(--dsw-alias-label-caption);
+  font-family: var(--ds-font-family-code);
+  font: var(--dsw-font-xxs-strong-12);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- 2. The body: sidebar and preview ---------- */
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 24px;
+  width: 216px;
+  padding: 20px 12px 32px;
+  overflow-y: auto;
+  border-right: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-item {
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.nav-item:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.nav-item[aria-current='page'] {
+  background: var(--dsw-alias-button-ghost-active-fill);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.nav-item:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+/* ---------- 3. The preview panel ---------- */
+
+.preview {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px 64px;
+  overflow-y: auto;
+}
+
+.preview-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 72ch;
+  padding-bottom: 20px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.preview-title {
+  margin: 0;
+}
+
+.preview-summary {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  text-wrap: pretty;
+}
+
+.preview-file {
+  margin: 0;
+  color: var(--dsw-alias-label-caption);
+  /* The code stack replaces the shorthand's text stack; the size and line
+     height come from the scale. */
+  font: var(--dsw-font-xs-13);
+  font-family: var(--ds-font-family-code);
+  word-break: break-all;
+}
+
+/* ---------- The variants grid ---------- */
+
+/* The grid is a width scale with a ceiling: three minimums, one per `TileSize`,
+   and never more than three tiles across. A demo picks the minimum its component
+   needs — a tag reads fine in a narrow tile, a group of three buttons does not —
+   and the row fills from there.
+
+   The three-per-row cap is the `max()` in the track minimum: a fourth tile would
+   need `(100% - 3 × gap) / 4`, which is always below the third-of-the-row floor,
+   so `auto-fit` stops at three no matter how wide the window gets. Without the
+   cap a wide window spread four or five narrow tiles across and the samples read
+   as a strip of unrelated fragments rather than a grid. Beyond three, tiles wrap
+   onto the next row.
+
+   The floor half of that `max()` keeps the row readable on a narrow window: the
+   `--tile-min` for the demo's size still wins when a third of the row would be
+   thinner than the demo's own content needs, so a large preview drops to two
+   columns before it squeezes a three-segment strip. The floor stays below a
+   third of a typical desktop preview — the `lg` floor is the widest one and it
+   still fits three across at a 1280px window — because a size that flipped some
+   entries to two columns while their neighbours kept three made the page's grid
+   change shape from one entry to the next.
+
+   `auto-fit` (not `auto-fill`) matters at the end of a row: a demo with two
+   samples gets two wide tiles rather than two narrow ones and a gap. */
+.variants {
+  --variants-gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(var(--tile-min), calc((100% - (2 * var(--variants-gap))) / 3)), 1fr)
+  );
+  gap: var(--variants-gap);
+  padding: 22px 0 4px;
+}
+
+.variants[data-size='sm'] {
+  --tile-min: 228px;
+}
+
+.variants[data-size='md'] {
+  --tile-min: 280px;
+}
+
+.variants[data-size='lg'] {
+  --tile-min: 320px;
+}
+
+.variant {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 18px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-md);
+}
+
+/* A whole-row tile: a sample that needs the width to mean anything — a field, a
+   tab strip, a group with a control beside it. It keeps the row's height, since
+   the sample is laid out from the left edge (see `.variant[data-span]
+   .variant-sample`) rather than centred in it. */
+.variant[data-span] {
+  grid-column: 1 / -1;
+}
+
+.variant-sample {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  min-width: 0;
+}
+
+/* A sample that scrolls or drops down needs a box with a height to mean it. */
+.variant[data-tall] .variant-sample {
+  min-height: 168px;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* A full-width sample is one that needs the room — a field, a tab strip, a
+   dialog trigger row. Centring it would draw the component narrower than the
+   space it was given, which is the one thing such a sample is there to show. */
+.variant[data-span] .variant-sample {
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-direction: column;
+}
+
+.variant-label {
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xxs-12);
+  font-family: var(--ds-font-family-code);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* A full-width sample is laid out left-aligned, and its caption follows the
+   sample: a centred caption under a row that starts at the left edge reads as
+   belonging to nothing. */
+.variant[data-span] > .variant-label {
+  text-align: left;
+}
+
+/* ---------- Demo scaffolding ---------- */
+
+.demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.demo-frame {
+  width: 100%;
+  /* Wide enough for a three-segment strip to read as a strip, narrow enough
+     that it does not look like the page's own tab bar. */
+  max-width: 460px;
+}
+
+.demo-tabs {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* The scroll panels: a box taller than its content, so the bar and the shade
+   have something to do. */
+.demo-panel {
+  width: 100%;
+  height: 148px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.demo-panel-wide {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.demo-list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.demo-list-row {
+  padding: 4px 8px;
+  border-radius: var(--dsw-radius-xs);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.demo-list-row:nth-child(even) {
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+/* The resizable-panel demo: the column and the pane beside it, inside a box the
+   drag may travel through. */
+.demo-split {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+}
+
+.demo-side {
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.demo-side-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.demo-side-width {
+  margin: 0;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xxs-12);
+  font-family: var(--ds-font-family-code);
+}
+
+.demo-main {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.demo-main p {
+  margin: 0;
+}
+
+/* The bare gesture: a box the handle sits on the edge of, which is all a
+   `ResizeHandle` needs — it owns no size of its own. */
+.demo-gesture {
+  display: flex;
+  align-items: stretch;
+  height: 96px;
+  overflow: hidden;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.demo-gesture-column {
+  flex-direction: column;
+}
+
+.demo-gesture-box {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xxs-12);
+  font-family: var(--ds-font-family-code);
+}
+
+.demo-gesture-box-row {
+  width: 100%;
+}
+
+.demo-gesture-rest {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---------- The props table ---------- */
+
+.props {
+  max-width: 100%;
+  padding-top: 28px;
+}
+
+/* Below the width at which four columns still read as a table, the table
+   scrolls sideways rather than dividing the panel into slivers. A type name is
+   one unbreakable token — `ButtonHTMLAttributes<ButtonElement>` — so squeezing
+   its column does not wrap it, it shatters it across four lines. The shell makes
+   the same trade for a wide markdown table: `overflow-x: auto` on the scroller,
+   never a narrower column. */
+.props-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* The props table borrows the shell's table pairing — a 13px body under a
+   500-weight header, both on a 22px line — because that is the table a reader
+   already knows from the product's own docs.
+
+   Three columns are a fixed width and one — the description — takes the rest.
+   The fixed three are the ones whose content is a single short token: a prop
+   name, a type expression, a default value. Sizing those by content made the
+   same column jump from entry to entry (a `className` row narrower than one
+   with `modalAutofocus`), so a reader flipping between entries watched the
+   table rearrange itself. Fixed widths keep the grid still.
+
+   `table-layout: fixed` is what makes the widths authoritative: under the
+   default auto layout a declared width is only a suggestion the content can
+   overrule. The `min-width` below is the fixed three plus a usable description,
+   and it is what the scroller scrolls past at a narrow window. */
+.props-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+  font: var(--dsw-font-xs-13);
+}
+
+/* Column widths live on the header row, which is the row `table-layout: fixed`
+   reads them from. Name is wide enough for the longest prop in the catalog
+   (`modalAutofocus`) with room to spare; Type fits a wrapped
+   `InputHTMLAttributes<HTMLInputElement>`; Default holds a quoted literal. */
+.props-table thead th {
+  padding: 0 12px 8px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-strong-13);
+}
+
+.props-table thead th:nth-child(1) {
+  width: 180px;
+}
+
+.props-table thead th:nth-child(3) {
+  width: 260px;
+}
+
+.props-table thead th:nth-child(4) {
+  width: 110px;
+}
+
+/* Every cell centres on the row's tallest one. A row is three short cells and
+   one that may wrap to three lines; top-aligning them left the name, the type
+   and the default pinned to the first line while the reader was looking at the
+   middle of the description. */
+.props-table tbody th,
+.props-table tbody td {
+  padding: 9px 12px 9px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  vertical-align: middle;
+}
+
+.props-table tbody th {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.props-table tbody td {
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The description is prose and takes whatever the three fixed columns leave. */
+.props-description {
+  text-wrap: pretty;
+}
+
+/* A type expression is one long token in places — `InputHTMLAttributes<
+   HTMLInputElement>` — so it wraps at the column edge instead of overflowing
+   it. The column states the width; the cell does not cap it a second time. */
+.props-type {
+  display: inline-block;
+  color: var(--dsw-alias-state-business-primary);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.props-table tbody td:last-child {
+  white-space: nowrap;
+}
+
+.props-none {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.empty {
+  padding: 48px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* ---------- Narrow windows ---------- */
+
+@media (max-width: 760px) {
+  .body {
+    flex-direction: column;
+  }
+
+  /* A sidebar below the header keeps its column, because a row of seventeen
+     names would scroll sideways and hide most of them at once. It becomes a
+     wrapping row of chips instead: every entry stays reachable, and the bar
+     scrolls with the page rather than inside the strip. */
+  .sidebar {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
+    width: 100%;
+    padding: 10px 16px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 0.5px solid var(--dsw-alias-border-l3);
+  }
+
+  .nav-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-item {
+    width: auto;
+  }
+
+  .preview {
+    padding: 20px 16px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item {
+    transition: none;
+  }
+}
+
+/* The panel demo resets its width the way the component draws it — by writing
+   the custom property — so the control is the demo's own, not a `Toggle` dressed
+   as a button. */
+.demo-reset {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-xs);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.demo-reset:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.demo-reset:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}

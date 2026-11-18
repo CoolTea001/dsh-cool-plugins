@@ -167,36 +167,28 @@ const FILES_CSS = [
   // Saving has no header state of its own: a draft is shown by the dot beside
   // its file in the tree, and the shortcut that writes it lives in the field.
   //
-  // The switch is the shell's `SegmentedTabs` (see `mode.tsx`), so only its box
-  // is set here: the track, the indicator's slide, the tab roles and the key walk
-  // all belong to the primitive. Its own metrics are a settings page's — 34px
-  // tabs in a 4px-padded track — while this head is 36px tall and the control in
-  // it is two glyphs, so the tabs come down to 20px: 28px of track, which sits in
-  // the head with air above and below it, as the sidebar's 24px icon buttons do.
+  // The switch is this repository's `ToggleGroup` in its square, icon-only shape
+  // (see `mode.tsx`), so only its box is set here. The pressed fill, the hover
+  // wash, the focus ring and the roving tab stop belong to the shared sheet,
+  // which `insertPluginStyles` writes *before* this one — so a plain class of
+  // this page still wins a tie without a doubled selector, and there is nothing
+  // to out-rank with `!important`.
   //
-  // The track's own height is deliberately not restated: it is the tabs plus that
-  // 4px padding, and the indicator's height is `track - 8px` — pinning the track
-  // to a number of its own would desynchronise the sliding pill from the tab it
-  // is meant to sit under. Only the tab box changes; the 4px inset the
-  // primitive computes its geometry from is left exactly as it sets it.
+  // `sm` is the 24px control size, which is the sidebar's own icon-button
+  // rhythm: the head is 36px tall, so a 24px square leaves the air above and
+  // below it that the tree's rows and the sidebar's buttons have. The glyph is
+  // 14px rather than the shared square's 16px, matching those rows, so the two
+  // answers read as parts of this page's chrome instead of as a toolbar dropped
+  // into the header.
   //
-  // The doubled class lifts these rules above the primitive's own single-class
-  // module selectors without `!important`, whatever order the sheets land in. The
-  // head centres it vertically already; `flex:none` keeps the path column from
-  // squeezing it, since this is the one control in the head that must stay whole.
-  '.dsh-cf-mode.dsh-cf-mode{flex:none}',
-  '.dsh-cf-mode.dsh-cf-mode [role=tab]{height:20px;padding:0 8px;font-size:11px;line-height:20px;gap:0}',
-  // Selecting a tab is not a headline: the shell bolds the pick because its own
-  // segmented controls sit on pages with room for it, while a 20px tab in a
-  // toolbar only jitters when the weight flips.
-  '.dsh-cf-mode.dsh-cf-mode [role=tab][aria-selected=true]{font-weight:500}',
-  // The glyph is the segment, so it carries the hover text (`mode.tsx`); the box
-  // around it only centres the icon in the tab.
-  '.dsh-cf-mode.dsh-cf-mode .dsh-cf-mode-glyph{display:inline-flex;align-items:center;justify-content:center}',
-  '.dsh-cf-mode.dsh-cf-mode svg{display:block;opacity:.85}',
-  // The word behind each icon: out of sight, still the tab's accessible name. A
-  // tab whose only child were a decorative glyph would have no name at all.
-  '.dsh-cf-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}',
+  // `flex:none` is load-bearing: the path column between the name and this
+  // control takes every pixel it can, and the one control in the head that must
+  // stay whole is this one.
+  '.dsh-cf-mode{flex:none}',
+  '.dsh-cf-mode svg{display:block;opacity:.85}',
+  // The pressed answer is the current file's view, so its glyph carries the
+  // full strength the pressed fill already gives its label.
+  '.dsh-cf-mode [aria-pressed=true] svg{opacity:1}',
   // A failed save is a notice above the body, not a replacement for it: the
   // draft is still there, and the reader decides whether to reload.
   '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',

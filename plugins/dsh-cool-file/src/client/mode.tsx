@@ -1,6 +1,6 @@
 /**
  * The preview/editor switch: what the Files tab does with the open file, and the
- * two-segment control in the preview header that picks it.
+ * two-button control in the preview header that picks it.
  *
  * The choice belongs to the reader, not to one file, so it is saved like the
  * hidden-entries toggle: the next visit opens in the mode this one was left in.
@@ -8,29 +8,36 @@
  * picture, or syntax-coloured source; `editor` keeps source and puts a caret in
  * it.
  *
- * The control is the shell's own `SegmentedTabs` (supplied by the platform — see
- * `neverBundle` in `tsdown.config.ts`, never inlined): the track, the sliding
- * indicator, the tab roles and the Left/Right/Home/End walk are the ones every
- * segmented control in the window has, so this one behaves like them instead of
- * approximating them. Only its box is this page's; the primitive is drawn at
- * settings-page size and the head it sits in is 36px tall (see the `.dsh-cf-mode`
- * rules in `styles.ts`).
+ * The control is this repository's own `ToggleGroup` in its square, icon-only
+ * shape: two 24px buttons carrying the eye and the pencil, the one in force
+ * filled with the shell's quiet selected-chip family. A row of icon buttons is
+ * what fits a 36px header whose path column has to keep the rest of the width,
+ * and the group is what makes the pair one control rather than two: one tab
+ * stop for the row, arrow keys that move focus between the two, Enter and Space
+ * to choose — instead of two separate stops a keyboard reader has to cross.
  *
- * A file that cannot be edited gets no control at all. A disabled Editor segment
- * would advertise a choice the file refuses, and a lone Preview segment would
+ * The pair is not a tablist, and the pane below is not a tabpanel. The two
+ * buttons describe *what the pane does* with one file rather than two panels of
+ * which one is hidden, so `aria-pressed` on a button is the honest state and a
+ * `tab`/`tabpanel` pairing would promise a structure the page does not have.
+ * That is also why the pane is named as a region of its own (see `files.tsx`):
+ * nothing points at it any more, so it has to carry its own name.
+ *
+ * A file that cannot be edited gets no control at all. A disabled Editor button
+ * would advertise a choice the file refuses, and a lone Preview button would
  * only restate what the pane already shows; the saved preference survives either
  * way and applies again at the next file that can honour it, so nothing is lost
  * by drawing nothing here.
  *
- * The two segments are icons, not words, which is what fits the head: the word
- * each one stands for is drawn out of sight inside its tab (`dsh-cf-sr`) rather
- * than dropped, because a tab whose only child is a decorative glyph has no
- * accessible name at all.
+ * Pressing the pressed button does not clear the group. A file is always drawn
+ * one way or the other, so "neither" is not a state this page can show — the
+ * group is built `deselectable={false}` and the `null` its callback allows is
+ * dropped rather than stored.
  */
 
-import type { ReactElement, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { IconEdit, IconEye } from '@dsh-cool/icons'
-import { SegmentedTabs, type SegmentedTab } from '@dsh-cool/ui'
+import { ToggleGroup, type ToggleGroupItem } from '@dsh-cool/ui'
 import type { Translate } from './locales.js'
 
 /** What the page does with the open file. */
@@ -38,20 +45,6 @@ export type FilesMode = 'preview' | 'editor'
 
 /** Where the page remembers that choice. */
 const MODE_KEY = 'dsh-cool-file.mode.v1'
-
-/**
- * The id of the pane a switch's tabs control, derived from the switch's own id.
- *
- * The two halves of the page sit in different modules, and a tab's `aria-controls`
- * must name the element the header is beside rather than one each half spells out
- * for itself.
- *
- * @param id - the id the page gave the switch.
- * @returns the id its pane carries.
- */
-export function modePanelId(id: string): string {
-  return `${id}-panel`
-}
 
 /**
  * The saved mode; `preview` until the reader says otherwise.
@@ -83,42 +76,14 @@ export function writeMode(mode: FilesMode): void {
   }
 }
 
-/**
- * One segment's contents: the glyph the reader sees, and the word they do not.
- *
- * The word is drawn out of sight rather than dropped, because a tab whose only
- * child is a decorative glyph has no accessible name at all.
- *
- * The glyph carries a native `title` so a pointer resting on it still names the
- * segment, the same hover text the sidebar's own icon buttons carry — and it is
- * `aria-hidden` for a reason that is easy to miss: an element with a `title` but
- * no name of its own *contributes that title* when a parent's name is computed
- * from its contents, so leaving it visible to assistive technology would name
- * this tab "Preview Preview". Hidden, the tooltip still shows under the pointer
- * while the button's accessible name stays the single word inside `dsh-cf-sr`.
- *
- * @param props - the glyph and the localized word it stands for.
- * @returns the tab's contents.
- */
-function TabLabel({ icon, text }: { readonly icon: ReactElement; readonly text: string }): ReactElement {
-  return (
-    <>
-      <span className="dsh-cf-mode-glyph" title={text} aria-hidden="true">
-        {icon}
-      </span>
-      <span className="dsh-cf-sr">{text}</span>
-    </>
-  )
-}
-
 /** Props of the header's mode switch. */
 interface ModeSwitchProps {
   /**
    * The mode the page is actually drawing in.
    *
    * Not necessarily the saved preference: a file that cannot be edited is drawn
-   * as a preview whatever the preference says, and this is what the selected
-   * segment names — so the control always describes the pane under it.
+   * as a preview whatever the preference says, and this is what the pressed
+   * button names — so the control always describes the pane under it.
    */
   readonly mode: FilesMode
   /** Called with the mode the reader picked. */
@@ -129,13 +94,6 @@ interface ModeSwitchProps {
    * False for a picture: it has no source to edit, so the switch is not drawn.
    */
   readonly editable: boolean
-  /**
-   * The id this switch hangs its tabs and pane on.
-   *
-   * Owned by the page rather than by this module, because the pane — the element
-   * the tabs point at — is rendered by the page.
-   */
-  readonly id: string
   /** The page's translate seat. */
   readonly t: Translate
 }
@@ -144,46 +102,45 @@ interface ModeSwitchProps {
  * The header's Preview/Editor switch.
  *
  * @param props - the effective mode, the picker, whether the file is editable,
- *   the id the tabs and pane share, and the copy.
- * @returns the shell's segmented control, or nothing when the file cannot be
- *   edited.
+ *   and the copy.
+ * @returns the square icon group, or nothing when the file cannot be edited.
  */
-export function ModeSwitch({
-  mode,
-  onSelect,
-  editable,
-  id,
-  t,
-}: ModeSwitchProps): ReactNode {
-  const panelId = modePanelId(id)
+export function ModeSwitch({ mode, onSelect, editable, t }: ModeSwitchProps): ReactNode {
   if (!editable) return null
 
-  // Both segments name the same pane: the file is one subject drawn two ways, so
-  // the pane is one live panel whose content the tabs swap, not two panels of
-  // which one is hidden. Declaring the pair keeps every `aria-controls` this
-  // primitive writes pointing at an element that exists.
-  const items: readonly [SegmentedTab<FilesMode>, ...SegmentedTab<FilesMode>[]] = [
+  // Both buttons are glyphs, so each one carries its own accessible name: a
+  // button whose only child is a decorative 16px icon announces as "button",
+  // pressed or not, and inside a named group that is all a reader would hear
+  // around it. The same words are the hover text, because a 14px eye is a
+  // guess until the pointer rests on it.
+  const items: readonly ToggleGroupItem<FilesMode>[] = [
     {
       value: 'preview',
-      label: <TabLabel icon={<IconEye size={13} />} text={t('mode.preview')} />,
-      id: `${id}-preview`,
-      panelId,
+      ariaLabel: t('mode.preview'),
+      title: t('mode.preview'),
+      icon: <IconEye size={14} />,
     },
     {
       value: 'editor',
-      label: <TabLabel icon={<IconEdit size={13} />} text={t('mode.editor')} />,
-      id: `${id}-editor`,
-      panelId,
+      ariaLabel: t('mode.editor'),
+      title: t('mode.editor'),
+      icon: <IconEdit size={14} />,
     },
   ]
 
   return (
-    <SegmentedTabs
+    <ToggleGroup<FilesMode>
       className="dsh-cf-mode"
-      label={t('mode.label')}
+      type="single"
       items={items}
+      label={t('mode.label')}
+      size="sm"
+      square
+      // A file is drawn one way or the other; pressing the pressed button must
+      // not ask for "neither", and the null the group may report is dropped.
+      deselectable={false}
       value={mode}
-      onChange={onSelect}
+      onChange={(next) => { if (next !== null) onSelect(next) }}
     />
   )
 }

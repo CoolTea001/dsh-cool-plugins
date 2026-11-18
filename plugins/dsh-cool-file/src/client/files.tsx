@@ -47,7 +47,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -65,7 +64,7 @@ import { ImageView } from './image.js'
 import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
 import type { Translate } from './locales.js'
 import { MarkdownPreview } from './markdown.js'
-import { ModeSwitch, modePanelId, readMode, writeMode, type FilesMode } from './mode.js'
+import { ModeSwitch, readMode, writeMode, type FilesMode } from './mode.js'
 import { rawImageUrl } from './raw.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
@@ -431,18 +430,6 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const [fileLoading, setFileLoading] = useState(() => restored?.selected != null)
   /** What the page does with the open file: preview it, or edit it. */
   const [mode, setMode] = useState<FilesMode>(readMode)
-  /**
-   * The id the mode switch's tabs and the body they control share.
-   *
-   * The tabs sit in the header and the panel is the body below it, so the id is
-   * made here, once, and handed down: the two halves cannot disagree about it, and
-   * two Files tabs open side by side still get distinct ids.
-   *
-   * React's own id carries colons (`:r1:`). They are legal in an HTML `id` and in
-   * the attribute references that name it, but they would make the value unusable
-   * in a selector, and this page's ids are worth being able to query.
-   */
-  const modeId = `dsh-cf-mode-${useId().replaceAll(':', '')}`
   /** Every file opened for editing, by workspace path. */
   const [docs, setDocs] = useState<Readonly<Record<string, EditorDoc>>>({})
   /** The unsaved drafts, by workspace path: a path present here is dirty. */
@@ -1437,7 +1424,6 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 mode={effectiveMode}
                 onSelect={changeMode}
                 editable={editable}
-                id={modeId}
                 t={t}
               />
             </header>
@@ -1472,10 +1458,11 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 image also carries the refresh epoch, because the browser fetches
                 a picture by address and would otherwise keep the cached one.
 
-                It is also the panel the mode switch controls — one panel whose
-                content the two tabs swap, which is why both tabs name this same
-                id. A file with no switch has no panel role either: a tabpanel
-                nothing points at would be a lie about the page's structure. */}
+                The switch above is a pressable pair rather than a tablist — the
+                two buttons say what this one pane does with the file, not which
+                of two panels is showing — so the pane names itself. Without a
+                name, a scroll region a keyboard reader lands in would only
+                announce "region". */}
             <PanelScroll
               className="dsh-cf-body"
               key={`${mode}:${selected}:${imageEpoch}`}
@@ -1487,18 +1474,13 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               direction={editing ? 'none' : 'y'}
               barOpacity={PANEL_BAR_OPACITY}
               data-editor={editing ? '' : undefined}
-              {...(editable
-                ? {
-                    id: modePanelId(modeId),
-                    role: 'tabpanel',
-                    // The preview holds nothing focusable, so the panel itself is
-                    // the tab stop that lets the arrow keys scroll it. The editor
-                    // does not get one: its field is already the stop, and a second
-                    // one in front of it would only be a step to walk past.
-                    ...(editing ? {} : { tabIndex: 0 }),
-                    'aria-labelledby': `${modeId}-${effectiveMode}`,
-                  }
-                : {})}
+              role="region"
+              aria-label={t('preview.pane')}
+              // The preview holds nothing focusable, so the panel itself is the
+              // tab stop that lets the arrow keys scroll it. The editor does not
+              // get one: its field is already the stop, and a second one in front
+              // of it would only be a step to walk past.
+              tabIndex={editing ? undefined : 0}
             >
               {kind === 'image' ? (
                 <ImageView

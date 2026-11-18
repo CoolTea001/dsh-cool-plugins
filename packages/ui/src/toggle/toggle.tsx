@@ -18,9 +18,12 @@
  * — a rule with a specificity this package cannot see. The result is a control
  * that is correct until the shell adds a variant rule, then quietly wins or
  * loses the cascade on hover. So the markup and the handful of metrics are
- * restated here, deliberately and in the open. They are the shell's control
- * scale — 36px/14px/12px radius at `md`, 28px/12px/8px at `sm` — so a toggle
- * still sits in a row of buttons without the row growing a second rhythm.
+ * restated here, deliberately and in the open.
+ *
+ * The metrics follow the shell's control sizes but take three steps rather than
+ * two — 24px, 28px and 32px — because a toggle usually has to match the row it
+ * sits in rather than stand on its own. `md` is the default and the step a
+ * settings row and a toolbar both land on.
  *
  * ## The pressed state is the attribute
  *
@@ -60,8 +63,22 @@ import {
 } from 'react'
 import { uiClass } from '../styles/inject.js'
 
-/** How tall a toggle is: the shell's own `md` and `sm` control sizes. */
-export type ToggleSize = 'md' | 'sm'
+/**
+ * How tall a toggle is.
+ *
+ * Three steps, not the shell's two: a toggle is often the one control in a
+ * toolbar or a table row that has to match a neighbour's height rather than set
+ * its own, and the shell's 36px/28px pair has nothing between it and a 24px row.
+ * The steps are 24px (`sm`), 28px (`md`, the default) and 32px (`lg`); each
+ * brings its own radius and type size so the three read as one family. All three
+ * are shorter than the shell's filled `Button`, which is deliberate — a toggle
+ * is a compact state control, not a page action.
+ *
+ * The type sizes are the shell scale's 11 / 12 / 13 steps, so a toggle and the
+ * shell control beside it are drawn from one scale rather than from this
+ * package's own three half-steps.
+ */
+export type ToggleSize = 'sm' | 'md' | 'lg'
 
 /** The unpressed appearance: a bare control, or one carrying a hairline. */
 export type ToggleVariant = 'ghost' | 'outline'

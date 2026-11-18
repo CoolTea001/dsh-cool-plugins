@@ -342,12 +342,18 @@ export const UI_CSS = [
 
   // 6. The toggle button and its group.
   //
-  // The metrics are the shell's own control scale — 36px with a 12px radius and
-  // 14px type at `md`, 28px with 8px and 12.5px at `sm` — so a toggle sits in a
-  // row of buttons without the row growing a second rhythm. They are stated here
-  // rather than borrowed from `Button` because the pressed state has to be ours:
-  // see the note in `toggle/toggle.tsx` about out-ranking the shell's own
-  // `:hover` rules from a stylesheet this package does not own.
+  // Three sizes — 24px (`sm`), 28px (`md`) and 32px (`lg`) — rather than the
+  // shell's two. A toggle is usually the one control that has to match the row
+  // it sits in (a 24px sidebar button, a 28px settings row, a 32px toolbar), so
+  // the size is a decision the caller makes rather than one the component takes
+  // from the shell's Button. `md` is the base rule; the other two override the
+  // five properties that change with height (box, padding, radius, type size and
+  // line height), so nothing drifts between them.
+  //
+  // The metrics are stated here rather than borrowed from `Button` because the
+  // pressed state has to be ours: see the note in `toggle/toggle.tsx` about
+  // out-ranking the shell's own `:hover` rules from a stylesheet this package
+  // does not own.
   //
   // Paint is keyed on `[aria-pressed=true]`, the attribute a screen reader reads,
   // so the visible state cannot drift from the announced one. The two fills are
@@ -359,13 +365,32 @@ export const UI_CSS = [
   // hover rule that matched both states would leave that fill winning or losing
   // on source order alone — the kind of tie that survives review and breaks on
   // the next edit.
-  `.${UI_PREFIX}-toggle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:none;gap:6px;height:36px;padding:0 14px;border:0;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:14px;line-height:22px;white-space:nowrap;cursor:pointer;transition:background-color .12s ease,color .12s ease}`,
-  `.${UI_PREFIX}-toggle[data-size=sm]{height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm);font-size:12.5px;line-height:18px}`,
+  //
+  // Radius shrinks with the box, because a 12px corner on a 24px button reads as
+  // a pill and a 4px corner on a 32px one reads as a chip. The three radii are
+  // the shell's own steps — `radius-xs`, `radius-sm`, `radius-md` — so a toggle's
+  // corner still rhymes with the panel beside it instead of introducing a
+  // fourth rounding in the same view.
+  // Type sizes come from the shell's own scale — 11, 12 and 13 for the three
+  // heights — written as the scale's split size and line-height tokens so a
+  // reader who raises the product's font size raises a toggle with it. The
+  // numbers before this said 11.5, 12.5 and 13: three sizes the shell does not
+  // have, which is how a control drawn beside a shell button ended up a
+  // half-pixel off its neighbour's type.
+  `.${UI_PREFIX}-toggle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:none;gap:6px;height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:var(--dsw-font-xxs-12-font-size,12px);line-height:var(--dsw-font-xxs-12-line-height,18px);white-space:nowrap;cursor:pointer;transition:background-color .12s ease,color .12s ease}`,
+  `.${UI_PREFIX}-toggle[data-size=sm]{height:24px;padding:0 8px;border-radius:var(--dsw-radius-xs,4px);font-size:var(--dsw-font-xxxs-11-font-size,11px);line-height:var(--dsw-font-xxxs-11-line-height,14px);gap:4px}`,
+  `.${UI_PREFIX}-toggle[data-size=lg]{height:32px;padding:0 12px;border-radius:var(--dsw-radius-md);font-size:var(--dsw-font-xs-13-font-size,13px);line-height:var(--dsw-font-xs-13-line-height,20px)}`,
   // An icon-only toggle is square, and the icon is the whole box: without this
   // the control keeps a labelled button's padding and reads as a wide box
-  // holding a small glyph.
-  `.${UI_PREFIX}-toggle[data-square]{width:36px;padding:0}`,
-  `.${UI_PREFIX}-toggle[data-size=sm][data-square]{width:28px}`,
+  // holding a small glyph. One rule per size keeps the box a square rather than
+  // a rectangle whose width was copied from the base size.
+  `.${UI_PREFIX}-toggle[data-square]{width:28px;padding:0}`,
+  `.${UI_PREFIX}-toggle[data-size=sm][data-square]{width:24px}`,
+  `.${UI_PREFIX}-toggle[data-size=lg][data-square]{width:32px}`,
+  // The glyph keeps one 16px box at every size: the three steps differ in the
+  // room around the icon, not in the icon itself, so a row of toggles at
+  // different sizes still draws its marks at one weight. Callers pass the glyph
+  // at whatever size suits it; the box is what centres it.
   `.${UI_PREFIX}-toggle-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none}`,
   // Hover and press move the fill only: a toggle that also changed its type
   // weight would make the row twitch as the pointer crosses it.

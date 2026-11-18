@@ -1,6 +1,6 @@
 /**
  * The preview/editor switch: what the Files tab does with the open file, and the
- * two-segment control in the preview header that picks it.
+ * two-button control in the preview header that picks it.
  *
  * The choice belongs to the reader, not to one file, so it is saved like the
  * hidden-entries toggle: the next visit opens in the mode this one was left in.
@@ -8,40 +8,36 @@
  * picture, or syntax-coloured source; `editor` keeps source and puts a caret in
  * it.
  *
- * The control is the shell's own `SegmentedTabs` (supplied by the platform — see
- * `neverBundle` in `tsdown.config.ts`, never inlined): the track, the sliding
- * indicator, the tab roles and the Left/Right/Home/End walk are the ones every
- * segmented control in the window has, so this one behaves like them instead of
- * approximating them. Only its box is this page's; the primitive is drawn at
- * settings-page size and the head it sits in is 36px tall (see the `.dsh-cf-mode`
- * rules in `styles.ts`).
+ * The control is this repository's own `ToggleGroup` in its square, icon-only
+ * shape: two 24px buttons carrying the eye and the pencil, the one in force
+ * filled with the shell's quiet selected-chip family. A row of icon buttons is
+ * what fits a 36px header whose path column has to keep the rest of the width,
+ * and the group is what makes the pair one control rather than two: one tab
+ * stop for the row, arrow keys that move focus between the two, Enter and Space
+ * to choose — instead of two separate stops a keyboard reader has to cross.
  *
- * A file that cannot be edited gets no control at all. A disabled Editor segment
- * would advertise a choice the file refuses, and a lone Preview segment would
+ * The pair is not a tablist, and the pane below is not a tabpanel. The two
+ * buttons describe *what the pane does* with one file rather than two panels of
+ * which one is hidden, so `aria-pressed` on a button is the honest state and a
+ * `tab`/`tabpanel` pairing would promise a structure the page does not have.
+ * That is also why the pane is named as a region of its own (see `files.tsx`):
+ * nothing points at it any more, so it has to carry its own name.
+ *
+ * A file that cannot be edited gets no control at all. A disabled Editor button
+ * would advertise a choice the file refuses, and a lone Preview button would
  * only restate what the pane already shows; the saved preference survives either
  * way and applies again at the next file that can honour it, so nothing is lost
  * by drawing nothing here.
  *
- * The two segments are icons, not words, which is what fits the head: the word
- * each one stands for is drawn out of sight inside its tab (`dsh-cf-sr`) rather
- * than dropped, because a tab whose only child is a decorative glyph has no
- * accessible name at all.
+ * Pressing the pressed button does not clear the group. A file is always drawn
+ * one way or the other, so "neither" is not a state this page can show — the
+ * group is built `deselectable={false}` and the `null` its callback allows is
+ * dropped rather than stored.
  */
 import type { ReactNode } from 'react';
 import type { Translate } from './locales.js';
 /** What the page does with the open file. */
 export type FilesMode = 'preview' | 'editor';
-/**
- * The id of the pane a switch's tabs control, derived from the switch's own id.
- *
- * The two halves of the page sit in different modules, and a tab's `aria-controls`
- * must name the element the header is beside rather than one each half spells out
- * for itself.
- *
- * @param id - the id the page gave the switch.
- * @returns the id its pane carries.
- */
-export declare function modePanelId(id: string): string;
 /**
  * The saved mode; `preview` until the reader says otherwise.
  *
@@ -63,8 +59,8 @@ interface ModeSwitchProps {
      * The mode the page is actually drawing in.
      *
      * Not necessarily the saved preference: a file that cannot be edited is drawn
-     * as a preview whatever the preference says, and this is what the selected
-     * segment names — so the control always describes the pane under it.
+     * as a preview whatever the preference says, and this is what the pressed
+     * button names — so the control always describes the pane under it.
      */
     readonly mode: FilesMode;
     /** Called with the mode the reader picked. */
@@ -75,13 +71,6 @@ interface ModeSwitchProps {
      * False for a picture: it has no source to edit, so the switch is not drawn.
      */
     readonly editable: boolean;
-    /**
-     * The id this switch hangs its tabs and pane on.
-     *
-     * Owned by the page rather than by this module, because the pane — the element
-     * the tabs point at — is rendered by the page.
-     */
-    readonly id: string;
     /** The page's translate seat. */
     readonly t: Translate;
 }
@@ -89,10 +78,9 @@ interface ModeSwitchProps {
  * The header's Preview/Editor switch.
  *
  * @param props - the effective mode, the picker, whether the file is editable,
- *   the id the tabs and pane share, and the copy.
- * @returns the shell's segmented control, or nothing when the file cannot be
- *   edited.
+ *   and the copy.
+ * @returns the square icon group, or nothing when the file cannot be edited.
  */
-export declare function ModeSwitch({ mode, onSelect, editable, id, t, }: ModeSwitchProps): ReactNode;
+export declare function ModeSwitch({ mode, onSelect, editable, t }: ModeSwitchProps): ReactNode;
 export {};
 //# sourceMappingURL=mode.d.ts.map

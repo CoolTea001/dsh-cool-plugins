@@ -22,16 +22,25 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "pnpm typecheck"
+    "check": "pnpm typecheck",
+    "dev:catalog": "vite --config vite.config.ts",
+    "build:catalog": "vite build --config vite.config.ts",
+    "preview:catalog": "vite preview --config vite.config.ts"
   },
   "peerDependencies": {
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.2-rc.3",
+    "@dsh-cool/icons": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.3.0",
+    "clsx": "^2.1.1",
     "react": "^18.3.1",
-    "typescript": "^6.0.3"
+    "react-dom": "^18.3.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8"
   }
 }

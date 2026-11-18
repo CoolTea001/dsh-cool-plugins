@@ -26,6 +26,7 @@ declare const en: {
     'mode.editor': string;
     'preview.empty': string;
     'preview.emptyHint': string;
+    'preview.pane': string;
     'preview.loading': string;
     'preview.lines': string;
     'preview.truncated': string;

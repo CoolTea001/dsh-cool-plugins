@@ -32,6 +32,7 @@ const en = {
 
   'preview.empty': 'Select a file to preview it',
   'preview.emptyHint': 'Files in this session’s workspace appear here.',
+  'preview.pane': 'File contents',
   'preview.loading': 'Reading file…',
   'preview.lines': '{count} lines',
   'preview.truncated': 'Showing the first {count} lines; the file continues.',
@@ -85,6 +86,7 @@ export const zh: typeof en = {
 
   'preview.empty': '选择一个文件以预览',
   'preview.emptyHint': '此处显示当前会话工作区中的文件。',
+  'preview.pane': '文件内容',
   'preview.loading': '正在读取文件…',
   'preview.lines': '{count} 行',
   'preview.truncated': '仅显示前 {count} 行，文件还有更多内容。',
