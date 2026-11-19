@@ -62,10 +62,11 @@ export function fetchFile(sessionId: string | undefined, path: string): Promise<
  *
  * @param sessionId - the session whose workspace is browsed, when known.
  * @param path - the file as a workspace path.
+ * @param purpose - copying does not impose the editor's smaller document cap.
  * @returns the text payload, with the freshness token a save must quote.
  */
-export function fetchText(sessionId: string | undefined, path: string): Promise<TextPayload> {
-  return postJson('/text', { sessionId, path })
+export function fetchText(sessionId: string | undefined, path: string, purpose: 'edit' | 'copy' = 'edit'): Promise<TextPayload> {
+  return postJson('/text', { sessionId, path, purpose })
 }
 
 /**

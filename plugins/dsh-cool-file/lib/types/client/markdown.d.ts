@@ -45,6 +45,8 @@ interface MarkdownPreviewProps {
     readonly text: string;
     /** The document's workspace path, which relative destinations resolve against. */
     readonly path: string;
+    /** Whether a source fallback wraps its long rows. */
+    readonly wrap: boolean;
     /** The session whose workspace holds the document, when known. */
     readonly sessionId: string | undefined;
     /**
@@ -72,6 +74,6 @@ export declare function isMarkdownTooLarge(text: string): boolean;
  * @param props - the text, its path, the workspace, and the page's copy.
  * @returns the rendered document.
  */
-export declare function MarkdownPreview({ text, path, sessionId, partial, onOpenFile, t, }: MarkdownPreviewProps): ReactElement;
+export declare function MarkdownPreview({ text, path, wrap, sessionId, partial, onOpenFile, t, }: MarkdownPreviewProps): ReactElement;
 export {};
 //# sourceMappingURL=markdown.d.ts.map

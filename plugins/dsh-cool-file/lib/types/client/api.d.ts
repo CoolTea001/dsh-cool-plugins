@@ -27,9 +27,10 @@ export declare function fetchFile(sessionId: string | undefined, path: string): 
  *
  * @param sessionId - the session whose workspace is browsed, when known.
  * @param path - the file as a workspace path.
+ * @param purpose - copying does not impose the editor's smaller document cap.
  * @returns the text payload, with the freshness token a save must quote.
  */
-export declare function fetchText(sessionId: string | undefined, path: string): Promise<TextPayload>;
+export declare function fetchText(sessionId: string | undefined, path: string, purpose?: 'edit' | 'copy'): Promise<TextPayload>;
 /**
  * Ask the Host to replace one workspace file with the editor's content.
  *

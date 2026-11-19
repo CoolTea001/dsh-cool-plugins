@@ -78,11 +78,8 @@ export { useModalLayer } from '@deepseek-ai/dsh-client-ui-primitives'
 export { useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
 export { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 
-// Two glyphs still taken from the shell rather than the local artwork: the
-// select caret the shell's own select uses, and the outline trash the native
-// Session menu uses. They come through `@dsh-cool/icons/shell`, which is the
-// one place a shell icon is named by name — this file re-exports the two it
-// hands to plugins so a plugin still has a single import for both sets.
+// Shell-native glyphs used by select and session controls, exposed through the
+// repository's icon package so plugins keep a single icon boundary.
 export {
   IconChevronDownOutlineRegular,
   IconTrashOutlineRegular,

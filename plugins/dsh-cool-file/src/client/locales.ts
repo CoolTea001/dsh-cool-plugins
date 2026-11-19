@@ -25,10 +25,18 @@ const en = {
 
   'action.refresh': 'Refresh',
   'action.toggleHidden': 'Show hidden files',
+  'action.more': 'More',
+  'action.copy': 'Copy',
+  'action.copied': 'Copied',
+  'action.copyFailed': 'Could not copy this file',
 
   'mode.label': 'View mode',
   'mode.preview': 'Preview',
   'mode.editor': 'Editor',
+  'mode.previewMode': 'Preview mode',
+  'mode.editorMode': 'Edit mode',
+  'wrap.on': 'Allow wrapping',
+  'wrap.off': 'Do not wrap lines',
 
   'preview.empty': 'Select a file to preview it',
   'preview.emptyHint': 'Files in this session’s workspace appear here.',
@@ -79,10 +87,18 @@ export const zh: typeof en = {
 
   'action.refresh': '刷新',
   'action.toggleHidden': '显示隐藏文件',
+  'action.more': '更多',
+  'action.copy': '复制',
+  'action.copied': '已复制',
+  'action.copyFailed': '无法复制该文件',
 
   'mode.label': '查看模式',
   'mode.preview': '预览',
   'mode.editor': '编辑',
+  'mode.previewMode': '预览模式',
+  'mode.editorMode': '编辑模式',
+  'wrap.on': '允许换行',
+  'wrap.off': '禁止换行',
 
   'preview.empty': '选择一个文件以预览',
   'preview.emptyHint': '此处显示当前会话工作区中的文件。',

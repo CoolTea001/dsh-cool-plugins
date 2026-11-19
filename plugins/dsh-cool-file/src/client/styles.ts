@@ -85,13 +85,13 @@ const FILES_CSS = [
   // would otherwise highlight under it.
   `.${FILES_ROOT_CLASS}[data-resizing],.${FILES_ROOT_CLASS}[data-resizing] *{user-select:none}`,
 
-  // 3. Sidebar chrome: one row, the workspace's name on the left and Refresh on
-  //    the right.
+  // 3. Sidebar chrome: one row, the workspace's name on the left and the tree's
+  //    More menu on the right.
   //
   // The tree names every folder it shows, so the header carries no path: there
   // is one workspace and one root level, and the name is what the reader needs
   // to know about the tree below it. The name is what gives ground when the
-  // sidebar is narrow; Refresh keeps its seat on the right.
+  // sidebar is narrow; the More control keeps its seat on the right.
   // Both column heads carry the section rule themselves and share one height, so
   // the seam runs straight across the page instead of stepping down a couple of
   // pixels at the boundary.
@@ -100,7 +100,6 @@ const FILES_CSS = [
   '.dsh-cf-side-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:11.5px;font-weight:600}',
   '.dsh-cf-icon-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}',
   '.dsh-cf-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
-  '.dsh-cf-icon-btn[aria-pressed=true]{color:var(--dsw-alias-label-primary)}',
   '.dsh-cf-icon-btn:disabled{opacity:.45;cursor:default}',
   '.dsh-cf-icon-btn svg{display:block;width:14px;height:14px}',
 
@@ -167,28 +166,17 @@ const FILES_CSS = [
   // Saving has no header state of its own: a draft is shown by the dot beside
   // its file in the tree, and the shortcut that writes it lives in the field.
   //
-  // The switch is this repository's `ToggleGroup` in its square, icon-only shape
-  // (see `mode.tsx`), so only its box is set here. The pressed fill, the hover
-  // wash, the focus ring and the roving tab stop belong to the shared sheet,
-  // which `insertPluginStyles` writes *before* this one — so a plain class of
-  // this page still wins a tie without a doubled selector, and there is nothing
-  // to out-rank with `!important`.
-  //
-  // `sm` is the 24px control size, which is the sidebar's own icon-button
-  // rhythm: the head is 36px tall, so a 24px square leaves the air above and
-  // below it that the tree's rows and the sidebar's buttons have. The glyph is
-  // 14px rather than the shared square's 16px, matching those rows, so the two
-  // answers read as parts of this page's chrome instead of as a toolbar dropped
-  // into the header.
+  // The More button shares the sidebar's icon-button rhythm. Its wrapper does
+  // not shrink: the path column takes every spare pixel, while this control
+  // stays whole at the right edge. The shared Menu owns the popup, selection
+  // checks, keyboard walk and focus return (see `mode.tsx`).
   //
   // `flex:none` is load-bearing: the path column between the name and this
   // control takes every pixel it can, and the one control in the head that must
   // stay whole is this one.
-  '.dsh-cf-mode{flex:none}',
-  '.dsh-cf-mode svg{display:block;opacity:.85}',
-  // The pressed answer is the current file's view, so its glyph carries the
-  // full strength the pressed fill already gives its label.
-  '.dsh-cf-mode [aria-pressed=true] svg{opacity:1}',
+  '.dsh-cf-mode{flex:none;display:inline-flex}',
+  '.dsh-cf-mode-trigger svg{display:block;opacity:.85}',
+  '.dsh-cf-mode-trigger[aria-expanded=true] svg{opacity:1}',
   // A failed save is a notice above the body, not a replacement for it: the
   // draft is still there, and the reader decides whether to reload.
   '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
@@ -212,11 +200,15 @@ const FILES_CSS = [
   // The rows are clipped by the pane and slid by the field's offset; they never
   // scroll or take the pointer themselves.
   '.dsh-cf-edit-pane .dsh-cf-code{position:absolute;inset:0;box-sizing:border-box;overflow:hidden;pointer-events:none;user-select:none;-webkit-user-select:none}',
-  '.dsh-cf-edit-pane .dsh-cf-code code{will-change:transform}',
+  '.dsh-cf-edit-pane .dsh-cf-code code{display:block;min-width:max-content;will-change:transform}',
+  '.dsh-cf-edit[data-wrap] .dsh-cf-code code{min-width:0}',
+  '.dsh-cf-edit[data-wrap] .dsh-cf-line{white-space:pre-wrap;overflow-wrap:anywhere}',
+  '.dsh-cf-edit[data-wrap] .dsh-cf-gutter-number{display:block;height:var(--dsh-cf-row-height)}',
   // The field's own glyphs are invisible: the coloured ones behind it are what
   // the reader sees. It still paints a caret, and a wash over the selection, so
   // the two marks it makes are the two a caret belongs to.
   '.dsh-cf-edit-input{position:absolute;inset:0;z-index:1;box-sizing:border-box;width:100%;height:100%;margin:0;padding:12px 16px 24px 8px;border:0;outline:0;resize:none;background:transparent;color:transparent;caret-color:var(--dsw-alias-brand-primary);font:inherit;line-height:inherit;tab-size:2;white-space:pre;overflow:auto}',
+  '.dsh-cf-edit[data-wrap] .dsh-cf-edit-input{white-space:pre-wrap;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere}',
   '.dsh-cf-edit-input::selection{background:rgba(110,150,255,.26);color:transparent}',
   '.dsh-cf-edit-input::selection{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 26%,transparent)}',
   // The body is the vertical scroller; the code block inside it owns the
@@ -242,13 +234,15 @@ const FILES_CSS = [
   // `tabular-nums` keeps the digits one width so the right edge does not wobble,
   // and `user-select:none` keeps a copied selection free of numbers.
   '.dsh-cf-gutter{flex:none;margin:0;padding:12px 8px 24px;overflow:hidden;text-align:right;white-space:pre;font-family:inherit;font-size:inherit;line-height:inherit;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary);opacity:.55;user-select:none;-webkit-user-select:none;pointer-events:none}',
-  // One row, one line of source. A fixed `height` is what pins the pitch: with
-  // `white-space:pre` a row never wraps, and with a fixed height it never grows,
-  // so row n always sits at `12px + 19.2px * n` — the same arithmetic the nth
-  // number follows in the gutter.
+  // With wrapping off, one source row is one fixed-height visual row. With it
+  // on, the code column owns its width and each row grows to fit its contents;
+  // the matching row-number elements are measured so the two columns stay aligned.
   '.dsh-cf-code{flex:1 1 auto;min-width:0;margin:0;padding:12px 16px 24px 8px;overflow-x:auto;overflow-y:hidden;font-family:inherit;font-size:inherit;line-height:inherit;tab-size:2;color:var(--shiki-foreground,var(--dsw-alias-label-primary))}',
   '.dsh-cf-code code{display:block;font:inherit;line-height:inherit;white-space:normal}',
-  `.dsh-cf-line{display:block;height:${CODE_LINE_HEIGHT}px;white-space:pre}`,
+  `.dsh-cf-line{display:block;min-height:${CODE_LINE_HEIGHT}px;white-space:pre}`,
+  '.dsh-cf-code-view[data-wrap] .dsh-cf-code{overflow-x:hidden}',
+  '.dsh-cf-code-view[data-wrap] .dsh-cf-line{white-space:pre-wrap;overflow-wrap:anywhere}',
+  '.dsh-cf-code-view[data-wrap] .dsh-cf-gutter-number{display:block;height:var(--dsh-cf-row-height)}',
   // Syntax colours are not styled here: the tokenizer emits the shell's
   // `--shiki-*` colours (and italic/bold/underline) inline on the spans it
   // builds (see `highlight.ts`), and only paints a token when it differs from

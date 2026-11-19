@@ -31,7 +31,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactElement,
 } from 'react'
-import { gutterBox } from './code.js'
+import { gutterBox, useWrappedRowHeights } from './code.js'
 import { highlightCode, plainCode } from './highlight.js'
 
 /** Props of the editor body. */
@@ -40,6 +40,8 @@ interface CodeEditorProps {
   readonly text: string
   /** The workspace path, which chooses the grammar. */
   readonly path: string
+  /** Whether long source lines wrap rather than scroll horizontally. */
+  readonly wrap: boolean
   /** Called with the complete text after any change. */
   readonly onChange: (value: string) => void
   /** Called for ⌘S / Ctrl+S. */
@@ -66,7 +68,7 @@ const INDENT = '  '
  * @param props - the draft, its sinks, and the field's name.
  * @returns the painted rows with a transparent field over them.
  */
-export function CodeEditor({ text, path, onChange, onSave, label }: CodeEditorProps): ReactElement {
+export function CodeEditor({ text, path, wrap, onChange, onSave, label }: CodeEditorProps): ReactElement {
   const painted = useMemo(
     () => (text.length > EDIT_HIGHLIGHT_CHARS ? plainCode(text) : highlightCode(text, path)),
     [text, path],
@@ -76,6 +78,7 @@ export function CodeEditor({ text, path, onChange, onSave, label }: CodeEditorPr
   const field = useRef<HTMLTextAreaElement>(null)
   const rows = useRef<HTMLElement>(null)
   const numbers = useRef<HTMLPreElement>(null)
+  useWrappedRowHeights(wrap, rows, numbers)
 
   // The field scrolls; the artwork follows it. Both are moved by transform
   // rather than by setting `scrollTop` on something, because neither is a
@@ -120,11 +123,17 @@ export function CodeEditor({ text, path, onChange, onSave, label }: CodeEditorPr
   }
 
   return (
-    <div className="dsh-cf-edit">
+    <div className="dsh-cf-edit" data-wrap={wrap ? '' : undefined}>
       {/* The same ruler the preview draws, translated by the same vertical
           offset, and hidden from assistive technology and from the pointer. */}
       <div className="dsh-cf-edit-gutter" aria-hidden="true" style={gutter.style}>
-        <pre ref={numbers} className="dsh-cf-edit-numbers">{gutter.text}</pre>
+        {wrap ? (
+          <pre ref={numbers} className="dsh-cf-edit-numbers">
+            {Array.from({ length: painted.lineCount }, (_, index) => (
+              <span className="dsh-cf-gutter-number" key={index}>{index + 1}</span>
+            ))}
+          </pre>
+        ) : <pre ref={numbers} className="dsh-cf-edit-numbers">{gutter.text}</pre>}
       </div>
       <div className="dsh-cf-edit-pane">
         {/* The row markup is this module's own output, built by `highlight.ts`:
@@ -143,7 +152,7 @@ export function CodeEditor({ text, path, onChange, onSave, label }: CodeEditorPr
           autoCapitalize="off"
           autoCorrect="off"
           autoComplete="off"
-          wrap="off"
+          wrap={wrap ? 'soft' : 'off'}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
           onScroll={sync}

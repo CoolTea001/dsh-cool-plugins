@@ -67,6 +67,8 @@ interface MarkdownPreviewProps {
   readonly text: string
   /** The document's workspace path, which relative destinations resolve against. */
   readonly path: string
+  /** Whether a source fallback wraps its long rows. */
+  readonly wrap: boolean
   /** The session whose workspace holds the document, when known. */
   readonly sessionId: string | undefined
   /**
@@ -101,6 +103,7 @@ export function isMarkdownTooLarge(text: string): boolean {
 export function MarkdownPreview({
   text,
   path,
+  wrap,
   sessionId,
   partial,
   onOpenFile,
@@ -180,7 +183,7 @@ export function MarkdownPreview({
         <div className="dsh-cf-truncated">
           {partial ? t('preview.markdownPartial') : t('preview.markdownLarge')}
         </div>
-        <CodePreview text={text} path={path} />
+        <CodePreview text={text} path={path} wrap={wrap} />
       </>
     )
   }

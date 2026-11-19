@@ -54,8 +54,8 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react'
-import { IconChevronRight, IconEye, IconEyeOff, IconFile, IconFolder, IconRotateCw } from '@dsh-cool/icons'
-import { PanelScroll, ResizablePanel, useComposerSeatSuppression } from '@dsh-cool/ui'
+import { IconChevronRight, IconFile, IconFolder } from '@dsh-cool/icons'
+import { PanelScroll, ResizablePanel, Toast, useComposerSeatSuppression, writeClipboard } from '@dsh-cool/ui'
 import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
 
 import { CodePreview } from './code.js'
@@ -64,7 +64,7 @@ import { ImageView } from './image.js'
 import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
 import type { Translate } from './locales.js'
 import { MarkdownPreview } from './markdown.js'
-import { ModeSwitch, readMode, writeMode, type FilesMode } from './mode.js'
+import { FileMenu, TreeMenu, readMode, readWrap, writeMode, writeWrap, type FilesMode } from './mode.js'
 import { rawImageUrl } from './raw.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
@@ -430,6 +430,12 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const [fileLoading, setFileLoading] = useState(() => restored?.selected != null)
   /** What the page does with the open file: preview it, or edit it. */
   const [mode, setMode] = useState<FilesMode>(readMode)
+  /** Whether long source rows wrap in both the preview and the editor. */
+  const [wrap, setWrap] = useState(readWrap)
+  /** Whether the last copy action succeeded, for short trigger feedback. */
+  const [copied, setCopied] = useState(false)
+  /** Copy outcomes live outside the menu, which closes as soon as Copy is chosen. */
+  const [copyNotice, setCopyNotice] = useState<{ readonly id: number; readonly text: string; readonly ok: boolean } | null>(null)
   /** Every file opened for editing, by workspace path. */
   const [docs, setDocs] = useState<Readonly<Record<string, EditorDoc>>>({})
   /** The unsaved drafts, by workspace path: a path present here is dirty. */
@@ -460,6 +466,21 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * generation belongs to a tree that is no longer on screen and is dropped.
    */
   const generation = useRef(0)
+  /** Owns the short-lived copy feedback so a closed page cannot be updated. */
+  const copyTimer = useRef<number | undefined>(undefined)
+  /** Changes on every copy request, so an older answer cannot report for a new file. */
+  const copyGeneration = useRef(0)
+  /** Latest selected file/session, read only when an awaited copy completes. */
+  const copyContext = useRef<{ path: string | null; sessionId: string | undefined }>({ path: selected, sessionId })
+  copyContext.current = { path: selected, sessionId }
+  useEffect(() => () => {
+    if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
+  }, [])
+  useEffect(() => {
+    copyGeneration.current += 1
+    setCopied(false)
+    setCopyNotice(null)
+  }, [selected, sessionId])
 
   // Layout effect, not a passive one: the composer seat is already in the tree
   // when this View mounts, and a passive effect would paint one frame of an
@@ -1066,6 +1087,54 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     writeMode(next)
   }, [])
 
+  /** Switch between wrapped and horizontally scrolling source rows. */
+  const changeWrap = useCallback((next: boolean): void => {
+    setWrap(next)
+    writeWrap(next)
+  }, [])
+
+  /** Copy the complete file, including an unsaved draft when one is on screen. */
+  const copyFile = useCallback((): void => {
+    if (selected === null || fileKindOf(selected) === 'image') return
+    const path = selected
+    const session = sessionId
+    const generation = copyGeneration.current + 1
+    copyGeneration.current = generation
+    setCopied(false)
+    setCopyNotice(null)
+    if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
+    const doc = docs[path]
+    const draft = drafts[path]
+    const available = mode === 'editor'
+      ? doc !== undefined && !doc.loading && doc.error === null ? draft ?? doc.text : undefined
+      : preview !== null && preview.eof ? preview.text : undefined
+    const current = (): boolean => generation === copyGeneration.current
+      && copyContext.current.path === path && copyContext.current.sessionId === session
+    const report = (text: string, ok: boolean): void => {
+      if (!current()) return
+      setCopied(ok)
+      setCopyNotice({ id: generation, text, ok })
+      if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
+      copyTimer.current = window.setTimeout(() => {
+        if (copyGeneration.current === generation) setCopied(false)
+      }, 3000)
+    }
+    void (async (): Promise<void> => {
+      let text = available
+      if (text === undefined) {
+        const answer = await fetchText(session, path, 'copy')
+        if (!answer.ok || answer.text === undefined) {
+          report(answer.error ?? t('error.read'), false)
+          return
+        }
+        text = answer.text
+      }
+      if (!current()) return
+      const success = await writeClipboard(text)
+      report(success ? t('action.copied') : t('action.copyFailed'), success)
+    })()
+  }, [docs, drafts, mode, preview, selected, sessionId, t])
+
   // A file opened in editor mode needs its whole text; reading it here rather
   // than in the switch keeps the choice instant and the read off the click path.
   // An image has no text to read for an editor, and the pane never offers the
@@ -1343,6 +1412,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       // selection lock follow the gesture without this View re-rendering.
       style={PAGE}
     >
+      {copyNotice === null ? null : (
+        <Toast
+          key={copyNotice.id}
+          text={copyNotice.text}
+          tone={copyNotice.ok ? 'success' : undefined}
+          onDone={() => {
+            setCopyNotice(current => current?.id === copyNotice.id ? null : current)
+          }}
+        />
+      )}
       {/* The sidebar's own right edge is the boundary its width is dragged by;
           the shared panel draws it, measures the column, and records the width
           it is left at. Everything inside stays this page's own chrome. */}
@@ -1358,26 +1437,13 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
           <div className="dsh-cf-side-title" title={workspaceName}>
             <span className="dsh-cf-side-name">{workspaceName}</span>
           </div>
-          <button
-            type="button"
-            className="dsh-cf-icon-btn"
-            aria-label={t('action.toggleHidden')}
-            aria-pressed={showHidden}
-            title={t('action.toggleHidden')}
-            onClick={toggleHidden}
-          >
-            {showHidden ? <IconEye /> : <IconEyeOff />}
-          </button>
-          <button
-            type="button"
-            className="dsh-cf-icon-btn"
-            aria-label={t('action.refresh')}
-            title={t('action.refresh')}
-            onClick={refresh}
-            disabled={directories['']?.loading === true}
-          >
-            <IconRotateCw />
-          </button>
+          <TreeMenu
+            showHidden={showHidden}
+            refreshing={directories['']?.loading === true}
+            onRefresh={refresh}
+            onToggleHidden={toggleHidden}
+            t={t}
+          />
         </div>
 
         {/* The tree is a `PanelScroll` rather than a plain box: the bar belongs to
@@ -1417,13 +1483,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                   {meta.bytes === undefined ? null : formatSize(meta.bytes)}
                 </span>
               )}
-              {/* Nothing for a picture: it has no source to edit, so a control
-                  here could only restate the pane. The saved preference is left
-                  alone and applies again at the next file that can honour it. */}
-              <ModeSwitch
+              <FileMenu
                 mode={effectiveMode}
-                onSelect={changeMode}
+                onSelectMode={changeMode}
                 editable={editable}
+                wrap={wrap}
+                onSelectWrap={changeWrap}
+                canCopy={editable}
+                canWrap={kind !== 'image' && (editing || kind !== 'markdown' || preview?.partial === true || fileError !== null)}
+                copied={copied}
+                onCopy={copyFile}
                 t={t}
               />
             </header>
@@ -1458,9 +1527,8 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 image also carries the refresh epoch, because the browser fetches
                 a picture by address and would otherwise keep the cached one.
 
-                The switch above is a pressable pair rather than a tablist — the
-                two buttons say what this one pane does with the file, not which
-                of two panels is showing — so the pane names itself. Without a
+                The More menu switches how this one pane draws the file rather
+                than selecting a tab panel, so the pane names itself. Without a
                 name, a scroll region a keyboard reader lands in would only
                 announce "region". */}
             <PanelScroll
@@ -1501,6 +1569,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                   <CodeEditor
                     text={draft ?? doc.text}
                     path={selected}
+                    wrap={wrap}
                     onChange={editDocument}
                     onSave={save}
                     label={selected}
@@ -1514,13 +1583,14 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 <MarkdownPreview
                   text={preview.text}
                   path={selected}
+                  wrap={wrap}
                   sessionId={sessionId}
                   partial={preview.partial === true}
                   onOpenFile={openDocumentAt}
                   t={t}
                 />
               ) : (
-                <CodePreview text={preview.text} path={selected} line={revealLine} />
+                <CodePreview text={preview.text} path={selected} wrap={wrap} line={revealLine} />
               )}
             </PanelScroll>
           </>

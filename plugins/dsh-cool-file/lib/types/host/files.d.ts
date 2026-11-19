@@ -46,9 +46,11 @@ export declare function readFile(ctx: any, sessionId: unknown, rawPath: unknown)
  * @param ctx - the Host plugin context.
  * @param sessionId - the session the page belongs to, when it named one.
  * @param rawPath - the file as a workspace path.
+ * @param purpose - editing retains the browser editor's cap; copying can read a
+ *   larger UTF-8 file because it never paints that file as an editable document.
  * @returns the text, or an `ok: false` answer.
  */
-export declare function readWholeFile(ctx: any, sessionId: unknown, rawPath: unknown): Promise<TextPayload>;
+export declare function readWholeFile(ctx: any, sessionId: unknown, rawPath: unknown, purpose?: 'edit' | 'copy'): Promise<TextPayload>;
 /**
  * The raw bytes of one workspace image, for the preview's `<img>`.
  *

@@ -1,146 +1,199 @@
 /**
- * The preview/editor switch: what the Files tab does with the open file, and the
- * two-button control in the preview header that picks it.
+ * The reader preferences and the two More menus: the file header's and the
+ * workspace tree's.
  *
- * The choice belongs to the reader, not to one file, so it is saved like the
- * hidden-entries toggle: the next visit opens in the mode this one was left in.
- * `preview` draws the file the way its kind is best read — a rendered document, a
- * picture, or syntax-coloured source; `editor` keeps source and puts a caret in
- * it.
+ * Preview/editor and wrap/no-wrap are two independent choices, so each selected
+ * row carries the shell's check. The header's menu replaces a pair of icon
+ * buttons that a 36px bar could not grow beside; the sidebar's does the same for
+ * Refresh and the hidden-entries eye, and its one check marks the eye as on.
  *
- * The control is this repository's own `ToggleGroup` in its square, icon-only
- * shape: two 24px buttons carrying the eye and the pencil, the one in force
- * filled with the shell's quiet selected-chip family. A row of icon buttons is
- * what fits a 36px header whose path column has to keep the rest of the width,
- * and the group is what makes the pair one control rather than two: one tab
- * stop for the row, arrow keys that move focus between the two, Enter and Space
- * to choose — instead of two separate stops a keyboard reader has to cross.
- *
- * The pair is not a tablist, and the pane below is not a tabpanel. The two
- * buttons describe *what the pane does* with one file rather than two panels of
- * which one is hidden, so `aria-pressed` on a button is the honest state and a
- * `tab`/`tabpanel` pairing would promise a structure the page does not have.
- * That is also why the pane is named as a region of its own (see `files.tsx`):
- * nothing points at it any more, so it has to carry its own name.
- *
- * A file that cannot be edited gets no control at all. A disabled Editor button
- * would advertise a choice the file refuses, and a lone Preview button would
- * only restate what the pane already shows; the saved preference survives either
- * way and applies again at the next file that can honour it, so nothing is lost
- * by drawing nothing here.
- *
- * Pressing the pressed button does not clear the group. A file is always drawn
- * one way or the other, so "neither" is not a state this page can show — the
- * group is built `deselectable={false}` and the `null` its callback allows is
- * dropped rather than stored.
+ * Both menus draw through the shell's `Menu`, which owns the anchored card, the
+ * keyboard walk, Escape, and focus return. Neither passes `compact`: the default
+ * row metrics are what the rest of this page's menus use.
  */
 
-import type { ReactNode } from 'react'
-import { IconEdit, IconEye } from '@dsh-cool/icons'
-import { ToggleGroup, type ToggleGroupItem } from '@dsh-cool/ui'
+import { useState, type ReactNode } from 'react'
+import { IconCheck, IconMoreHorizontal } from '@dsh-cool/icons'
+import { Menu, type MenuEntry } from '@dsh-cool/ui'
 import type { Translate } from './locales.js'
 
 /** What the page does with the open file. */
 export type FilesMode = 'preview' | 'editor'
 
-/** Where the page remembers that choice. */
+/** Where the page remembers the reading preferences. */
 const MODE_KEY = 'dsh-cool-file.mode.v1'
+const WRAP_KEY = 'dsh-cool-file.wrap.v1'
 
-/**
- * The saved mode; `preview` until the reader says otherwise.
- *
- * Preview is the safe default: it is what the tab did before the editor existed,
- * and it cannot change a file by being looked at.
- *
- * @returns the mode to open in.
- */
+/** Read the saved mode, defaulting to the non-mutating preview. */
 export function readMode(): FilesMode {
   try {
     return window.localStorage.getItem(MODE_KEY) === 'editor' ? 'editor' : 'preview'
   } catch {
-    /* storage unavailable: preview lasts for this page */
     return 'preview'
   }
 }
 
-/**
- * Save the reader's choice of mode.
- *
- * @param mode - the mode now active.
- */
+/** Remember the reader's preview/editor preference. */
 export function writeMode(mode: FilesMode): void {
   try {
     window.localStorage.setItem(MODE_KEY, mode)
   } catch {
-    /* storage unavailable: the choice lasts for this page */
+    /* Storage may be unavailable; the state still lasts for this mount. */
   }
 }
 
-/** Props of the header's mode switch. */
-interface ModeSwitchProps {
-  /**
-   * The mode the page is actually drawing in.
-   *
-   * Not necessarily the saved preference: a file that cannot be edited is drawn
-   * as a preview whatever the preference says, and this is what the pressed
-   * button names — so the control always describes the pane under it.
-   */
+/** Read whether long source lines wrap, which they do by default. */
+export function readWrap(): boolean {
+  try {
+    return window.localStorage.getItem(WRAP_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+/** Remember whether long source lines wrap. */
+export function writeWrap(wrap: boolean): void {
+  try {
+    window.localStorage.setItem(WRAP_KEY, wrap ? 'on' : 'off')
+  } catch {
+    /* Storage may be unavailable; the state still lasts for this mount. */
+  }
+}
+
+/**
+ * The More trigger both menus draw.
+ *
+ * One button rather than two copies, so the header and the sidebar cannot drift
+ * apart in size, hover, or the copied-state glyph. The parent owns the open flag
+ * and the click, because a menu's anchor is rendered in place by `Menu`.
+ */
+function MoreTrigger(props: {
+  readonly open: boolean
+  readonly label: string
+  readonly copied?: boolean
+  readonly disabled?: boolean
+  readonly onClick: () => void
+}): ReactNode {
+  const { open, label, copied = false, disabled = false, onClick } = props
+  return (
+    <button
+      type="button"
+      className="dsh-cf-icon-btn dsh-cf-mode-trigger"
+      aria-label={label}
+      title={label}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {copied ? <IconCheck size={16} /> : <IconMoreHorizontal size={16} />}
+    </button>
+  )
+}
+
+interface FileMenuProps {
   readonly mode: FilesMode
-  /** Called with the mode the reader picked. */
-  readonly onSelect: (mode: FilesMode) => void
-  /**
-   * Whether the open file can be edited at all.
-   *
-   * False for a picture: it has no source to edit, so the switch is not drawn.
-   */
   readonly editable: boolean
-  /** The page's translate seat. */
+  readonly wrap: boolean
+  readonly canCopy: boolean
+  readonly canWrap: boolean
+  readonly copied: boolean
+  readonly onSelectMode: (mode: FilesMode) => void
+  readonly onSelectWrap: (wrap: boolean) => void
+  readonly onCopy: () => void
+  readonly t: Translate
+}
+
+/** The header's More menu: how the pane draws the file, and copying it. */
+export function FileMenu(props: FileMenuProps): ReactNode {
+  const { mode, editable, wrap, canCopy, canWrap, copied, onSelectMode, onSelectWrap, onCopy, t } = props
+  const [open, setOpen] = useState(false)
+  const items: readonly MenuEntry[] = [
+    { id: 'mode-preview', label: t('mode.previewMode') },
+    { id: 'mode-editor', label: t('mode.editorMode'), disabled: !editable },
+    { type: 'separator', id: 'wrap-separator' },
+    { id: 'wrap-on', label: t('wrap.on'), disabled: !canWrap },
+    { id: 'wrap-off', label: t('wrap.off'), disabled: !canWrap },
+    { type: 'separator', id: 'copy-separator' },
+    { id: 'copy', label: copied ? t('action.copied') : t('action.copy'), disabled: !canCopy },
+  ]
+  const selectedIds = [mode === 'editor' ? 'mode-editor' : 'mode-preview', wrap ? 'wrap-on' : 'wrap-off']
+
+  return (
+    <Menu
+      open={open}
+      className="dsh-cf-mode"
+      anchor={(
+        <MoreTrigger
+          open={open}
+          label={copied ? t('action.copied') : t('action.more')}
+          copied={copied}
+          onClick={() => setOpen(value => !value)}
+        />
+      )}
+      items={items}
+      selectedIds={selectedIds}
+      onSelect={(id) => {
+        setOpen(false)
+        if (id === 'mode-preview' || id === 'mode-editor') onSelectMode(id === 'mode-editor' ? 'editor' : 'preview')
+        else if (id === 'wrap-on' || id === 'wrap-off') onSelectWrap(id === 'wrap-on')
+        else if (id === 'copy') onCopy()
+      }}
+      onClose={() => setOpen(false)}
+      align="end"
+      side="bottom"
+    />
+  )
+}
+
+interface TreeMenuProps {
+  /** Whether entries the system hides are drawn, which the check marks. */
+  readonly showHidden: boolean
+  /** Whether a re-read of the root and every open branch is in flight. */
+  readonly refreshing: boolean
+  readonly onRefresh: () => void
+  readonly onToggleHidden: () => void
   readonly t: Translate
 }
 
 /**
- * The header's Preview/Editor switch.
+ * The workspace tree's More menu.
  *
- * @param props - the effective mode, the picker, whether the file is editable,
- *   and the copy.
- * @returns the square icon group, or nothing when the file cannot be edited.
+ * Refresh is a command and the eye is a checked option, so the two sit either
+ * side of one rule: the menu states the action once at the top and lets the
+ * check below say what the tree is currently doing. Refresh is disabled while the
+ * root is still being read, which is the same guard the button it replaced had.
  */
-export function ModeSwitch({ mode, onSelect, editable, t }: ModeSwitchProps): ReactNode {
-  if (!editable) return null
-
-  // Both buttons are glyphs, so each one carries its own accessible name: a
-  // button whose only child is a decorative 16px icon announces as "button",
-  // pressed or not, and inside a named group that is all a reader would hear
-  // around it. The same words are the hover text, because a 14px eye is a
-  // guess until the pointer rests on it.
-  const items: readonly ToggleGroupItem<FilesMode>[] = [
-    {
-      value: 'preview',
-      ariaLabel: t('mode.preview'),
-      title: t('mode.preview'),
-      icon: <IconEye size={14} />,
-    },
-    {
-      value: 'editor',
-      ariaLabel: t('mode.editor'),
-      title: t('mode.editor'),
-      icon: <IconEdit size={14} />,
-    },
+export function TreeMenu(props: TreeMenuProps): ReactNode {
+  const { showHidden, refreshing, onRefresh, onToggleHidden, t } = props
+  const [open, setOpen] = useState(false)
+  const items: readonly MenuEntry[] = [
+    { id: 'refresh', label: t('action.refresh'), disabled: refreshing },
+    { type: 'separator', id: 'hidden-separator' },
+    { id: 'toggle-hidden', label: t('action.toggleHidden') },
   ]
 
   return (
-    <ToggleGroup<FilesMode>
+    <Menu
+      open={open}
       className="dsh-cf-mode"
-      type="single"
+      anchor={(
+        <MoreTrigger
+          open={open}
+          label={t('action.more')}
+          onClick={() => setOpen(value => !value)}
+        />
+      )}
       items={items}
-      label={t('mode.label')}
-      size="sm"
-      square
-      // A file is drawn one way or the other; pressing the pressed button must
-      // not ask for "neither", and the null the group may report is dropped.
-      deselectable={false}
-      value={mode}
-      onChange={(next) => { if (next !== null) onSelect(next) }}
+      selectedIds={showHidden ? ['toggle-hidden'] : []}
+      onSelect={(id) => {
+        setOpen(false)
+        if (id === 'refresh') onRefresh()
+        else if (id === 'toggle-hidden') onToggleHidden()
+      }}
+      onClose={() => setOpen(false)}
+      align="end"
+      side="bottom"
     />
   )
 }

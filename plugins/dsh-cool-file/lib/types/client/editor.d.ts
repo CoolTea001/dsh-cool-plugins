@@ -29,6 +29,8 @@ interface CodeEditorProps {
     readonly text: string;
     /** The workspace path, which chooses the grammar. */
     readonly path: string;
+    /** Whether long source lines wrap rather than scroll horizontally. */
+    readonly wrap: boolean;
     /** Called with the complete text after any change. */
     readonly onChange: (value: string) => void;
     /** Called for ⌘S / Ctrl+S. */
@@ -50,6 +52,6 @@ export declare const EDIT_HIGHLIGHT_CHARS = 40000;
  * @param props - the draft, its sinks, and the field's name.
  * @returns the painted rows with a transparent field over them.
  */
-export declare function CodeEditor({ text, path, onChange, onSave, label }: CodeEditorProps): ReactElement;
+export declare function CodeEditor({ text, path, wrap, onChange, onSave, label }: CodeEditorProps): ReactElement;
 export {};
 //# sourceMappingURL=editor.d.ts.map

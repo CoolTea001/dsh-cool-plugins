@@ -9,7 +9,7 @@
  * they are siblings in the same scroller.
  *
  * Both columns are measured by the same rules (`styles.ts`): the same monospaced
- * font, the same 12px size and 19.2px line height, the same 12px top padding and
+ * font, the same 12px size and 21.6px line height, the same 12px top padding and
  * the same bottom padding. Every source row is a fixed-height block, and a number
  * is one line of the gutter's `<pre>`, so row *n* and number *n* start at the same
  * offset for every *n* — the two columns cannot accumulate a difference because
@@ -24,13 +24,17 @@
  * lives in `highlight.ts`; what it returns is escaped HTML — one block per row,
  * coloured tokens inside — plus the row count the gutter needs.
  */
-import { type CSSProperties, type ReactElement } from 'react';
+import { type CSSProperties, type ReactElement, type RefObject } from 'react';
+/** Keep wrapped source rows and their line numbers on the same baselines. */
+export declare function useWrappedRowHeights(wrap: boolean, rows: RefObject<HTMLElement | null>, gutter: RefObject<HTMLElement | null>): void;
 /** Props of the preview body. */
 interface CodePreviewProps {
     /** The file text exactly as the Host returned it. */
     readonly text: string;
     /** The workspace path, which chooses the grammar and names the scroll region. */
     readonly path: string;
+    /** Whether a long source line continues on the next visual row. */
+    readonly wrap: boolean;
     /**
      * The 1-based line to bring into view once drawn.
      *
@@ -48,7 +52,7 @@ interface CodePreviewProps {
  * into a scroll offset by multiplying. A rule and a multiplication that disagreed
  * by a pixel would drift by a handful of rows over a long file.
  */
-export declare const CODE_LINE_HEIGHT = 19.2;
+export declare const CODE_LINE_HEIGHT = 21.6;
 /**
  * The number column for a file of `lineCount` rows.
  *
@@ -70,6 +74,6 @@ export declare function gutterBox(lineCount: number): {
  * @param props - the text to draw and the path it came from.
  * @returns the code body.
  */
-export declare function CodePreview({ text, path, line }: CodePreviewProps): ReactElement;
+export declare function CodePreview({ text, path, wrap, line }: CodePreviewProps): ReactElement;
 export {};
 //# sourceMappingURL=code.d.ts.map

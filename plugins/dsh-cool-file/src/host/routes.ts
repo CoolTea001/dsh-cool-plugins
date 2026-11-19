@@ -190,7 +190,7 @@ export function registerRoutes(ctx: any): () => void {
   const disposers = [
     route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))),
     route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
-    route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path))),
+    route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path, body.purpose === 'copy' ? 'copy' : 'edit'))),
     route(ROUTES.write, (req, res) =>
       handle(
         req,

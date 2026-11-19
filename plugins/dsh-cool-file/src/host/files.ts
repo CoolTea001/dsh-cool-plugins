@@ -37,6 +37,9 @@ const READ_LINES = 5000
  */
 const EDIT_BYTES = 2 * 1024 * 1024
 
+/** Copy may read a whole text file without making it editable in the browser. */
+const COPY_BYTES = 16 * 1024 * 1024
+
 /** A stand-in session identity for a request that named none. */
 const LOCAL_SESSION = 'local'
 
@@ -260,10 +263,18 @@ export async function readFile(ctx: any, sessionId: unknown, rawPath: unknown): 
  * @param ctx - the Host plugin context.
  * @param sessionId - the session the page belongs to, when it named one.
  * @param rawPath - the file as a workspace path.
+ * @param purpose - editing retains the browser editor's cap; copying can read a
+ *   larger UTF-8 file because it never paints that file as an editable document.
  * @returns the text, or an `ok: false` answer.
  */
-export async function readWholeFile(ctx: any, sessionId: unknown, rawPath: unknown): Promise<TextPayload> {
+export async function readWholeFile(
+  ctx: any,
+  sessionId: unknown,
+  rawPath: unknown,
+  purpose: 'edit' | 'copy' = 'edit',
+): Promise<TextPayload> {
   const path = readPath(rawPath)
+  const limit = purpose === 'copy' ? COPY_BYTES : EDIT_BYTES
   if (path === undefined || path === '') return { ok: false, error: 'The path must name a workspace file' }
 
   const root = await resolveRoot(ctx, sessionId)
@@ -279,14 +290,16 @@ export async function readWholeFile(ctx: any, sessionId: unknown, rawPath: unkno
       return { ok: false, reason: 'missing', error: 'This file no longer exists' }
     }
     if (info.type !== 'file') return { ok: false, error: 'This path is not a regular file' }
-    if (typeof info.size === 'number' && info.size > EDIT_BYTES) {
+    if (typeof info.size === 'number' && info.size > limit) {
       return {
         ok: false,
         reason: 'too-large',
-        error: `This file is larger than ${EDIT_BYTES} bytes and can only be previewed`,
+        error: purpose === 'copy'
+          ? `This file is larger than ${limit} bytes and cannot be copied`
+          : `This file is larger than ${limit} bytes and can only be previewed`,
       }
     }
-    const data: Uint8Array = await fs.readBytes(target, undefined, EDIT_BYTES)
+    const data: Uint8Array = await fs.readBytes(target, undefined, limit)
     if (data.includes(0)) return { ok: false, reason: 'not-text', error: 'This file is not a text file' }
     let text: string
     try {

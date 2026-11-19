@@ -403,6 +403,8 @@ const READ_LINES = 5e3;
 * is too large and leaves it in preview.
 */
 const EDIT_BYTES = 2097152;
+/** Copy may read a whole text file without making it editable in the browser. */
+const COPY_BYTES = 16777216;
 /** A stand-in session identity for a request that named none. */
 const LOCAL_SESSION = "local";
 /**
@@ -605,10 +607,13 @@ async function readFile(ctx, sessionId, rawPath) {
 * @param ctx - the Host plugin context.
 * @param sessionId - the session the page belongs to, when it named one.
 * @param rawPath - the file as a workspace path.
+* @param purpose - editing retains the browser editor's cap; copying can read a
+*   larger UTF-8 file because it never paints that file as an editable document.
 * @returns the text, or an `ok: false` answer.
 */
-async function readWholeFile(ctx, sessionId, rawPath) {
+async function readWholeFile(ctx, sessionId, rawPath, purpose = "edit") {
 	const path = readPath(rawPath);
+	const limit = purpose === "copy" ? COPY_BYTES : EDIT_BYTES;
 	if (path === void 0 || path === "") return {
 		ok: false,
 		error: "The path must name a workspace file"
@@ -635,12 +640,12 @@ async function readWholeFile(ctx, sessionId, rawPath) {
 			ok: false,
 			error: "This path is not a regular file"
 		};
-		if (typeof info.size === "number" && info.size > EDIT_BYTES) return {
+		if (typeof info.size === "number" && info.size > limit) return {
 			ok: false,
 			reason: "too-large",
-			error: `This file is larger than ${EDIT_BYTES} bytes and can only be previewed`
+			error: purpose === "copy" ? `This file is larger than ${limit} bytes and cannot be copied` : `This file is larger than ${limit} bytes and can only be previewed`
 		};
-		const data = await fs.readBytes(target, void 0, EDIT_BYTES);
+		const data = await fs.readBytes(target, void 0, limit);
 		if (data.includes(0)) return {
 			ok: false,
 			reason: "not-text",
@@ -1029,7 +1034,7 @@ function registerRoutes(ctx) {
 	const disposers = [
 		route(ROUTES.list, (req, res) => handle(req, res, (body) => listDirectory(ctx, body.sessionId, body.path))),
 		route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
-		route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path))),
+		route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path, body.purpose === "copy" ? "copy" : "edit"))),
 		route(ROUTES.write, (req, res) => handle(req, res, (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version), MAX_WRITE_BODY_BYTES)),
 		route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res))
 	];

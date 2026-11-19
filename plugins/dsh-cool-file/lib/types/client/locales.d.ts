@@ -21,9 +21,17 @@ declare const en: {
     'side.filtered': string;
     'action.refresh': string;
     'action.toggleHidden': string;
+    'action.more': string;
+    'action.copy': string;
+    'action.copied': string;
+    'action.copyFailed': string;
     'mode.label': string;
     'mode.preview': string;
     'mode.editor': string;
+    'mode.previewMode': string;
+    'mode.editorMode': string;
+    'wrap.on': string;
+    'wrap.off': string;
     'preview.empty': string;
     'preview.emptyHint': string;
     'preview.pane': string;

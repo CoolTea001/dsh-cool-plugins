@@ -85,8 +85,9 @@ export interface ReadPayload {
  * the bytes exactly as they are on disk, because whatever it gives back is
  * written verbatim. This answer is therefore a second, separate read rather than
  * a wider page: `text` is the whole file (line endings included), `version` is
- * the freshness token a save must carry, and a file over the Host's edit cap is
- * refused here instead of being half-loaded.
+ * the freshness token a save must carry, and editing a file over the Host's edit
+ * cap is refused here instead of being half-loaded. A request whose purpose is
+ * `copy` uses the separate, larger copy cap because it never opens an editor.
  */
 export interface TextPayload {
     readonly ok: boolean;
