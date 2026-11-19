@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+	<path d="M0 0h24v24H0z" fill="none" />
+	<path fill="#3a1e46" fill-opacity=".16" d="m19.7 5l-.1 13.8l-.1.9l-.5.9l-1.1.8l-1.2.2H7.1L6 21.3l-1-.7l.3.5l.5.6l.8.5l.8.1H17l1.2-.2l1.1-.8l.5-.9l.2-.8V6z" class="wm-shadow" />
+	<path fill="#4a2c3d" d="m6.96 2.15l-.36.06l-.6.21l-.72.5l-.36.41l-.23.39l-.19.48l-.1.48l-.02 14.04l.06.6l.32.84l.34.48l.54.48l.6.31l.84.18l9.6.01l.72-.08l.84-.34l.48-.37l.48-.6l.3-.67l.12-.72V5.28l-.07-.48l-.23-.54l-.35-.42l-1.33-1.31l-.36-.23l-.48-.14z" class="wm-k" />
+	<path fill="#4c9fe6" d="m7.2 2.75l-.48.07l-.36.12l-.64.42l-.46.6l-.15.36l-.1.48L5 18.72l.05.48l.29.72l.39.48l.31.24l.44.22l.6.13l9.6.01l.6-.07l.68-.29l.4-.33l.3-.39l.23-.48l.1-.6L19 5.28l-.03-.24l-.13-.37l-.27-.35l-1.29-1.28l-.24-.16l-.36-.11z" class="wm-k" />
+	<path fill="#3a1e46" fill-opacity=".13" d="m7.2 2.8l-.8.1l-.7.5l-.4.6l-.3.8v14.4l.3.7l.7.7l1.1.4h9.6l.6-.1l.7-.3l.7-.7l.3-1.1V5.3l-.2-.6L17.3 3l-.6-.2zm-.5.6l.6-.1h9.3l.3.1l1.5 1.4l.1.6v13.4l-.3.9l-.6.6l-.9.2H7.2l-.8-.2l-.6-.6l-.3-1V4.9l.3-.9z" class="wm-k" />
+	<path fill="#3a1e46" fill-opacity=".17" d="m17.6 3.4l.1 14l-.1.6l-.3.6l-.7.6l-.9.3l-9.7.1l-.8-.2l.2.6l.6.6l.7.3l.6.1h9.4l.6-.1l.6-.2l.7-.7l.3-.6l.1-.6V5.3l-.2-.7z" class="wm-k" />
+	<path fill="#fff" fill-opacity=".34" d="m7.2 3.4l-.6.1l-.4.2l-.4.5l-.2.6v13.9l.2.9l.6.5l.6.3h.9l.1-.1V8.8l.1-.8l.3-.6l.6-.6l1-.3h8.4V5.3l-.3-.6l-1.2-1.2l-.3-.1z" class="wm-shine" />
+	<path fill="none" stroke="#fff9f0" stroke-linecap="round" stroke-opacity=".92" stroke-width=".42" d="m6.8 3.8l-.6.5m-.2.6v.8m0 .6v.8m0 .7v.7m0 .7v.8m0 .6v.8m0 .6v.8m0 .7v.8m0 .6v.8m0 .6v.8m0 .7v.7m0 .7l.5.6m.6.2h.8m.6 0h.8m.6 0h.8m.7 0h.8m.6 0h.8m.6 0h.8m.7 0h.7m.7 0l.6-.4m.3-.6v-.8m0-.6v-.8m0-.6v-.8m0-.7v-.8m0-.6v-.8m0-.6v-.8m0-.7v-.7m0-.7v-.8m0-.6v-.8m0-.6v-.8m-.3-.6l-.5-.5m-.5-.5l-.7-.1m-.7 0h-.8m-.6 0h-.8m-.6 0h-.8m-.7 0h-.7m-.7 0h-.8m-.6 0h-.8" class="wm-k" />
+	<path fill="#4a2c3d" d="m14.28 3.32l-.29.16l-.24.24l-.19.36l-.05.24l.01 2.28l.12.36l.28.36l.24.16l.36.12l3.48.61l.72.02l.24-.08l.14-.11l.14-.24l.03-.24l-.06-.24l-.13-.19l-3.48-3.49l-.24-.19l-.36-.17l-.36-.03z" class="wm-a" />
+	<path fill="#fff0d9" d="m14.4 3.81l-.29.27l-.11.36l.01 2.04l.07.24l.19.24l.37.15l3.48.62l.48.02l.14-.07l.03-.12l-.08-.12l-3.49-3.48l-.2-.14l-.24-.07z" class="wm-a" />
+	<path fill="#3a1e46" fill-opacity=".13" d="m14.4 3.8l-.3.3l-.1.3v2.1l.3.5l3.8.7h.6v-.3L15.2 4l-.4-.3zm.2.5h.3l2.7 2.8l-3-.5l-.1-.2z" class="wm-a" />
+	<path fill="#3a1e46" fill-opacity=".17" d="m14 6.4l.2.4l.3.3l3.6.6h.6v-.2l-.5-.5h-.7z" class="wm-a" />
+	<path fill="#fff" fill-opacity=".34" d="M14.5 4.3v2.2l.4.2l.1-1.3l.5-.5l-.6-.6l-.3-.1z" class="wm-a" />
+	<path fill="none" stroke="#fff9f0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M8.25 11.75h7.5m-7.5 3h7.5m-7.5 3H13" class="wm-k" />
+</svg>
