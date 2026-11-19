@@ -4,7 +4,7 @@
 
 English · [中文](./README.zh.md)
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-session](https://img.shields.io/badge/GitHub-dsh--cool--session-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-session) [![npm: version](https://img.shields.io/npm/v/dsh-cool-session?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-session) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## Description
 
@@ -14,3 +14,7 @@ DeepSeek Harness session management plugin — adds a delete-session action to t
 
 - **Delete session:** adds a **Delete session** option to the workspace session list action menu
 - **Batch management:** manage sessions in bulk from the Settings panel (archive, delete)
+
+## Installation
+
+Use DSH's add-plugin feature and enter the package name: `dsh-cool-session`
