@@ -50,7 +50,8 @@
     "check": "pnpm typecheck && pnpm build",
     "prepublishOnly": "pnpm run check",
     "dev": "tsdown --watch",
-    "dev:types": "tsc -p tsconfig.json --watch --emitDeclarationOnly"
+    "dev:types": "tsc -p tsconfig.json --watch --emitDeclarationOnly",
+    "prepack": "node ../../scripts/third-party-notices.mjs"
   },
   "publishConfig": {
     "access": "public",
