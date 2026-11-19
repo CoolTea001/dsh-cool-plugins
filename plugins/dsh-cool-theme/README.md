@@ -4,7 +4,7 @@
 
 English · [中文](./README.zh.md)
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-theme](https://img.shields.io/badge/GitHub-dsh--cool--theme-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-theme) [![npm: version](https://img.shields.io/npm/v/dsh-cool-theme?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-theme) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## Description
 
@@ -17,3 +17,7 @@ DeepSeek Harness theme plugin — supports dark/light appearance switching, ship
 3. **Sidebar transparency:** A switch controls the sidebar panel transparency on macOS
 4. **Custom themes:** Turn on custom themes to create your own, with custom colors (colors inherit from the currently selected preset), a background image/video, and CSS styles
 5. **Sharing themes:** Share custom themes you have created, or import custom themes shared by others — a theme's background image is exported and imported along with it
+
+## Installation
+
+Use DSH's add-plugin feature and enter the package name: `dsh-cool-theme`

@@ -1,10 +1,10 @@
-![dsh-cool-theme cover](https://cdn.cooltea.top/dsh-cool-theme/readme-cover-v0.11.0-zh.png.png)
+![dsh-cool-theme cover](https://cdn.cooltea.top/dsh-cool-theme/readme-cover-v0.11.0-zh.png)
 
 # dsh-cool-theme
 
 [English](./README.md) · 中文
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-theme](https://img.shields.io/badge/GitHub-dsh--cool--theme-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-theme) [![npm: version](https://img.shields.io/npm/v/dsh-cool-theme?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-theme) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## 描述
 
