@@ -4,7 +4,7 @@
 
 [English](./README.md) · 中文
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-terminal](https://img.shields.io/badge/GitHub-dsh--cool--terminal-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-terminal) [![npm: version](https://img.shields.io/npm/v/dsh-cool-terminal?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-terminal) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## 描述
 
@@ -18,3 +18,7 @@ DeepSeek Harness 终端插件 — 真 shell、工作区同步、状态常驻、�
 - **常用命令管理** — 新增/修改/删除/使用你创建的常用命令。
 - **命令自动补全** — 在终端输入时，光标下方弹出匹配的常用命令；鼠标悬停或 `↑`/`↓` 选择、`回车` 填充到命令行。
 - **命令自启动** - 每个终端可以单独设置自启动命令，DSH 打开时，这些命令会自动启动。
+
+## 安装
+
+使用 DSH 的添加插件功能，输入包名：`dsh-cool-terminal`

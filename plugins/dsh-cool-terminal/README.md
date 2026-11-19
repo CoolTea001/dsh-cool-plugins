@@ -4,7 +4,7 @@
 
 English · [中文](./README.zh.md)
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-terminal](https://img.shields.io/badge/GitHub-dsh--cool--terminal-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-terminal) [![npm: version](https://img.shields.io/npm/v/dsh-cool-terminal?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-terminal) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## Description
 
@@ -18,3 +18,7 @@ DeepSeek Harness terminal plugin — a real shell, workspace sync, persistent st
 - **Common command management** — Add, edit, delete, and use the common commands you create.
 - **Inline command completion** — Typing in a console pops matching common commands up under the caret; hovering a row or pressing `↑`/`↓` selects one, and `Enter` fills it into the command line without running it.
 - **Command autostart** — Each console can have its own startup command, and DSH runs it automatically when it opens.
+
+## Installation
+
+Use DSH's add-plugin feature and enter the package name: `dsh-cool-terminal`
