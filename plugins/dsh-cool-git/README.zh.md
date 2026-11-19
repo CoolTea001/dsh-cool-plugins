@@ -4,7 +4,7 @@
 
 [English](./README.md) · 中文
 
-![license: MIT](https://img.shields.io/badge/license-MIT-green) ![node: >=22.19](https://img.shields.io/badge/node-%3E%3D22.19-blue)
+[![GitHub: dsh-cool-git](https://img.shields.io/badge/GitHub-dsh--cool--git-181717?logo=github&logoColor=white)](https://github.com/CoolTea001/dsh-cool-plugins/tree/master/plugins/dsh-cool-git) [![npm: version](https://img.shields.io/npm/v/dsh-cool-git?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-cool-git) ![license: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ## 描述
 
@@ -19,3 +19,7 @@ DeepSeek Harness Git 插件 —— 会话 Tab 栏中添加 Git 管理面板，�
 - **分支：** 切换、新建、删除（标注风险）、合并
 - **远端：** Fetch、Pull、Push、Publish，一键同步（先拉后推），拉取走合并而不是变基
 - **合并冲突：** 拉取或分支合并产生的冲突保留在工作区，在 Diff 面板里逐块解决（也可整侧采用），再按文件或一次性全部标记为已解决
+
+## 安装
+
+使用 DSH 的添加插件功能，输入包名：`dsh-cool-git`
