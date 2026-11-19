@@ -56,12 +56,24 @@ const IMAGE_MEDIA_TYPES: Readonly<Record<string, string>> = {
 const MARKDOWN_EXTENSIONS: ReadonlySet<string> = new Set(['markdown', 'md'])
 
 /**
+ * Extensions the page both previews as a picture and edits as text.
+ *
+ * SVG is the one format browsers render that is also plain source, so it earns a
+ * kind of its own rather than being filed under `image`: a reader who wants to
+ * look at the artwork and a reader who wants to change one path's colour are
+ * asking the same file two questions. Only `.svg` is listed — `.svgz` is gzip,
+ * not text, so it stays an image that can only be looked at.
+ */
+const SVG_EXTENSIONS: ReadonlySet<string> = new Set(['svg'])
+
+/**
  * What the preview pane draws for one path.
  *
- * `image` is shown as the picture itself, `markdown` as the rendered document,
- * and `text` as numbered, syntax-coloured source.
+ * `image` is shown as the picture itself and nothing else, `markdown` as the
+ * rendered document, `svg` as the picture while previewing and as its source
+ * while editing, and `text` as numbered, syntax-coloured source.
  */
-export type FileKind = 'image' | 'markdown' | 'text'
+export type FileKind = 'image' | 'markdown' | 'text' | 'svg'
 
 /**
  * The extension of a workspace path, lower-cased and without its dot.
@@ -86,12 +98,32 @@ export function imageMediaTypeOf(path: string): string | undefined {
 }
 
 /**
+ * Whether a kind is drawn by an `<img>` rather than by its source.
+ *
+ * SVG answers yes while previewing and no while editing, so callers that draw
+ * the pane pair this with the current mode; callers that only care whether the
+ * name is a picture at all can ask it alone.
+ *
+ * @param kind - one path's kind.
+ * @returns whether the preview shows the file as a picture.
+ */
+export function isPictureKind(kind: FileKind): boolean {
+  return kind === 'image' || kind === 'svg'
+}
+
+/**
  * Which preview one workspace path earns.
+ *
+ * SVG is answered before the image table, which also names it: the raw route
+ * still serves it as a picture, but the page needs the narrower fact that this
+ * file's source is readable and writable.
  *
  * @param path - a `/`-joined workspace path.
  * @returns the kind of pane that draws it.
  */
 export function fileKindOf(path: string): FileKind {
-  if (imageMediaTypeOf(path) !== undefined) return 'image'
-  return MARKDOWN_EXTENSIONS.has(extensionOf(path)) ? 'markdown' : 'text'
+  const extension = extensionOf(path)
+  if (SVG_EXTENSIONS.has(extension)) return 'svg'
+  if (IMAGE_MEDIA_TYPES[extension] !== undefined) return 'image'
+  return MARKDOWN_EXTENSIONS.has(extension) ? 'markdown' : 'text'
 }

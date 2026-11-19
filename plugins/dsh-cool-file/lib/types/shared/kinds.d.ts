@@ -24,10 +24,11 @@ export declare const IMAGE_MAX_BYTES: number;
 /**
  * What the preview pane draws for one path.
  *
- * `image` is shown as the picture itself, `markdown` as the rendered document,
- * and `text` as numbered, syntax-coloured source.
+ * `image` is shown as the picture itself and nothing else, `markdown` as the
+ * rendered document, `svg` as the picture while previewing and as its source
+ * while editing, and `text` as numbered, syntax-coloured source.
  */
-export type FileKind = 'image' | 'markdown' | 'text';
+export type FileKind = 'image' | 'markdown' | 'text' | 'svg';
 /**
  * The media type the raw route should answer for one path.
  *
@@ -36,7 +37,22 @@ export type FileKind = 'image' | 'markdown' | 'text';
  */
 export declare function imageMediaTypeOf(path: string): string | undefined;
 /**
+ * Whether a kind is drawn by an `<img>` rather than by its source.
+ *
+ * SVG answers yes while previewing and no while editing, so callers that draw
+ * the pane pair this with the current mode; callers that only care whether the
+ * name is a picture at all can ask it alone.
+ *
+ * @param kind - one path's kind.
+ * @returns whether the preview shows the file as a picture.
+ */
+export declare function isPictureKind(kind: FileKind): boolean;
+/**
  * Which preview one workspace path earns.
+ *
+ * SVG is answered before the image table, which also names it: the raw route
+ * still serves it as a picture, but the page needs the narrower fact that this
+ * file's source is readable and writable.
  *
  * @param path - a `/`-joined workspace path.
  * @returns the kind of pane that draws it.

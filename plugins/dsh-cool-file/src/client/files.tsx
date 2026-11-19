@@ -68,7 +68,7 @@ import { FileMenu, TreeMenu, readMode, readWrap, writeMode, writeWrap, type File
 import { rawImageUrl } from './raw.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
-import { IMAGE_MAX_BYTES, fileKindOf } from '../shared/kinds.js'
+import { IMAGE_MAX_BYTES, fileKindOf, isPictureKind } from '../shared/kinds.js'
 import type { FileEntry, ListPayload, ReadPayload } from '../shared/contract.js'
 
 /** The root is the whole conversation body, sized the way the shell hands it over. */
@@ -689,9 +689,11 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       }
 
       const kind = fileKindOf(path)
+      // A binary picture is fetched by the `<img>` itself, so the pane is ready
+      // as soon as it is drawn. SVG is not skipped: it is read like source even
+      // while its preview shows the artwork, because the reader may switch to the
+      // editor — or to the source view — without asking for the file again.
       if (kind === 'image') {
-        // The picture is fetched by the `<img>` itself; there is nothing for this
-        // page to read, so the pane is ready as soon as it is drawn.
         setFileLoading(false)
         return
       }
@@ -818,8 +820,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       // A line is only meaningful where the pane draws numbered rows. A rendered
       // document has no lines to reveal — its source view does — so the anchor is
       // dropped there rather than promised and never honoured. `#L24` is written
-      // to point at code, which is the kind that keeps it.
-      setRevealLine(fileKindOf(path) === 'text' ? line : undefined)
+      // to point at code, which is the kind that keeps it; SVG is source too, and
+      // the editor it can open is the pane that numbers those rows.
+      const revealKind = fileKindOf(path)
+      setRevealLine(revealKind === 'text' || revealKind === 'svg' ? line : undefined)
     },
     [directories, expanded, openFile, t],
   )
@@ -1095,6 +1099,8 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
 
   /** Copy the complete file, including an unsaved draft when one is on screen. */
   const copyFile = useCallback((): void => {
+    // A binary picture has no text to put on the clipboard; SVG does, and is
+    // copied as the source an editor would have shown.
     if (selected === null || fileKindOf(selected) === 'image') return
     const path = selected
     const session = sessionId
@@ -1137,9 +1143,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
 
   // A file opened in editor mode needs its whole text; reading it here rather
   // than in the switch keeps the choice instant and the read off the click path.
-  // An image has no text to read for an editor, and the pane never offers the
-  // switch for one — this guard is what keeps a stale editor mode (left over
-  // from the last text file) from asking for a binary file's "text".
+  // A binary picture has no text to read for an editor, and the pane never offers
+  // the switch for one — this guard is what keeps a stale editor mode (left over
+  // from the last text file) from asking for a binary file's "text". SVG is the
+  // exception: its source is text, so it is read like any other source file.
   useEffect(() => {
     if (mode !== 'editor' || selected === null) return
     if (fileKindOf(selected) === 'image') return
@@ -1226,8 +1233,9 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     if (selected !== null) {
       openFile(selected)
       // A picture is not read through this page (the `<img>` fetches it), so the
-      // epoch is what makes Refresh mean something for one.
-      if (fileKindOf(selected) === 'image') setImageEpoch((count) => count + 1)
+      // epoch is what makes Refresh mean something for one. SVG is a picture too:
+      // even in editor mode the address it bumps keeps the preview's cache fresh.
+      if (isPictureKind(fileKindOf(selected))) setImageEpoch((count) => count + 1)
       // An open editor follows the disk too — unless it holds a draft, which a
       // refresh must not throw away.
       if (docs[selected] !== undefined && drafts[selected] === undefined) loadDocument(selected)
@@ -1349,12 +1357,17 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   // hiding the control that got them there would leave no way back to the
   // preview.
   const kind = selected === null ? 'text' : fileKindOf(selected)
+  // SVG is a picture whose source is text: it previews as artwork and edits as
+  // code, so it is the one picture kind that keeps the editor.
   const editable = kind !== 'image'
   // The mode the pane is actually drawn in, which is the saved preference only
   // where it can be honoured. The header names this, not the preference, so the
   // selected segment never claims an editor it is not showing.
   const effectiveMode: FilesMode = editable ? mode : 'preview'
   const editing = effectiveMode === 'editor' && selected !== null && editable
+  // Whether the pane draws the file as a picture rather than as source. SVG
+  // answers yes in preview mode and no in editor mode, where its markup is shown.
+  const picturing = isPictureKind(kind) && !(kind === 'svg' && effectiveMode === 'editor')
   // The text the editor would draw, once the file is open and readable; null
   // while it is still loading, or when it cannot be edited at all.
   const editorText = doc !== undefined && !doc.loading && doc.error === null ? draft ?? doc.text : null
@@ -1373,7 +1386,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   // opened from, which is why it reports bytes alone.
   const entrySize = directorySizeOf(directories, selected)
   let meta: { readonly lines?: number; readonly bytes?: number } | null = null
-  if (kind === 'image') {
+  if (picturing) {
+    // A file drawn as a picture reports size alone: its rows are not what the
+    // reader is looking at. SVG in editor mode leaves this branch and counts
+    // lines below like any other source file.
     meta = entrySize === undefined ? null : { bytes: entrySize }
   } else if (editing) {
     if (doc !== undefined && !doc.loading && doc.error === null) {
@@ -1392,9 +1408,10 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   }
 
   // A picture over the raw route's cap cannot be shown at all, so the pane is
-  // told before it asks: the `<img>` could never report why it failed.
+  // told before it asks: the `<img>` could never report why it failed. SVG is
+  // included whenever it is being shown as a picture, not while it is edited.
   const imageRefusal =
-    kind === 'image' && entrySize !== undefined && entrySize > IMAGE_MAX_BYTES
+    picturing && entrySize !== undefined && entrySize > IMAGE_MAX_BYTES
       ? t('preview.imageTooLarge', { size: formatSize(IMAGE_MAX_BYTES) })
       : undefined
 
@@ -1490,7 +1507,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 wrap={wrap}
                 onSelectWrap={changeWrap}
                 canCopy={editable}
-                canWrap={kind !== 'image' && (editing || kind !== 'markdown' || preview?.partial === true || fileError !== null)}
+                canWrap={!picturing && (editing || kind !== 'markdown' || preview?.partial === true || fileError !== null)}
                 copied={copied}
                 onCopy={copyFile}
                 t={t}
@@ -1550,7 +1567,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
               // of it would only be a step to walk past.
               tabIndex={editing ? undefined : 0}
             >
-              {kind === 'image' ? (
+              {picturing ? (
                 <ImageView
                   // The epoch rides in the address as well as the key: a remount
                   // alone trusts the raw route's `no-store` header, while a new
