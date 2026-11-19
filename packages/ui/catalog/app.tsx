@@ -15,7 +15,7 @@
  * organised.
  *
  * The selection lives in the URL hash, because a catalog is something a reader
- * links to: "look at the toggle pressed state" should be one click away for the
+ * links to: "look at the panel's shaded edge" should be one click away for the
  * next person, and a hash needs no router.
  */
 

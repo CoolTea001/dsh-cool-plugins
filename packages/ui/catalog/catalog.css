@@ -346,14 +346,6 @@ h2 {
 
 /* ---------- Demo scaffolding ---------- */
 
-.demo-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
 .demo-frame {
   width: 100%;
   /* Wide enough for a three-segment strip to read as a strip, narrow enough
@@ -639,8 +631,8 @@ h2 {
 }
 
 /* The panel demo resets its width the way the component draws it — by writing
-   the custom property — so the control is the demo's own, not a `Toggle` dressed
-   as a button. */
+   the custom property — so the control is the demo's own button rather than a
+   shared one wearing a different hat. */
 .demo-reset {
   padding: 4px 8px;
   border: 0;

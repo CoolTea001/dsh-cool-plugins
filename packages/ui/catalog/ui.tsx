@@ -14,13 +14,13 @@ import type { PropRow } from './types.js'
  *
  * A catalog's grid cannot please every demo at one width: `Tag` and `Switch`
  * drawn in a 340px tile are two small controls centred in a lot of nothing,
- * while `ToggleGroup` drawn in a 200px tile is a row of labels pressed against
- * the edge. So the width belongs to the demo — the one that knows what shape its
+ * while `PanelScroll` drawn in a 200px tile is a bar pressed against the edge.
+ * So the width belongs to the demo — the one that knows what shape its
  * component wants — and the grid only supplies the scale:
  *
  * - `sm` — a control judged on its own: a button, a tag, a switch.
- * - `md` — a control whose shape is a short row: a toggle, a field, a dialog
- *   trigger. The default, because most controls are one.
+ * - `md` — a control whose shape is a short row: a field, a dialog trigger, a
+ *   panel. The default, because most controls are one.
  * - `lg` — a control that is itself a strip: a segmented control, a group of
  *   buttons, a pane whose edges only mean something with area.
  *

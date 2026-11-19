@@ -13,181 +13,19 @@
  */
 
 import { useEffect, useRef, useState, type ReactElement } from 'react'
-import { IconChevronRight, IconPlus } from '@dsh-cool/icons'
 import type { PanelBounds } from '../src/layout/resizable-panel.js'
 import type { ResizeHandleProps } from '../src/layout/resize-handle.js'
 import type { PanelScrollProps } from '../src/panel/panel-scroll.js'
 import type { PanelShadowProps } from '../src/panel/panel-shadow.js'
-import type { ToggleActiveVariant, ToggleProps, ToggleSize, ToggleVariant } from '../src/toggle/toggle.js'
-import type {
-  ToggleGroupItem,
-  ToggleGroupOrientation,
-  ToggleGroupSingleProps,
-} from '../src/toggle/toggle-group.js'
 import { PanelScroll } from '../src/panel/panel-scroll.js'
 import { PanelShadow } from '../src/panel/panel-shadow.js'
 import { ResizablePanel, type ResizablePanelProps } from '../src/layout/resizable-panel-view.js'
 import { ResizeHandle } from '../src/layout/resize-handle.js'
-import { Toggle } from '../src/toggle/toggle.js'
-import { ToggleGroup } from '../src/toggle/toggle-group.js'
 import type { CatalogEntry } from './types.js'
 import { Variant, Variants } from './ui.js'
 
-/** The three steps of the toggle scale, smallest first. */
-const SIZES: readonly ToggleSize[] = ['sm', 'md', 'lg']
-
-/** The two unpressed appearances. */
-const VARIANTS: readonly ToggleVariant[] = ['ghost', 'outline']
-
-/** The two pressed fills. */
-const ACTIVE_VARIANTS: readonly ToggleActiveVariant[] = ['soft', 'solid']
-
-/** The three bay items the group demos share. */
-const BAY_ITEMS: readonly ToggleGroupItem<'left' | 'center' | 'right'>[] = [
-  { value: 'left', label: 'Left' },
-  { value: 'center', label: 'Center' },
-  { value: 'right', label: 'Right' },
-]
-
 /** Enough rows that a panel has something to scroll. */
 const ROWS = Array.from({ length: 24 }, (_, index) => `Row ${String(index + 1)}`)
-
-function ToggleDemo(): ReactElement {
-  return (
-    <Variants>
-      {VARIANTS.map((variant) => (
-        <Variant key={variant} label={variant}>
-          <div className="demo-row">
-            <Toggle pressed={false} onChange={() => {}} variant={variant}>Unpressed</Toggle>
-            <Toggle pressed onChange={() => {}} variant={variant}>Pressed</Toggle>
-          </div>
-        </Variant>
-      ))}
-      {SIZES.map((size) => (
-        <Variant key={size} label={`size · ${size}`}>
-          <div className="demo-row">
-            <Toggle pressed onChange={() => {}} size={size}>Pressed</Toggle>
-            <Toggle pressed={false} onChange={() => {}} size={size}>Unpressed</Toggle>
-          </div>
-        </Variant>
-      ))}
-      {ACTIVE_VARIANTS.map((activeVariant) => (
-        <Variant key={activeVariant} label={`activeVariant · ${activeVariant}`}>
-          <Toggle pressed onChange={() => {}} activeVariant={activeVariant}>Pressed</Toggle>
-        </Variant>
-      ))}
-      <Variant label="icon only">
-        <div className="demo-row">
-          <Toggle pressed={false} onChange={() => {}} square aria-label="Add"><IconPlus /></Toggle>
-          <Toggle pressed onChange={() => {}} square aria-label="Add"><IconPlus /></Toggle>
-        </div>
-      </Variant>
-      <Variant label="with icon and label">
-        <Toggle pressed onChange={() => {}} icon={<IconChevronRight />}>Label</Toggle>
-      </Variant>
-      <Variant label="disabled">
-        <div className="demo-row">
-          <Toggle pressed disabled onChange={() => {}}>Pressed</Toggle>
-          <Toggle pressed={false} disabled onChange={() => {}}>Unpressed</Toggle>
-        </div>
-      </Variant>
-    </Variants>
-  )
-}
-
-function ToggleGroupDemo(): ReactElement {
-  const [single, setSingle] = useState<'left' | 'center' | 'right' | null>('left')
-  const [multiple, setMultiple] = useState<readonly ('left' | 'center' | 'right')[]>(['left', 'right'])
-  const [orientation, setOrientation] = useState<ToggleGroupOrientation>('horizontal')
-  return (
-    <Variants size="lg">
-      <Variant label="single">
-        <ToggleGroup
-          type="single"
-          items={BAY_ITEMS}
-          label="Alignment"
-          value={single}
-          onChange={setSingle}
-        />
-      </Variant>
-      <Variant label="single · not deselectable">
-        <ToggleGroup
-          type="single"
-          items={BAY_ITEMS}
-          label="Alignment, always one"
-          value={single ?? 'left'}
-          deselectable={false}
-          onChange={(next) => { setSingle(next ?? 'left') }}
-        />
-      </Variant>
-      <Variant label="multiple">
-        <ToggleGroup<'left' | 'center' | 'right'>
-          type="multiple"
-          items={BAY_ITEMS}
-          label="Visible columns"
-          value={multiple}
-          onChange={(next) => { setMultiple(next) }}
-        />
-      </Variant>
-      <Variant label="attached">
-        <ToggleGroup
-          type="single"
-          items={BAY_ITEMS}
-          label="Alignment, attached"
-          attached
-          value={single}
-          onChange={setSingle}
-        />
-      </Variant>
-      <Variant label="square · icons">
-        <ToggleGroup
-          type="single"
-          items={[
-            { value: 'left', ariaLabel: 'Align left', icon: <IconChevronRight /> },
-            { value: 'center', ariaLabel: 'Align center', icon: <IconPlus /> },
-          ]}
-          label="Icon-only row"
-          square
-          value={single === 'right' ? 'left' : single}
-          onChange={setSingle}
-        />
-      </Variant>
-      <Variant label="one disabled">
-        <ToggleGroup
-          type="single"
-          items={[
-            { value: 'left', label: 'Left' },
-            { value: 'center', label: 'Center', disabled: true },
-            { value: 'right', label: 'Right' },
-          ]}
-          label="Alignment with a locked stop"
-          value={single}
-          onChange={setSingle}
-        />
-      </Variant>
-      <Variant label={`orientation · ${orientation}`} span>
-        <div className="demo-row">
-          <ToggleGroup
-            type="single"
-            items={BAY_ITEMS}
-            label="Alignment, oriented"
-            orientation={orientation}
-            value={single}
-            onChange={setSingle}
-          />
-          <Toggle
-            pressed={orientation === 'vertical'}
-            onChange={(next) => { setOrientation(next ? 'vertical' : 'horizontal') }}
-            size="sm"
-            variant="outline"
-          >
-            Flip
-          </Toggle>
-        </div>
-      </Variant>
-    </Variants>
-  )
-}
 
 function PanelScrollDemo(): ReactElement {
   return (
@@ -392,54 +230,8 @@ type PropName<Keys extends string> = {
   readonly default?: string
   readonly description: string
 }
-const TOGGLE_PROPS = [
-  { name: 'pressed', type: 'boolean', description: 'Whether the choice this button names is in force.' },
-  { name: 'onChange', type: '(next: boolean) => void', description: 'Receives the state a press asks for. The caller owns the value.' },
-  { name: 'size', type: "'sm' | 'md' | 'lg'", default: "'md'", description: 'Height, radius and type size — 24px, 28px, 32px. The three steps read as one family.' },
-  { name: 'variant', type: "'ghost' | 'outline'", default: "'ghost'", description: 'The unpressed appearance: a bare control, or one carrying a hairline.' },
-  { name: 'activeVariant', type: "'soft' | 'solid'", default: "'soft'", description: 'The pressed fill. `soft` is the quiet neutral press a peer in a row wants; `solid` is the accent fill for the row\'s subject.' },
-  { name: 'square', type: 'boolean', default: 'false', description: 'Draws the button as a square — the right answer for an icon-only toggle in a toolbar.' },
-  { name: 'icon', type: 'ReactNode', description: 'Optional leading 16px glyph.' },
-  { name: 'children', type: 'ReactNode', description: 'The visible label. One of `children` and `aria-label` is required.' },
-  { name: 'aria-label', type: 'string', description: 'The accessible name of an icon-only toggle.' },
-  { name: '…rest', type: 'ButtonHTMLAttributes<HTMLButtonElement>', description: 'Native button attributes pass through. A click may `preventDefault()` to veto the flip.' },
-] satisfies readonly PropName<keyof ToggleProps>[]
-
-const TOGGLE_GROUP_PROPS = [
-  { name: 'type', type: "'single' | 'multiple'", default: "'single'", description: 'Which shape the group holds. The value\'s type follows it.' },
-  { name: 'items', type: 'readonly ToggleGroupItem<Value>[]', description: 'The buttons in display order. A labelled item takes its name from `label`; an icon-only one must give `ariaLabel`.' },
-  { name: 'label', type: 'string', description: 'The group\'s accessible name, owned by the render site.' },
-  { name: 'value', type: 'Value | null · readonly Value[]', description: 'The pressed value (single) or values (multiple). The caller owns them.' },
-  { name: 'onChange', type: '(next) => void', description: 'Receives the value a press asks for — `null` when a single group was cleared.' },
-  { name: 'deselectable', type: 'boolean', default: 'true', description: 'Whether pressing the pressed item in a single group clears the selection.' },
-  { name: 'size', type: "'sm' | 'md' | 'lg'", default: "'md'", description: 'Every button\'s size — 24px, 28px, 32px.' },
-  { name: 'variant', type: "'ghost' | 'outline'", default: "'ghost'", description: 'How an unpressed button looks.' },
-  { name: 'activeVariant', type: "'soft' | 'solid'", default: "'soft'", description: 'How a pressed button looks.' },
-  { name: 'square', type: 'boolean', default: 'false', description: 'Draws every button as a square.' },
-  { name: 'attached', type: 'boolean', default: 'false', description: 'Joins the buttons into one segmented frame, drawing the seam between them once.' },
-  { name: 'orientation', type: "'horizontal' | 'vertical'", default: "'horizontal'", description: 'The layout and the arrow keys\' axis. Both axes answer keys either way.' },
-  { name: 'role', type: "'group' | 'toolbar'", default: "'group'", description: 'What the row announces itself as. `aria-orientation` is written only for `toolbar`.' },
-  { name: 'disabled', type: 'boolean', default: 'false', description: 'Makes every button refuse input.' },
-  { name: 'loop', type: 'boolean', default: 'true', description: 'Whether the arrow keys wrap at the ends of the row.' },
-] satisfies readonly PropName<keyof ToggleGroupSingleProps>[]
 
 export const OWN_ENTRIES: readonly CatalogEntry[] = [
-  {
-    id: 'toggle',
-    name: 'Toggle',
-    summary: 'A button that stays pressed while the choice it names holds — the control between the shell\'s `Button` and its `Switch`.',
-    file: 'packages/ui/src/toggle/toggle.tsx',
-    Demo: ToggleDemo,
-    props: TOGGLE_PROPS,
-  },
-  {
-    id: 'toggle-group',
-    name: 'ToggleGroup',
-    summary: 'A row of toggle buttons that take turns being pressed, with one tab stop for the whole row and arrow keys that move focus.',
-    file: 'packages/ui/src/toggle/toggle-group.tsx',
-    Demo: ToggleGroupDemo,
-    props: TOGGLE_GROUP_PROPS,
-  },
   {
     id: 'panel-scroll',
     name: 'PanelScroll',

@@ -52,6 +52,21 @@ window.__ModuleLoader__.load({
 				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
 			});
 		}
+		// ../../packages/icons/src/chevron-down.tsx
+		function IconChevronDown(props) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
+				...props,
+				viewBox: "0 0 24 24",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
+					fill: "none",
+					stroke: "currentColor",
+					strokeLinecap: "round",
+					strokeLinejoin: "round",
+					strokeWidth: "2",
+					d: "m6 9l6 6l6-6"
+				})
+			});
+		}
 		// ../../packages/icons/src/download.tsx
 		function IconDownload(props) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
@@ -5106,7 +5121,7 @@ html[data-ds-dark-theme], body[data-ds-dark-theme] {
 					"aria-haspopup": "menu",
 					"aria-expanded": expanded,
 					onClick: () => setOpen(!open)
-				}, selected?.label ?? "", react.createElement(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, {
+				}, selected?.label ?? "", react.createElement(IconChevronDown, {
 					size: ICON_SIZE,
 					className: "ct-select-chevron"
 				}))

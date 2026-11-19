@@ -692,8 +692,6 @@ window.__ModuleLoader__.load({
 		*    profile without the theme never matches it.
 		* 5. The panel scrollport — the bar and the edge mask, stated once for the two
 		*    components that draw them.
-		* 6. The toggle button — one pressed state, one set of control metrics, so a
-		*    toggle in a toolbar and a toggle in a settings row are the same control.
 		*/
 		const UI_CSS = [
 			`.${UI_PREFIX}-page{display:flex;flex:1 1 auto;flex-direction:column;box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:transparent;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family,sans-serif);font-size:12.5px;line-height:1.5}`,
@@ -730,37 +728,7 @@ window.__ModuleLoader__.load({
 			`.${UI_PREFIX}-panel[data-shade=y][data-shade-start][data-shade-end]{mask-image:linear-gradient(to bottom,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
 			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
 			`.${UI_PREFIX}-panel[data-shade=x][data-shade-end]{mask-image:linear-gradient(to left,#0000,#000 var(--dsh-ui-panel-shade,28px)),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
-			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`,
-			`.${UI_PREFIX}-toggle{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex:none;gap:6px;height:28px;padding:0 10px;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:var(--dsw-font-xxs-12-font-size,12px);line-height:var(--dsw-font-xxs-12-line-height,18px);white-space:nowrap;cursor:pointer;transition:background-color .12s ease,color .12s ease}`,
-			`.${UI_PREFIX}-toggle[data-size=sm]{height:24px;padding:0 8px;border-radius:var(--dsw-radius-xs,4px);font-size:var(--dsw-font-xxxs-11-font-size,11px);line-height:var(--dsw-font-xxxs-11-line-height,14px);gap:4px}`,
-			`.${UI_PREFIX}-toggle[data-size=lg]{height:32px;padding:0 12px;border-radius:var(--dsw-radius-md);font-size:var(--dsw-font-xs-13-font-size,13px);line-height:var(--dsw-font-xs-13-line-height,20px)}`,
-			`.${UI_PREFIX}-toggle[data-square]{width:28px;padding:0}`,
-			`.${UI_PREFIX}-toggle[data-size=sm][data-square]{width:24px}`,
-			`.${UI_PREFIX}-toggle[data-size=lg][data-square]{width:32px}`,
-			`.${UI_PREFIX}-toggle-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none}`,
-			`@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=false]:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=false]:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}`,
-			`.${UI_PREFIX}-toggle[data-variant=outline]{box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3)}`,
-			`@media (hover:hover){.${UI_PREFIX}-toggle[data-variant=outline][aria-pressed=false]:hover:not(:disabled){box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l4)}}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=true]{color:var(--dsw-alias-label-primary)}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]{background:var(--dsw-alias-button-ghost-active-fill);box-shadow:inset 0 0 0 1px var(--dsw-alias-button-ghost-active-border)}`,
-			`@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]:hover:not(:disabled){background:var(--dsw-alias-button-ghost-active-hover);color:var(--dsw-alias-label-primary)}}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=soft]:active:not(:disabled){background:var(--dsw-alias-button-ghost-active-hover)}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);box-shadow:none}`,
-			`@media (hover:hover){.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover);color:var(--dsw-alias-label-primary-foreground)}}`,
-			`.${UI_PREFIX}-toggle[aria-pressed=true][data-active-variant=solid]:active:not(:disabled){background:var(--dsw-alias-button-primary-hover)}`,
-			`.${UI_PREFIX}-toggle:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}`,
-			`.${UI_PREFIX}-toggle:disabled{cursor:not-allowed;opacity:.4}`,
-			`.${UI_PREFIX}-toggle-group{display:inline-flex;align-items:center;gap:4px}`,
-			`.${UI_PREFIX}-toggle-group[data-orientation=vertical]{flex-direction:column;align-items:stretch}`,
-			`.${UI_PREFIX}-toggle-group[data-attached]{gap:0}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:first-child){margin-inline-start:calc(-1 * var(--dsh-hairline-width,.5px))}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:first-child){margin-block-start:calc(-1 * var(--dsh-hairline-width,.5px))}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:first-child){border-start-start-radius:0;border-end-start-radius:0}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=horizontal]>.${UI_PREFIX}-toggle:not(:last-child){border-start-end-radius:0;border-end-end-radius:0}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:first-child){border-start-start-radius:0;border-start-end-radius:0}`,
-			`.${UI_PREFIX}-toggle-group[data-attached][data-orientation=vertical]>.${UI_PREFIX}-toggle:not(:last-child){border-end-start-radius:0;border-end-end-radius:0}`,
-			`.${UI_PREFIX}-toggle-group[data-attached]>.${UI_PREFIX}-toggle[aria-pressed=true],.${UI_PREFIX}-toggle-group[data-attached]>.${UI_PREFIX}-toggle:focus-visible{position:relative;z-index:1}`
+			`.${UI_PREFIX}-panel[data-shade=x][data-shade-start][data-shade-end]{mask-image:linear-gradient(to right,#0000,#000 var(--dsh-ui-panel-shade,28px),#000 calc(100% - var(--dsh-ui-panel-shade,28px)),#0000),linear-gradient(#000,#000),linear-gradient(#000,#000)}`
 		].join("\n");
 		// ../../packages/ui/src/input.tsx
 		/**
@@ -794,6 +762,28 @@ window.__ModuleLoader__.load({
 			return (0, react.createElement)(_deepseek_ai_dsh_client_ui_primitives.Input, {
 				...modalAutofocus === true ? { "data-modal-autofocus": true } : {},
 				...rest
+			});
+		}
+		// ../../packages/icons/src/icon.tsx
+		/**
+		* Draw an icon's root `<svg>`.
+		*
+		* Icons own their artwork: their fills, strokes and stroke widths sit on the
+		* children, not here. This wrapper owns only the contract every icon shares —
+		* the namespace, the square size, the decorative/accessible default — so a
+		* plugin-specific glyph can use it too without copying the root attributes.
+		*/
+		function IconBase({ size = 16, className, title, viewBox, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				xmlns: "http://www.w3.org/2000/svg",
+				width: size,
+				height: size,
+				viewBox,
+				className,
+				role: title === void 0 ? void 0 : "img",
+				"aria-hidden": title === void 0 ? true : void 0,
+				focusable: "false",
+				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
 			});
 		}
 		// ../../packages/ui/src/layout/resize-handle.tsx
@@ -2535,28 +2525,6 @@ window.__ModuleLoader__.load({
 			};
 			snapshots.set(repository, snapshot);
 			persist(repository, snapshot);
-		}
-		// ../../packages/icons/src/icon.tsx
-		/**
-		* Draw an icon's root `<svg>`.
-		*
-		* Icons own their artwork: their fills, strokes and stroke widths sit on the
-		* children, not here. This wrapper owns only the contract every icon shares —
-		* the namespace, the square size, the decorative/accessible default — so a
-		* plugin-specific glyph can use it too without copying the root attributes.
-		*/
-		function IconBase({ size = 16, className, title, viewBox, children }) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
-				xmlns: "http://www.w3.org/2000/svg",
-				width: size,
-				height: size,
-				viewBox,
-				className,
-				role: title === void 0 ? void 0 : "img",
-				"aria-hidden": title === void 0 ? true : void 0,
-				focusable: "false",
-				children: [title === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("title", { children: title }), children]
-			});
 		}
 		// ../../packages/icons/src/alert-circle.tsx
 		function IconAlertCircle(props) {
