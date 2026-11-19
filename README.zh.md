@@ -17,32 +17,32 @@
   <tbody>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-theme/README.md"><code>dsh-cool-theme</code></a></td>
-      <td>外观切换：预设主题、自定义主题与主题分享</td>
+      <td>外观切换：深色/浅色/跟随系统，34 款预设主题，自定义主题与主题分享</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-terminal/README.md"><code>dsh-cool-terminal</code></a></td>
-      <td>在会话标签栏中提供真实 shell，支持工作区同步与命令补全</td>
+      <td>会话标签栏中的真实 shell：工作区分组、状态常驻、常用命令、命令补全与自启动</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-git/README.md"><code>dsh-cool-git</code></a></td>
-      <td>Git 面板：查看改动、提交、历史与分支，同步远端，解决冲突</td>
+      <td>Git 面板：变更与 Diff、AI 生成提交信息、历史、分支、远端同步与冲突解决</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-file/README.md"><code>dsh-cool-file</code></a></td>
-      <td>Files 标签页：浏览工作区并预览文本文件</td>
-      <td align="center">❌</td>
+      <td>Files 标签页：工作区文件树，支持预览与编辑</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-session/README.md"><code>dsh-cool-session</code></a></td>
-      <td>设置中的 Sessions 页：搜索、筛选、归档与批量删除</td>
+      <td>会话管理：设置中的 Sessions 页支持搜索、筛选、归档与批量删除，会话菜单中另有删除入口</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-daily/README.md"><code>dsh-cool-daily</code></a></td>
-      <td>按自定义提示词生成每日 AI 文章</td>
+      <td>按自己的提示词每天生成文章，以 Markdown 文件保存在侧边栏</td>
       <td align="center">❌</td>
     </tr>
   </tbody>

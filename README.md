@@ -19,32 +19,32 @@ lives here.
   <tbody>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-theme/README.md"><code>dsh-cool-theme</code></a></td>
-      <td>Appearance switching: preset themes, custom themes, and theme sharing</td>
+      <td>Appearance switching: dark, light, or system, 34 preset themes, custom themes, and theme sharing</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-terminal/README.md"><code>dsh-cool-terminal</code></a></td>
-      <td>A real shell in the session tab bar, with workspace sync and command completion</td>
+      <td>A real shell in the session tab bar: workspace grouping, persistent state, common commands, completion, and autostart</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-git/README.md"><code>dsh-cool-git</code></a></td>
-      <td>A Git panel: view changes, commit, browse history and branches, sync with the remote, resolve conflicts</td>
+      <td>A Git panel: changes and diffs, commits with AI-written messages, history, branches, remote sync, and conflict resolution</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-file/README.md"><code>dsh-cool-file</code></a></td>
-      <td>A Files tab: browse the workspace and preview text files</td>
-      <td align="center">❌</td>
+      <td>A Files tab: the workspace file tree, with preview and editing</td>
+      <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-session/README.md"><code>dsh-cool-session</code></a></td>
-      <td>A Sessions page in Settings: search, filter, archive, and batch delete</td>
+      <td>Session management: a Sessions page in Settings for search, filter, archive, and batch delete, plus a delete row in the session menu</td>
       <td align="center">✅</td>
     </tr>
     <tr>
       <td width="200"><a href="plugins/dsh-cool-daily/README.md"><code>dsh-cool-daily</code></a></td>
-      <td>Daily AI-generated articles from a custom prompt</td>
+      <td>Daily articles from your own prompt, kept as Markdown files in the sidebar</td>
       <td align="center">❌</td>
     </tr>
   </tbody>
