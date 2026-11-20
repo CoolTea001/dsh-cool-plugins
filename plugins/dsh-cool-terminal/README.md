@@ -1,4 +1,4 @@
-![dsh-cool-terminal cover](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.5.0.png)
+![dsh-cool-terminal cover](https://cdn.cooltea.top/dsh-cool-terminal/readme-cover-v0.6.0.png)
 
 # dsh-cool-terminal
 
