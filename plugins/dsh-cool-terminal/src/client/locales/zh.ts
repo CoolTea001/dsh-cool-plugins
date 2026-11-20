@@ -22,7 +22,7 @@ export const zh = {
   'terminal.removeTitle': '删除 {title}？',
   'terminal.removeWarning': '会中断正在运行命令，且删除后无法恢复。',
   'terminal.startup': '命令自启',
-  'terminal.startupDescription': '开启后，DSH 启动后会自动运行设置的命令',
+  'terminal.startupDescription': 'DSH 启动后会自动运行设置的命令',
   'terminal.startupCommand': '命令',
   'terminal.startupPlaceholder': '如 pnpm dev',
   'terminal.startupAutoRun': '自动运行',

@@ -19,7 +19,7 @@ export const ru = {
     'Выполняемые команды будут прерваны, а удаление нельзя отменить.',
   'terminal.startup': 'Автозапуск команды',
   'terminal.startupDescription':
-    'Если включено, команда выполнится автоматически после запуска DSH',
+    'Команда выполнится автоматически после запуска DSH',
   'terminal.startupCommand': 'Команда',
   'terminal.startupPlaceholder': 'например, pnpm dev',
   'terminal.startupAutoRun': 'Запускать автоматически',

@@ -19,7 +19,7 @@ export const pt = {
     'Os comandos em execução serão interrompidos, e a exclusão não pode ser desfeita.',
   'terminal.startup': 'Início automático de comando',
   'terminal.startupDescription':
-    'Quando ativado, o comando é executado automaticamente após o DSH iniciar',
+    'O comando é executado automaticamente após o DSH iniciar',
   'terminal.startupCommand': 'Comando',
   'terminal.startupPlaceholder': 'ex.: pnpm dev',
   'terminal.startupAutoRun': 'Executar automaticamente',

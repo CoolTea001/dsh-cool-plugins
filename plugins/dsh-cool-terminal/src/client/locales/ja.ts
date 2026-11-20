@@ -17,7 +17,7 @@ export const ja = {
   'terminal.removeTitle': '{title} を削除しますか？',
   'terminal.removeWarning': '実行中のコマンドは中断され、削除すると元に戻せません。',
   'terminal.startup': 'コマンド自動起動',
-  'terminal.startupDescription': 'オンにすると、DSH の起動後に設定したコマンドが自動で実行されます',
+  'terminal.startupDescription': 'DSH の起動後に設定したコマンドが自動で実行されます',
   'terminal.startupCommand': 'コマンド',
   'terminal.startupPlaceholder': '例：pnpm dev',
   'terminal.startupAutoRun': '自動実行',

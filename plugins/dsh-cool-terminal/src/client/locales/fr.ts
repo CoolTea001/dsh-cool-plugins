@@ -19,7 +19,7 @@ export const fr = {
     'Les commandes en cours seront interrompues, et la suppression est irréversible.',
   'terminal.startup': 'Démarrage automatique de commande',
   'terminal.startupDescription':
-    'Une fois activé, la commande s’exécute automatiquement au démarrage de DSH',
+    'La commande s’exécute automatiquement au démarrage de DSH',
   'terminal.startupCommand': 'Commande',
   'terminal.startupPlaceholder': 'ex. pnpm dev',
   'terminal.startupAutoRun': 'Exécuter automatiquement',

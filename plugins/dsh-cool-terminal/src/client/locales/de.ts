@@ -19,7 +19,7 @@ export const de = {
     'Laufende Befehle werden unterbrochen, und das Löschen lässt sich nicht rückgängig machen.',
   'terminal.startup': 'Befehls-Autostart',
   'terminal.startupDescription':
-    'Wenn aktiviert, wird der Befehl nach dem Start von DSH automatisch ausgeführt',
+    'Der Befehl wird nach dem Start von DSH automatisch ausgeführt',
   'terminal.startupCommand': 'Befehl',
   'terminal.startupPlaceholder': 'z. B. pnpm dev',
   'terminal.startupAutoRun': 'Automatisch ausführen',

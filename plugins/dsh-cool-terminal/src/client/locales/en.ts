@@ -17,7 +17,7 @@ export const en = {
   'terminal.removeTitle': 'Delete {title}?',
   'terminal.removeWarning': 'Running commands will be interrupted, and deletion cannot be undone.',
   'terminal.startup': 'Command autostart',
-  'terminal.startupDescription': 'When enabled, the command runs automatically after DSH starts.',
+  'terminal.startupDescription': 'The command runs automatically after DSH starts.',
   'terminal.startupCommand': 'Command',
   'terminal.startupPlaceholder': 'e.g. pnpm dev',
   'terminal.startupAutoRun': 'Run automatically',

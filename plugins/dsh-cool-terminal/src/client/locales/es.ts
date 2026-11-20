@@ -19,7 +19,7 @@ export const es = {
     'Se interrumpirán los comandos en ejecución y la eliminación no se puede deshacer.',
   'terminal.startup': 'Inicio automático de comando',
   'terminal.startupDescription':
-    'Al activarlo, el comando se ejecuta automáticamente al iniciar DSH',
+    'El comando se ejecuta automáticamente al iniciar DSH',
   'terminal.startupCommand': 'Comando',
   'terminal.startupPlaceholder': 'p. ej. pnpm dev',
   'terminal.startupAutoRun': 'Ejecutar automáticamente',
