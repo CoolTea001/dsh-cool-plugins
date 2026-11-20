@@ -11,7 +11,6 @@ export const de = {
   'sidebar.new': 'Neues Terminal',
   'sidebar.menu.new': 'Terminal hinzufügen',
   'sidebar.filter.all': 'Alle Arbeitsbereiche anzeigen',
-  'sidebar.filter.withTerminals': 'Arbeitsbereiche mit Terminals anzeigen',
   'main.hint': 'Klicke links in einem Arbeitsbereich auf ＋, um ein Terminal zu öffnen',
   'terminal.rename': 'Umbenennen',
   'terminal.remove': 'Löschen',

@@ -11,7 +11,6 @@ export const en = {
   'sidebar.new': 'New terminal',
   'sidebar.menu.new': 'New terminal',
   'sidebar.filter.all': 'Show all workspaces',
-  'sidebar.filter.withTerminals': 'Show workspaces with terminals',
   'main.hint': 'Click ＋ on a workspace on the left to open a terminal',
   'terminal.rename': 'Rename',
   'terminal.remove': 'Delete',

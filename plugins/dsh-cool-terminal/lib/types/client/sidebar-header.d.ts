@@ -18,7 +18,6 @@
  * `selectedIds` list: the shell marks whichever row in each group is in force.
  */
 import * as React from 'react';
-import type { SidebarFilter } from './sidebar-prefs.js';
 import type { Translate } from './locales.js';
 /** One workspace the "New terminal" child card can offer. */
 export interface SidebarGroupOption {
@@ -30,8 +29,9 @@ export interface SidebarHeaderProps {
     readonly t: Translate;
     /** The workspaces a console can be created in, in the column's order. */
     readonly groups: readonly SidebarGroupOption[];
-    readonly filter: SidebarFilter;
-    readonly onFilter: (next: SidebarFilter) => void;
+    /** Whether every workspace is listed, or only the ones holding a console. */
+    readonly showAll: boolean;
+    readonly onShowAll: (next: boolean) => void;
     /** Create a console in one workspace and reveal it. */
     readonly onNewTerminal: (key: string) => void;
     /** Open the common-commands dialog. */

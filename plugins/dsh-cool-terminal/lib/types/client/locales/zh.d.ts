@@ -15,7 +15,6 @@ export declare const zh: {
     'sidebar.new': string;
     'sidebar.menu.new': string;
     'sidebar.filter.all': string;
-    'sidebar.filter.withTerminals': string;
     'main.hint': string;
     'terminal.rename': string;
     'terminal.remove': string;

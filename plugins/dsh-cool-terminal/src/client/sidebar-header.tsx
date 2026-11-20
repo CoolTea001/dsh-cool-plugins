@@ -21,7 +21,7 @@
 import * as React from 'react'
 import { Menu, type MenuEntry } from '@dsh-cool/ui'
 import { IconMore } from './icons.js'
-import type { SidebarFilter } from './sidebar-prefs.js'
+
 import type { Translate } from './locales.js'
 
 const h = React.createElement
@@ -40,8 +40,9 @@ export interface SidebarHeaderProps {
   readonly t: Translate
   /** The workspaces a console can be created in, in the column's order. */
   readonly groups: readonly SidebarGroupOption[]
-  readonly filter: SidebarFilter
-  readonly onFilter: (next: SidebarFilter) => void
+  /** Whether every workspace is listed, or only the ones holding a console. */
+  readonly showAll: boolean
+  readonly onShowAll: (next: boolean) => void
   /** Create a console in one workspace and reveal it. */
   readonly onNewTerminal: (key: string) => void
   /** Open the common-commands dialog. */
@@ -55,7 +56,7 @@ export interface SidebarHeaderProps {
  * @returns the header element with its More menu.
  */
 export function SidebarHeader(props: SidebarHeaderProps): React.ReactElement {
-  const { t, groups, filter, onFilter, onNewTerminal, onCommands } = props
+  const { t, groups, showAll, onShowAll, onNewTerminal, onCommands } = props
   const [open, setOpen] = React.useState(false)
   /** The trigger, named as the portaled card's CSS anchor. */
   const anchor = React.useRef<HTMLButtonElement | null>(null)
@@ -66,10 +67,10 @@ export function SidebarHeader(props: SidebarHeaderProps): React.ReactElement {
   // very console that would make the group appear. Creating one reveals it, so
   // the two never disagree for longer than the click.
   //
-  // No row carries a leading icon: this menu is four labels and one check, and
+  // No row carries a leading icon: this menu is three labels and one check, and
   // a glyph beside one of them would make it look like a different kind of row
   // than the rest. The chevron on the submenu parent and the trailing check on
-  // the selected filter are the only marks, and they carry meaning.
+  // the one switch are the only marks, and they carry meaning.
   const items: readonly MenuEntry[] = [
     {
       id: 'new',
@@ -78,8 +79,11 @@ export function SidebarHeader(props: SidebarHeaderProps): React.ReactElement {
       submenu: groups.map((group) => ({ id: `${NEW_PREFIX}${group.key}`, label: group.title })),
     },
     { type: 'separator', id: 'after-new' },
-    { id: 'filter-all', label: t('sidebar.filter.all') },
-    { id: 'filter-with', label: t('sidebar.filter.withTerminals') },
+    // One row, checked or not: a checkbox rather than a pair of radio-like
+    // choices. The two states were never independent — "show everything" is
+    // just the negation of "hide the empty ones" — so drawing them as two rows
+    // made the reader compare two sentences to learn one fact.
+    { id: 'show-all', label: t('sidebar.filter.all') },
     { type: 'separator', id: 'after-filter' },
     { id: 'commands', label: t('commands.title') },
   ]
@@ -100,12 +104,11 @@ export function SidebarHeader(props: SidebarHeaderProps): React.ReactElement {
         // for a portaled card, which renders under `document.body` outside any
         // of this page's scoping classes.
         listClassName: 'dsh-ct-side-menu',
-        selectedIds: [filter === 'all' ? 'filter-all' : 'filter-with'],
+        selectedIds: showAll ? ['show-all'] : [],
         onSelect: (id: string) => {
           setOpen(false)
           if (id.startsWith(NEW_PREFIX)) onNewTerminal(id.slice(NEW_PREFIX.length))
-          else if (id === 'filter-all') onFilter('all')
-          else if (id === 'filter-with') onFilter('withTerminals')
+          else if (id === 'show-all') onShowAll(!showAll)
           else if (id === 'commands') onCommands()
         },
         onClose: () => setOpen(false),

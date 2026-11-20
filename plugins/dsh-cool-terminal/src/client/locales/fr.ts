@@ -11,7 +11,6 @@ export const fr = {
   'sidebar.new': 'Nouveau terminal',
   'sidebar.menu.new': 'Ajouter un terminal',
   'sidebar.filter.all': 'Afficher tous les espaces de travail',
-  'sidebar.filter.withTerminals': 'Afficher les espaces de travail avec des terminaux',
   'main.hint': 'Cliquez sur ＋ sur un espace de travail à gauche pour ouvrir un terminal',
   'terminal.rename': 'Renommer',
   'terminal.remove': 'Supprimer',

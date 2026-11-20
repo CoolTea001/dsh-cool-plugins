@@ -52,7 +52,7 @@ import { writeGeometry } from './geometry.js'
 import { ResizablePanel } from '@dsh-cool/ui'
 import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
 import { SidebarHeader } from './sidebar-header.js'
-import { readFilter, writeFilter, type SidebarFilter } from './sidebar-prefs.js'
+import { readShowAll, writeShowAll } from './sidebar-prefs.js'
 import {
   anchorOf,
   emptySession,
@@ -927,7 +927,8 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     /** Groups the user expanded; anything absent is collapsed. */
     const [expanded, setExpanded] = React.useState<readonly string[]>(() => loadExpanded())
     /** Which workspaces the title bar's menu asks the list to show. */
-    const [filter, setFilter] = React.useState<SidebarFilter>(() => readFilter())
+    /** Whether the column lists every workspace, or only the ones with a console. */
+    const [showAll, setShowAll] = React.useState<boolean>(() => readShowAll())
     const [version, setVersion] = React.useState(0)
     const bump = React.useCallback((): void => setVersion((value) => value + 1), [])
     /** Escape unmounts the rename input, and the unmount fires blur; this
@@ -1017,22 +1018,17 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     const rowSignature = rows.map((row) => row.key).join('|')
 
     /**
-     * The groups the title bar's filter lets through.
+     * The groups the column draws.
      *
      * Filtering never touches the account: a group hidden here keeps every
-     * console it holds, so switching back to "all workspaces" restores the
-     * column exactly as it was. A workspace with no console yet is hidden only
-     * by the narrower filter, which is the point of having it.
-     *
-     * The active group is always visible: the selection effect below only ever
-     * settles on a group that holds a console, and hiding empty groups cannot
-     * remove one that holds any.
+     * console it holds, so ticking the switch back restores the column exactly
+     * as it was. The switch only ever hides a group that holds no console, so
+     * it can never hide the one the pane below is showing — the selection
+     * effect keeps its choice on a populated group.
      */
     const visibleRows = React.useMemo<GroupRow[]>(
-      () => (filter === 'withTerminals'
-        ? rows.filter((row) => terminalsFor(account, row.key).length > 0)
-        : rows),
-      [rows, account, filter],
+      () => (showAll ? rows : rows.filter((row) => terminalsFor(account, row.key).length > 0)),
+      [rows, account, showAll],
     )
 
     React.useEffect(() => {
@@ -1040,8 +1036,8 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     }, [account])
 
     React.useEffect(() => {
-      writeFilter(filter)
-    }, [filter])
+      writeShowAll(showAll)
+    }, [showAll])
 
     React.useEffect(() => {
       saveExpanded(expanded)
@@ -1595,8 +1591,8 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         key: 'head',
         t,
         groups: rows.map((row) => ({ key: row.key, title: row.title })),
-        filter,
-        onFilter: setFilter,
+        showAll,
+        onShowAll: setShowAll,
         onNewTerminal: addConsole,
         onCommands: () => setCommandsOpen(true),
       }),

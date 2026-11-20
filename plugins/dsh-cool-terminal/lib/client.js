@@ -15120,7 +15120,7 @@ window.__ModuleLoader__.load({
 		* @returns the header element with its More menu.
 		*/
 		function SidebarHeader(props) {
-			const { t, groups, filter, onFilter, onNewTerminal, onCommands } = props;
+			const { t, groups, showAll, onShowAll, onNewTerminal, onCommands } = props;
 			const [open, setOpen] = react.useState(false);
 			/** The trigger, named as the portaled card's CSS anchor. */
 			const anchor = react.useRef(null);
@@ -15139,12 +15139,8 @@ window.__ModuleLoader__.load({
 					id: "after-new"
 				},
 				{
-					id: "filter-all",
+					id: "show-all",
 					label: t("sidebar.filter.all")
-				},
-				{
-					id: "filter-with",
-					label: t("sidebar.filter.withTerminals")
 				},
 				{
 					type: "separator",
@@ -15168,12 +15164,11 @@ window.__ModuleLoader__.load({
 				align: "end",
 				anchorRef: anchor,
 				listClassName: "dsh-ct-side-menu",
-				selectedIds: [filter === "all" ? "filter-all" : "filter-with"],
+				selectedIds: showAll ? ["show-all"] : [],
 				onSelect: (id) => {
 					setOpen(false);
 					if (id.startsWith(NEW_PREFIX)) onNewTerminal(id.slice(4));
-					else if (id === "filter-all") onFilter("all");
-					else if (id === "filter-with") onFilter("withTerminals");
+					else if (id === "show-all") onShowAll(!showAll);
 					else if (id === "commands") onCommands();
 				},
 				onClose: () => setOpen(false),
@@ -15192,26 +15187,57 @@ window.__ModuleLoader__.load({
 			})));
 		}
 		// src/client/sidebar-prefs.ts
-		/** Where the "which workspaces" choice is remembered. */
-		const FILTER_KEY = "dsh-cool-terminal.filter.v1";
 		/**
-		* Read the saved workspace filter.
+		* The reader preference the sidebar's title bar sets: whether it lists every
+		* workspace or only the ones that hold a console.
 		*
-		* The default lists every workspace, including one the user has not opened a
-		* console in yet: the header's ＋ is the way into a fresh group, so hiding
-		* empty groups by default would hide the very rows that lead there.
+		* It is a window preference rather than workspace state — it says how this
+		* reader wants to see the column, not what the column contains — so it is kept
+		* in localStorage beside the sidebar width (see `layout.ts`), under this
+		* plugin's own key.
+		*
+		* Storage that refuses the write is not worth surfacing: the preference still
+		* holds for as long as the page is open, which is what `read*` falling back to
+		* the default already covers for the next load.
 		*/
-		function readFilter() {
+		/**
+		* Where the preference is remembered.
+		*
+		* The stored values are the two spellings this setting had as a two-way choice
+		* (`all` / `withTerminals`). They are kept deliberately: the setting is one
+		* checkbox now, but a reader who had already picked "hide empty workspaces"
+		* must not be silently flipped back on upgrade, and keeping the vocabulary
+		* means the rewrite is a no-op for them.
+		*/
+		const FILTER_KEY = "dsh-cool-terminal.filter.v1";
+		/** The stored token for each state. */
+		const STORED = {
+			showAll: "all",
+			hideEmpty: "withTerminals"
+		};
+		/**
+		* Read the preference: whether every workspace is listed.
+		*
+		* The default is on, and it matters more than a default usually does: with it
+		* off, a workspace that holds no console draws no row at all, and the row is
+		* where its own ＋ lives — so hiding empty workspaces by default would hide the
+		* one control a new user needs to create their first console. The title bar's
+		* `新增终端` still reaches every workspace either way, but the column should not
+		* start out looking emptier than it is.
+		*
+		* @returns true to list every workspace; false to hide the ones with no console.
+		*/
+		function readShowAll() {
 			try {
-				return window.localStorage.getItem(FILTER_KEY) === "withTerminals" ? "withTerminals" : "all";
+				return window.localStorage.getItem(FILTER_KEY) !== STORED.hideEmpty;
 			} catch {
-				return "all";
+				return true;
 			}
 		}
-		/** Remember the workspace filter. */
-		function writeFilter(filter) {
+		/** Remember the preference. Storage that refuses the write is not surfaced. */
+		function writeShowAll(showAll) {
 			try {
-				window.localStorage.setItem(FILTER_KEY, filter);
+				window.localStorage.setItem(FILTER_KEY, showAll ? STORED.showAll : STORED.hideEmpty);
 			} catch {}
 		}
 		/** A fresh line: nothing typed, nothing captured, nothing to distrust yet. */
@@ -16646,7 +16672,8 @@ window.__ModuleLoader__.load({
 				/** Groups the user expanded; anything absent is collapsed. */
 				const [expanded, setExpanded] = react.useState(() => loadExpanded());
 				/** Which workspaces the title bar's menu asks the list to show. */
-				const [filter, setFilter] = react.useState(() => readFilter());
+				/** Whether the column lists every workspace, or only the ones with a console. */
+				const [showAll, setShowAll] = react.useState(() => readShowAll());
 				const [version, setVersion] = react.useState(0);
 				const bump = react.useCallback(() => setVersion((value) => value + 1), []);
 				/** Escape unmounts the rename input, and the unmount fires blur; this
@@ -16734,28 +16761,25 @@ window.__ModuleLoader__.load({
 				]);
 				const rowSignature = rows.map((row) => row.key).join("|");
 				/**
-				* The groups the title bar's filter lets through.
+				* The groups the column draws.
 				*
 				* Filtering never touches the account: a group hidden here keeps every
-				* console it holds, so switching back to "all workspaces" restores the
-				* column exactly as it was. A workspace with no console yet is hidden only
-				* by the narrower filter, which is the point of having it.
-				*
-				* The active group is always visible: the selection effect below only ever
-				* settles on a group that holds a console, and hiding empty groups cannot
-				* remove one that holds any.
+				* console it holds, so ticking the switch back restores the column exactly
+				* as it was. The switch only ever hides a group that holds no console, so
+				* it can never hide the one the pane below is showing — the selection
+				* effect keeps its choice on a populated group.
 				*/
-				const visibleRows = react.useMemo(() => filter === "withTerminals" ? rows.filter((row) => terminalsFor(account, row.key).length > 0) : rows, [
+				const visibleRows = react.useMemo(() => showAll ? rows : rows.filter((row) => terminalsFor(account, row.key).length > 0), [
 					rows,
 					account,
-					filter
+					showAll
 				]);
 				react.useEffect(() => {
 					saveAccount(account);
 				}, [account]);
 				react.useEffect(() => {
-					writeFilter(filter);
-				}, [filter]);
+					writeShowAll(showAll);
+				}, [showAll]);
 				react.useEffect(() => {
 					saveExpanded(expanded);
 				}, [expanded]);
@@ -17218,8 +17242,8 @@ window.__ModuleLoader__.load({
 						key: row.key,
 						title: row.title
 					})),
-					filter,
-					onFilter: setFilter,
+					showAll,
+					onShowAll: setShowAll,
 					onNewTerminal: addConsole,
 					onCommands: () => setCommandsOpen(true)
 				}), h(PanelScroll, {
@@ -17540,8 +17564,7 @@ window.__ModuleLoader__.load({
 			"sidebar.emptyFiltered": "暂无有终端的工作区",
 			"sidebar.new": "新建终端",
 			"sidebar.menu.new": "新增终端",
-			"sidebar.filter.all": "展示所有工作区",
-			"sidebar.filter.withTerminals": "展示有终端的工作区",
+			"sidebar.filter.all": "显示所有工作区",
 			"main.hint": "请在左侧工作区点击 ＋ 新建一个终端",
 			"terminal.rename": "重命名",
 			"terminal.remove": "删除",
@@ -17595,7 +17618,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "New terminal",
 			"sidebar.menu.new": "New terminal",
 			"sidebar.filter.all": "Show all workspaces",
-			"sidebar.filter.withTerminals": "Show workspaces with terminals",
 			"main.hint": "Click ＋ on a workspace on the left to open a terminal",
 			"terminal.rename": "Rename",
 			"terminal.remove": "Delete",
@@ -17649,7 +17671,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "新しいターミナル",
 			"sidebar.menu.new": "ターミナルを追加",
 			"sidebar.filter.all": "すべてのワークスペースを表示",
-			"sidebar.filter.withTerminals": "ターミナルのあるワークスペースを表示",
 			"main.hint": "左のワークスペースの ＋ をクリックしてターミナルを開きます",
 			"terminal.rename": "名前を変更",
 			"terminal.remove": "削除",
@@ -17703,7 +17724,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "Nueva terminal",
 			"sidebar.menu.new": "Añadir terminal",
 			"sidebar.filter.all": "Mostrar todos los espacios de trabajo",
-			"sidebar.filter.withTerminals": "Mostrar espacios de trabajo con terminales",
 			"main.hint": "Haz clic en ＋ de un espacio de trabajo a la izquierda para abrir una terminal",
 			"terminal.rename": "Renombrar",
 			"terminal.remove": "Eliminar",
@@ -17757,7 +17777,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "Nouveau terminal",
 			"sidebar.menu.new": "Ajouter un terminal",
 			"sidebar.filter.all": "Afficher tous les espaces de travail",
-			"sidebar.filter.withTerminals": "Afficher les espaces de travail avec des terminaux",
 			"main.hint": "Cliquez sur ＋ sur un espace de travail à gauche pour ouvrir un terminal",
 			"terminal.rename": "Renommer",
 			"terminal.remove": "Supprimer",
@@ -17811,7 +17830,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "Neues Terminal",
 			"sidebar.menu.new": "Terminal hinzufügen",
 			"sidebar.filter.all": "Alle Arbeitsbereiche anzeigen",
-			"sidebar.filter.withTerminals": "Arbeitsbereiche mit Terminals anzeigen",
 			"main.hint": "Klicke links in einem Arbeitsbereich auf ＋, um ein Terminal zu öffnen",
 			"terminal.rename": "Umbenennen",
 			"terminal.remove": "Löschen",
@@ -17865,7 +17883,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "Новый терминал",
 			"sidebar.menu.new": "Добавить терминал",
 			"sidebar.filter.all": "Показать все рабочие пространства",
-			"sidebar.filter.withTerminals": "Показать рабочие пространства с терминалами",
 			"main.hint": "Нажмите ＋ в рабочем пространстве слева, чтобы открыть терминал",
 			"terminal.rename": "Переименовать",
 			"terminal.remove": "Удалить",
@@ -17919,7 +17936,6 @@ window.__ModuleLoader__.load({
 			"sidebar.new": "Novo terminal",
 			"sidebar.menu.new": "Adicionar terminal",
 			"sidebar.filter.all": "Mostrar todos os espaços de trabalho",
-			"sidebar.filter.withTerminals": "Mostrar espaços de trabalho com terminais",
 			"main.hint": "Clique em ＋ em um espaço de trabalho à esquerda para abrir um terminal",
 			"terminal.rename": "Renomear",
 			"terminal.remove": "Excluir",

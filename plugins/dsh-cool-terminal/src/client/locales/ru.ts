@@ -11,7 +11,6 @@ export const ru = {
   'sidebar.new': 'Новый терминал',
   'sidebar.menu.new': 'Добавить терминал',
   'sidebar.filter.all': 'Показать все рабочие пространства',
-  'sidebar.filter.withTerminals': 'Показать рабочие пространства с терминалами',
   'main.hint': 'Нажмите ＋ в рабочем пространстве слева, чтобы открыть терминал',
   'terminal.rename': 'Переименовать',
   'terminal.remove': 'Удалить',
