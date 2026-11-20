@@ -40,6 +40,23 @@ export declare function updateCommand(list: readonly CommandDef[], id: string, b
 /** Remove one command; removing an absent id is a harmless no-op. */
 export declare function removeCommand(list: readonly CommandDef[], id: string): CommandDef[];
 /**
+ * Order a list for display, alphabetically by the command body.
+ *
+ * This is a view concern, not a storage one: the persisted account keeps its
+ * insertion order (see `addCommand`), so the saved file records what the user
+ * added and when, while every surface that draws the list sorts a copy here.
+ * That split is deliberate — sorting on write would rewrite the whole list on
+ * each edit, and would lose the only record of which command came first.
+ *
+ * The sort is stable, so two commands with the same body keep the order they
+ * were added in; `addCommand` does not refuse a duplicate body, and a tidier
+ * tie-break than "as added" does not exist here.
+ *
+ * @param list - the list to order, left untouched.
+ * @returns a sorted copy.
+ */
+export declare function sortCommands(list: readonly CommandDef[]): CommandDef[];
+/**
  * Filter the list by a free-text needle. Both the command body and its
  * description match, case-insensitively.
  */

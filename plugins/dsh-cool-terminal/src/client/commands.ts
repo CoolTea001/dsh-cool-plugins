@@ -86,6 +86,41 @@ export function removeCommand(list: readonly CommandDef[], id: string): CommandD
 }
 
 /**
+ * How command bodies compare for display.
+ *
+ * One collator for the whole module rather than a comparator per call: the
+ * object is the expensive part of a locale-aware comparison, and building it per
+ * sort would rebuild it on every keystroke in the dialog's search field.
+ *
+ * `numeric` is what makes `pnpm test:2` sort before `pnpm test:10` instead of
+ * after it — a shell run-book is full of numbered variants, and the string
+ * order ("1" < "10" < "2") reads as a bug to anyone scanning the list.
+ * `sensitivity: 'base'` folds case and accents, so `Git status` and `git status`
+ * land together instead of at opposite ends.
+ */
+const BODY_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+/**
+ * Order a list for display, alphabetically by the command body.
+ *
+ * This is a view concern, not a storage one: the persisted account keeps its
+ * insertion order (see `addCommand`), so the saved file records what the user
+ * added and when, while every surface that draws the list sorts a copy here.
+ * That split is deliberate — sorting on write would rewrite the whole list on
+ * each edit, and would lose the only record of which command came first.
+ *
+ * The sort is stable, so two commands with the same body keep the order they
+ * were added in; `addCommand` does not refuse a duplicate body, and a tidier
+ * tie-break than "as added" does not exist here.
+ *
+ * @param list - the list to order, left untouched.
+ * @returns a sorted copy.
+ */
+export function sortCommands(list: readonly CommandDef[]): CommandDef[] {
+  return [...list].sort((left, right) => BODY_COLLATOR.compare(left.body, right.body))
+}
+
+/**
  * Filter the list by a free-text needle. Both the command body and its
  * description match, case-insensitively.
  */

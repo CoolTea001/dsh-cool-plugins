@@ -23,15 +23,29 @@
  */
 
 import * as React from 'react'
-import { Button, Input, Modal, Toast, Tooltip, writeClipboard } from '@dsh-cool/ui'
+import { Button, Input, Modal, PanelShadow, Toast, Tooltip, writeClipboard } from '@dsh-cool/ui'
 import { IconCopy, IconEdit, IconPlus, IconTrash } from './icons.js'
-import { addCommand, filterCommands, removeCommand, updateCommand, type CommandDef } from './commands.js'
+import { addCommand, filterCommands, removeCommand, sortCommands, updateCommand, type CommandDef } from './commands.js'
 import type { Translate } from './locales.js'
 
 const h = React.createElement
 
 /** How long the copy toast stays before fading (shorter than the default 3s). */
 const COPIED_MS = 1500
+
+/**
+ * How far the list's edge shade reaches in, in CSS pixels.
+ *
+ * A command row is a card 12px of padding tall on each side, so a 28px shade
+ * covers roughly one row: the dissolve reads as "the list continues" rather
+ * than as a band laid across the last card. It is the default `PanelShadow`
+ * uses, stated here so the two lists in this dialog and the panel beside it do
+ * not drift apart on a magic number.
+ */
+const COMMAND_SHADE_SIZE = 28
+
+/** The list's scrollbar alpha, 0..1 — the same quiet bar the other panes use. */
+const COMMAND_BAR_OPACITY = 0.3
 
 interface EditingState {
   /** Null while the form adds a new command; the id it replaces otherwise. */
@@ -173,9 +187,6 @@ export function CommandsDialog(props: CommandsDialogProps): React.ReactElement {
   /** The copy toast plus a stamp for the React key, so a fresh copy restarts
    *  the banner even mid-flight. */
   const [toast, setToast] = React.useState<{ text: string; stamp: number } | null>(null)
-  /** The scrollable list, and the wrapper the edge fades are pinned to. */
-  const listScroll = React.useRef<HTMLDivElement | null>(null)
-  const listWrap = React.useRef<HTMLDivElement | null>(null)
   /** The dialog forgets the search and any open form when it closes. */
   React.useEffect(() => {
     if (open) return
@@ -183,40 +194,6 @@ export function CommandsDialog(props: CommandsDialogProps): React.ReactElement {
     setEditing(null)
     setToast(null)
   }, [open])
-
-  /**
-   * Show each list edge fade only where the list really hides content, the
-   * same pass the sidebar uses: attributes written straight to the wrapper
-   * (no re-render), a scroll listener for the offset, a ResizeObserver for
-   * box changes, and the scrollbar gutter recorded so a fade never washes
-   * out the scrollbar. No dependency list: a row added, edited, or removed
-   * arrives as a commit, and re-running is what re-reads the new heights.
-   */
-  React.useEffect(() => {
-    const scroll = listScroll.current
-    const wrap = listWrap.current
-    if (scroll === null || wrap === null) return
-    const update = (): void => {
-      const overflow = scroll.scrollHeight - scroll.clientHeight > 1
-      wrap.toggleAttribute('data-fade-top', overflow && scroll.scrollTop > 1)
-      wrap.toggleAttribute(
-        'data-fade-bottom',
-        overflow && scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1,
-      )
-      const gutter = `${scroll.offsetWidth - scroll.clientWidth}px`
-      if (wrap.style.getPropertyValue('--dsh-ct-fade-right') !== gutter) {
-        wrap.style.setProperty('--dsh-ct-fade-right', gutter)
-      }
-    }
-    update()
-    scroll.addEventListener('scroll', update, { passive: true })
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update)
-    observer?.observe(scroll)
-    return () => {
-      scroll.removeEventListener('scroll', update)
-      observer?.disconnect()
-    }
-  })
 
   /**
    * Copy one command to the clipboard. The toast is the success feedback:
@@ -229,7 +206,13 @@ export function CommandsDialog(props: CommandsDialogProps): React.ReactElement {
     })
   }
 
-  const visible = React.useMemo(() => filterCommands(commands, query), [commands, query])
+  // Sorted for display, after filtering: the saved list keeps its insertion
+  // order, and the reader sees it alphabetically. Filtering first means the sort
+  // only ever runs over the matches, which is the smaller list while typing.
+  const visible = React.useMemo(
+    () => sortCommands(filterCommands(commands, query)),
+    [commands, query],
+  )
 
   const save = (): void => {
     if (editing === null) return
@@ -277,15 +260,22 @@ export function CommandsDialog(props: CommandsDialogProps): React.ReactElement {
       return h('div', { key: 'empty', className: 'dsh-ct-cmd-empty' },
         commands.length === 0 ? t('commands.empty') : t('commands.noMatch'))
     }
-    // Fades are siblings of the scroller, never children of it: they are
-    // pinned to the visible box so the list slides under them, and they paint
-    // over the rows only while the wrapper carries the matching data
-    // attribute (see the edge-fade effect above). Empty spans — no layout.
-    return h('div', { key: 'wrap', className: 'dsh-ct-cmd-list-wrap', ref: listWrap },
-      h('div', { key: 'scroll', className: 'dsh-ct-cmd-list', ref: listScroll }, rows),
-      h('span', { key: 'fade-top', className: 'dsh-ct-cmd-fade dsh-ct-cmd-fade-top', 'aria-hidden': 'true' }),
-      h('span', { key: 'fade-bottom', className: 'dsh-ct-cmd-fade dsh-ct-cmd-fade-bottom', 'aria-hidden': 'true' }),
-    )
+    // `@dsh-cool/ui`'s `PanelShadow` draws both things this list needs, and it
+    // draws them as one element: the edges dissolve only while the list really
+    // hides content, and the bar follows the pointer. Its shade is a mask on the
+    // scroller — the rows lose alpha and the card behind them shows through —
+    // rather than the gradient veil this used to paint over them, which only
+    // read correctly while the pane was an opaque surface of its own. The mask
+    // is sized to stop short of the measured gutter, so the bar is never
+    // dissolved along with the rows.
+    return h(PanelShadow, {
+      key: 'scroll',
+      className: 'dsh-ct-cmd-list',
+      axis: 'y',
+      direction: 'y',
+      shadeSize: COMMAND_SHADE_SIZE,
+      barOpacity: COMMAND_BAR_OPACITY,
+    }, rows)
   }
 
   return h(React.Fragment, null,

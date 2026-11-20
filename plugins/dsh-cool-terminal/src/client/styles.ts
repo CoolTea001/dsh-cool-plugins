@@ -200,24 +200,26 @@ export const TERMINAL_CSS = [
   '.dsh-ct-cmd-content{min-height:0;max-height:100%}',
   '.dsh-ct-cmd-toolbar{flex:none;display:flex;align-items:center;gap:8px;margin-bottom:8px}',
   '.dsh-ct-cmd-search{flex:1;min-width:0;height:36px}',
-  // The scroller's wrapper pins the edge fades to the visible box: they are
-  // positioned against it, not against the list (a child of the scroller
-  // would scroll away with the content).
-  '.dsh-ct-cmd-list-wrap{position:relative;display:flex;flex-direction:column;min-height:0}',
-  '.dsh-ct-cmd-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:8px 2px 8px 0;max-height:min(46vh,380px);overflow:auto}',
-  // Edge fades, the same rhythm as the terminal sidebar but a veil rather than
-  // a mask: this list sits on the dialog card's own opaque surface (layer-2 is
-  // the Modal card background), so a gradient towards that surface is exactly
-  // what "the rows dissolve into the card" looks like. Shown only while that
-  // edge actually hides content. `--dsh-ct-fade-right` is the scrollbar gutter
-  // set by the edge-fade effect, so a fade covers the content column and never
-  // washes out the scrollbar. `pointer-events:none` keeps scrolling and row
-  // clicks working where a fade covers a row.
-  '.dsh-ct-cmd-fade{position:absolute;left:0;right:var(--dsh-ct-fade-right,0);height:32px;pointer-events:none;opacity:0;transition:opacity .15s ease;z-index:2}',
-  '.dsh-ct-cmd-fade-top{top:0;background:linear-gradient(to bottom,var(--dsw-alias-bg-layer-2),rgba(0,0,0,0))}',
-  '.dsh-ct-cmd-fade-bottom{bottom:0;background:linear-gradient(to top,var(--dsw-alias-bg-layer-2),rgba(0,0,0,0))}',
-  '[data-fade-top] .dsh-ct-cmd-fade-top{opacity:1}',
-  '[data-fade-bottom] .dsh-ct-cmd-fade-bottom{opacity:1}',
+  // The list is `@dsh-cool/ui`'s `PanelShadow`: the shared sheet owns its
+  // `overflow`, the shade's mask, and the bar's width and alpha, so what stays
+  // here is only this list's own box — it fills the card under the toolbar and
+  // stops short enough that a long list never grows the dialog past the window.
+  //
+  // The four insets are each a different job:
+  //
+  //   - `left: 0` — the cards line up with the toolbar above them. The Modal's
+  //     own content column already carries the card's side padding (24px), so a
+  //     list that added its own would sit 8px in from the search field and the
+  //     Add button, which reads as the list being a narrower thing than the
+  //     controls it belongs to.
+  //   - `right: 4px` — the air between a card's 0.5px border and the bar. Not
+  //     what keeps the mask off the bar — `PanelShadow` sizes the mask around
+  //     the measured gutter, so the bar is never dissolved either way — just
+  //     enough that a border does not read as touching the thumb.
+  //   - `8px` top and bottom — the shade's own reach needs rows under it to
+  //     dissolve; a list starting flush against the toolbar would have its first
+  //     card cut by the mask the moment it scrolled.
+  '.dsh-ct-cmd-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;box-sizing:border-box;padding:8px 4px 8px 0;max-height:min(46vh,380px)}',
   '.dsh-ct-cmd-empty{padding:24px 12px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center}',
   // One saved command: an outlined card with the snippet, its description,
   // and the always-visible icon actions. The borderless hover fill matches

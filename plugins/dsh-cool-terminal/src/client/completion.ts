@@ -35,7 +35,7 @@
  * model, and forwards bytes to the PTY (see terminal.tsx).
  */
 
-import type { CommandDef } from './commands.js'
+import { sortCommands, type CommandDef } from './commands.js'
 
 /** How many matches the popup ever lists (mirrors `.dsh-ct-ac` in styles.ts). */
 export const MAX_ITEMS = 8
@@ -449,6 +449,13 @@ function applyKey(line: LineModel, key: Key): LineModel {
  * fill. Only the whole line is matched: a compound line such as
  * `cd ~ && pnpm` never matches a single saved command, so a fill can never
  * discard text the user typed in front of it.
+ *
+ * The list is in the same alphabetical order the dialog shows, which is why the
+ * whole match set is collected before it is cut down to {@link MAX_ITEMS}: the
+ * first eight rows are a decision about *which* suggestions to offer, so they
+ * have to be the first eight of the sorted set. Taking eight in saved order and
+ * sorting afterwards would offer a different eight than the dialog's first rows
+ * for the same query, and the popup exists to be the dialog's shortcut.
  */
 export function matchCommands(commands: readonly CommandDef[], text: string): CommandDef[] {
   const needle = text.trim().toLowerCase()
@@ -457,12 +464,9 @@ export function matchCommands(commands: readonly CommandDef[], text: string): Co
   for (const command of commands) {
     const body = command.body.toLowerCase()
     if (body.trim() === needle) continue
-    if (body.includes(needle) || command.description.toLowerCase().includes(needle)) {
-      matches.push(command)
-      if (matches.length >= MAX_ITEMS) break
-    }
+    if (body.includes(needle) || command.description.toLowerCase().includes(needle)) matches.push(command)
   }
-  return matches
+  return sortCommands(matches).slice(0, MAX_ITEMS)
 }
 
 /**

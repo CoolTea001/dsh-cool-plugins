@@ -14184,6 +14184,58 @@ window.__ModuleLoader__.load({
 				ref
 			});
 		});
+		// ../../packages/ui/src/panel/panel-shadow.tsx
+		/**
+		* A scroll container that dissolves its own edges where content continues.
+		*
+		* The reference is the terminal sidebar: a column of rows runs under a fixed
+		* header and a fixed footer, and the eye needs one quiet signal that there is
+		* more list above or below the fold. The signal is not a border and not a
+		* shadow painted on the frame — both would be a line that is either always there
+		* or always missing, and a static line over a list that fits is a lie. It is a
+		* fade that appears only while the edge really hides something, so a list short
+		* enough to fit keeps an unmarked first row.
+		*
+		* ## Why a mask and not a veil
+		*
+		* The sidebar's first implementation painted a gradient veil in the pane's own
+		* surface colour over the rows. That only works while the pane *is* a surface:
+		* plugin pages are transparent windows onto whatever the app has behind them —
+		* the canvas colour, or a theme's wallpaper — so a veil is a coloured band
+		* sitting on the list instead of dissolving it. A `mask-image` on the scroller
+		* removes alpha from the rows themselves, and whatever is behind them shows
+		* through, the same way the console is a window.
+		*
+		* The price of a mask is that it also fades the scrollbar, which lives inside
+		* the element's own painted box. So the mask is sized to stop short of the
+		* measured gutter, in both axes, which is what `--dsh-ui-panel-gutter-x/y` carry.
+		*
+		* ## Why one axis
+		*
+		* An edge shade is read as "this column continues", and a pane with shades on
+		* both axes is a frame with four soft corners that says nothing in particular.
+		* The axis is therefore a single choice, and `y` is the one most panes want: a
+		* horizontal strip that overflows is usually better served by eliding its text
+		* than by growing a second scroll gesture.
+		*
+		* The mask is not interpolatable between two gradients, so the switch is instant
+		* rather than a fade-in — again the sidebar's finding, and the reason there is
+		* no transition in the rules for it.
+		*/
+		/**
+		* Render a panel whose edges dissolve while the content continues past them.
+		*
+		* @param props - the shade's axis and reach, the scroll behaviour, and any
+		*   attribute a `div` takes.
+		* @returns the scrollport element.
+		*/
+		const PanelShadow = (0, react.forwardRef)(function PanelShadow({ axis = "y", ...rest }, ref) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Scrollport, {
+				...rest,
+				ref,
+				shadeAxis: axis
+			});
+		});
 		// ../../packages/icons/src/copy.tsx
 		function IconCopy$1(props) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
@@ -14524,6 +14576,42 @@ window.__ModuleLoader__.load({
 			return next.length === list.length ? [...list] : next;
 		}
 		/**
+		* How command bodies compare for display.
+		*
+		* One collator for the whole module rather than a comparator per call: the
+		* object is the expensive part of a locale-aware comparison, and building it per
+		* sort would rebuild it on every keystroke in the dialog's search field.
+		*
+		* `numeric` is what makes `pnpm test:2` sort before `pnpm test:10` instead of
+		* after it — a shell run-book is full of numbered variants, and the string
+		* order ("1" < "10" < "2") reads as a bug to anyone scanning the list.
+		* `sensitivity: 'base'` folds case and accents, so `Git status` and `git status`
+		* land together instead of at opposite ends.
+		*/
+		const BODY_COLLATOR = new Intl.Collator(void 0, {
+			numeric: true,
+			sensitivity: "base"
+		});
+		/**
+		* Order a list for display, alphabetically by the command body.
+		*
+		* This is a view concern, not a storage one: the persisted account keeps its
+		* insertion order (see `addCommand`), so the saved file records what the user
+		* added and when, while every surface that draws the list sorts a copy here.
+		* That split is deliberate — sorting on write would rewrite the whole list on
+		* each edit, and would lose the only record of which command came first.
+		*
+		* The sort is stable, so two commands with the same body keep the order they
+		* were added in; `addCommand` does not refuse a duplicate body, and a tidier
+		* tie-break than "as added" does not exist here.
+		*
+		* @param list - the list to order, left untouched.
+		* @returns a sorted copy.
+		*/
+		function sortCommands(list) {
+			return [...list].sort((left, right) => BODY_COLLATOR.compare(left.body, right.body));
+		}
+		/**
 		* Filter the list by a free-text needle. Both the command body and its
 		* description match, case-insensitively.
 		*/
@@ -14572,6 +14660,18 @@ window.__ModuleLoader__.load({
 		const h$3 = react.createElement;
 		/** How long the copy toast stays before fading (shorter than the default 3s). */
 		const COPIED_MS = 1500;
+		/**
+		* How far the list's edge shade reaches in, in CSS pixels.
+		*
+		* A command row is a card 12px of padding tall on each side, so a 28px shade
+		* covers roughly one row: the dissolve reads as "the list continues" rather
+		* than as a band laid across the last card. It is the default `PanelShadow`
+		* uses, stated here so the two lists in this dialog and the panel beside it do
+		* not drift apart on a magic number.
+		*/
+		const COMMAND_SHADE_SIZE = 28;
+		/** The list's scrollbar alpha, 0..1 — the same quiet bar the other panes use. */
+		const COMMAND_BAR_OPACITY = .3;
 		/**
 		* One saved command: an outlined card with the snippet, its description, and
 		* the always-visible icon actions. Clicking the card inserts the command into
@@ -14675,9 +14775,6 @@ window.__ModuleLoader__.load({
 			/** The copy toast plus a stamp for the React key, so a fresh copy restarts
 			*  the banner even mid-flight. */
 			const [toast, setToast] = react.useState(null);
-			/** The scrollable list, and the wrapper the edge fades are pinned to. */
-			const listScroll = react.useRef(null);
-			const listWrap = react.useRef(null);
 			/** The dialog forgets the search and any open form when it closes. */
 			react.useEffect(() => {
 				if (open) return;
@@ -14685,34 +14782,6 @@ window.__ModuleLoader__.load({
 				setEditing(null);
 				setToast(null);
 			}, [open]);
-			/**
-			* Show each list edge fade only where the list really hides content, the
-			* same pass the sidebar uses: attributes written straight to the wrapper
-			* (no re-render), a scroll listener for the offset, a ResizeObserver for
-			* box changes, and the scrollbar gutter recorded so a fade never washes
-			* out the scrollbar. No dependency list: a row added, edited, or removed
-			* arrives as a commit, and re-running is what re-reads the new heights.
-			*/
-			react.useEffect(() => {
-				const scroll = listScroll.current;
-				const wrap = listWrap.current;
-				if (scroll === null || wrap === null) return;
-				const update = () => {
-					const overflow = scroll.scrollHeight - scroll.clientHeight > 1;
-					wrap.toggleAttribute("data-fade-top", overflow && scroll.scrollTop > 1);
-					wrap.toggleAttribute("data-fade-bottom", overflow && scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1);
-					const gutter = `${scroll.offsetWidth - scroll.clientWidth}px`;
-					if (wrap.style.getPropertyValue("--dsh-ct-fade-right") !== gutter) wrap.style.setProperty("--dsh-ct-fade-right", gutter);
-				};
-				update();
-				scroll.addEventListener("scroll", update, { passive: true });
-				const observer = typeof ResizeObserver === "undefined" ? void 0 : new ResizeObserver(update);
-				observer?.observe(scroll);
-				return () => {
-					scroll.removeEventListener("scroll", update);
-					observer?.disconnect();
-				};
-			});
 			/**
 			* Copy one command to the clipboard. The toast is the success feedback:
 			* the Tooltip bubble cannot guarantee to stay open across the async write,
@@ -14726,7 +14795,7 @@ window.__ModuleLoader__.load({
 					});
 				});
 			};
-			const visible = react.useMemo(() => filterCommands(commands, query), [commands, query]);
+			const visible = react.useMemo(() => sortCommands(filterCommands(commands, query)), [commands, query]);
 			const save = () => {
 				if (editing === null) return;
 				const next = editing.id === null ? addCommand(commands, editing.body, editing.description) : updateCommand(commands, editing.id, editing.body, editing.description);
@@ -14769,23 +14838,14 @@ window.__ModuleLoader__.load({
 					key: "empty",
 					className: "dsh-ct-cmd-empty"
 				}, commands.length === 0 ? t("commands.empty") : t("commands.noMatch"));
-				return h$3("div", {
-					key: "wrap",
-					className: "dsh-ct-cmd-list-wrap",
-					ref: listWrap
-				}, h$3("div", {
+				return h$3(PanelShadow, {
 					key: "scroll",
 					className: "dsh-ct-cmd-list",
-					ref: listScroll
-				}, rows), h$3("span", {
-					key: "fade-top",
-					className: "dsh-ct-cmd-fade dsh-ct-cmd-fade-top",
-					"aria-hidden": "true"
-				}), h$3("span", {
-					key: "fade-bottom",
-					className: "dsh-ct-cmd-fade dsh-ct-cmd-fade-bottom",
-					"aria-hidden": "true"
-				}));
+					axis: "y",
+					direction: "y",
+					shadeSize: COMMAND_SHADE_SIZE,
+					barOpacity: COMMAND_BAR_OPACITY
+				}, rows);
 			};
 			return h$3(react.Fragment, null, h$3(_deepseek_ai_dsh_client_ui_primitives.Modal, {
 				open,
@@ -15452,6 +15512,13 @@ window.__ModuleLoader__.load({
 		* fill. Only the whole line is matched: a compound line such as
 		* `cd ~ && pnpm` never matches a single saved command, so a fill can never
 		* discard text the user typed in front of it.
+		*
+		* The list is in the same alphabetical order the dialog shows, which is why the
+		* whole match set is collected before it is cut down to {@link MAX_ITEMS}: the
+		* first eight rows are a decision about *which* suggestions to offer, so they
+		* have to be the first eight of the sorted set. Taking eight in saved order and
+		* sorting afterwards would offer a different eight than the dialog's first rows
+		* for the same query, and the popup exists to be the dialog's shortcut.
 		*/
 		function matchCommands(commands, text) {
 			const needle = text.trim().toLowerCase();
@@ -15460,12 +15527,9 @@ window.__ModuleLoader__.load({
 			for (const command of commands) {
 				const body = command.body.toLowerCase();
 				if (body.trim() === needle) continue;
-				if (body.includes(needle) || command.description.toLowerCase().includes(needle)) {
-					matches.push(command);
-					if (matches.length >= 8) break;
-				}
+				if (body.includes(needle) || command.description.toLowerCase().includes(needle)) matches.push(command);
 			}
-			return matches;
+			return sortCommands(matches).slice(0, 8);
 		}
 		/**
 		* True when the text the caret sits behind is a *program's* question rather
@@ -17404,13 +17468,7 @@ window.__ModuleLoader__.load({
 			".dsh-ct-cmd-content{min-height:0;max-height:100%}",
 			".dsh-ct-cmd-toolbar{flex:none;display:flex;align-items:center;gap:8px;margin-bottom:8px}",
 			".dsh-ct-cmd-search{flex:1;min-width:0;height:36px}",
-			".dsh-ct-cmd-list-wrap{position:relative;display:flex;flex-direction:column;min-height:0}",
-			".dsh-ct-cmd-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:8px 2px 8px 0;max-height:min(46vh,380px);overflow:auto}",
-			".dsh-ct-cmd-fade{position:absolute;left:0;right:var(--dsh-ct-fade-right,0);height:32px;pointer-events:none;opacity:0;transition:opacity .15s ease;z-index:2}",
-			".dsh-ct-cmd-fade-top{top:0;background:linear-gradient(to bottom,var(--dsw-alias-bg-layer-2),rgba(0,0,0,0))}",
-			".dsh-ct-cmd-fade-bottom{bottom:0;background:linear-gradient(to top,var(--dsw-alias-bg-layer-2),rgba(0,0,0,0))}",
-			"[data-fade-top] .dsh-ct-cmd-fade-top{opacity:1}",
-			"[data-fade-bottom] .dsh-ct-cmd-fade-bottom{opacity:1}",
+			".dsh-ct-cmd-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;box-sizing:border-box;padding:8px 4px 8px 0;max-height:min(46vh,380px)}",
 			".dsh-ct-cmd-empty{padding:24px 12px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center}",
 			".dsh-ct-cmd-row{position:relative;display:flex;align-items:center;gap:16px;padding:12px;border:0.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md);color:var(--dsw-alias-label-secondary);cursor:pointer;user-select:none}",
 			".dsh-ct-cmd-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",

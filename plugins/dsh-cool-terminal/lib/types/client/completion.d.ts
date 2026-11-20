@@ -34,7 +34,7 @@
  * Everything here is pure and DOM-free: the caller reads the screen, steps the
  * model, and forwards bytes to the PTY (see terminal.tsx).
  */
-import type { CommandDef } from './commands.js';
+import { type CommandDef } from './commands.js';
 /** How many matches the popup ever lists (mirrors `.dsh-ct-ac` in styles.ts). */
 export declare const MAX_ITEMS = 8;
 /** One popup row's height in CSS px — must match `.dsh-ct-ac-row`. */
@@ -225,6 +225,13 @@ export declare function classify(data: string): Key;
  * fill. Only the whole line is matched: a compound line such as
  * `cd ~ && pnpm` never matches a single saved command, so a fill can never
  * discard text the user typed in front of it.
+ *
+ * The list is in the same alphabetical order the dialog shows, which is why the
+ * whole match set is collected before it is cut down to {@link MAX_ITEMS}: the
+ * first eight rows are a decision about *which* suggestions to offer, so they
+ * have to be the first eight of the sorted set. Taking eight in saved order and
+ * sorting afterwards would offer a different eight than the dialog's first rows
+ * for the same query, and the popup exists to be the dialog's shortcut.
  */
 export declare function matchCommands(commands: readonly CommandDef[], text: string): CommandDef[];
 /** The result of {@link stepKey}. */
