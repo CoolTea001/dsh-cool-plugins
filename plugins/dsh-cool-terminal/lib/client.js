@@ -14683,6 +14683,7 @@ window.__ModuleLoader__.load({
 				key,
 				label,
 				side: "top",
+				portal: true,
 				children: h$3("button", {
 					type: "button",
 					className: `dsh-ct-icon dsh-ct-cmd-icon${danger ? " dsh-ct-cmd-danger" : ""}`,

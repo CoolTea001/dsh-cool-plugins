@@ -90,12 +90,23 @@ function CommandRow(props: {
   // Copy feedback is the toast owned by the dialog, not the bubble: the
   // bubble depends on a live hover lasting across the async clipboard write,
   // which is not something a row can guarantee.
+  //
+  // `portal` is required, not cosmetic. The list scrolls (`PanelShadow` sets
+  // `overflow-y: auto`), and an element with a non-`visible` overflow clips
+  // everything it contains — including a child that leaves its box. A bubble
+  // rendered in place is therefore cut off the moment it extends past the
+  // scroller's edge: the first row's bubble loses its top half against the
+  // toolbar, and the last row's loses its bottom half against the card's edge.
+  // No `z-index` can prevent that, because clipping happens before stacking.
+  // Portaling the bubble to `document.body` takes it out of the scroller's box
+  // entirely, which is what the primitive's `portal` prop is for.
   const action = (key: string, label: string, danger: boolean, onClick: (event: React.MouseEvent) => void, icon: React.ReactElement):
     React.ReactElement =>
     h(Tooltip, {
       key,
       label,
       side: 'top',
+      portal: true,
       children: h('button', {
         type: 'button',
         className: `dsh-ct-icon dsh-ct-cmd-icon${danger ? ' dsh-ct-cmd-danger' : ''}`,
