@@ -4,9 +4,14 @@ import type { TerminalKey } from '../locales.js'
 
 export const ja = {
   'view.tab': 'ターミナル',
+  'sidebar.header': 'ワークスペース',
   'sidebar.session': '現在のセッション',
   'sidebar.empty': 'ワークスペースがありません',
+  'sidebar.emptyFiltered': 'ターミナルのあるワークスペースがありません',
   'sidebar.new': '新しいターミナル',
+  'sidebar.menu.new': 'ターミナルを追加',
+  'sidebar.filter.all': 'すべてのワークスペースを表示',
+  'sidebar.filter.withTerminals': 'ターミナルのあるワークスペースを表示',
   'main.hint': '左のワークスペースの ＋ をクリックしてターミナルを開きます',
   'terminal.rename': '名前を変更',
   'terminal.remove': '削除',

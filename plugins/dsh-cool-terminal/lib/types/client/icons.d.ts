@@ -31,8 +31,6 @@ export declare const IconEdit: (props: DshCtIconProps) => React.ReactElement;
 export declare const IconAutostart: (props: DshCtIconProps) => React.ReactElement;
 /** Delete a console. */
 export declare const IconTrash: (props: DshCtIconProps) => React.ReactElement;
-/** Common-commands entry. */
-export declare const IconList: (props: DshCtIconProps) => React.ReactElement;
 /** Copy a command to the clipboard. */
 export declare const IconCopy: (props: DshCtIconProps) => React.ReactElement;
 //# sourceMappingURL=icons.d.ts.map

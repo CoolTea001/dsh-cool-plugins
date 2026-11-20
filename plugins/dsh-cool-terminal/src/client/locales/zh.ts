@@ -9,9 +9,14 @@
 
 export const zh = {
   'view.tab': '终端',
+  'sidebar.header': '工作区',
   'sidebar.session': '当前会话',
   'sidebar.empty': '暂无工作区',
+  'sidebar.emptyFiltered': '暂无有终端的工作区',
   'sidebar.new': '新建终端',
+  'sidebar.menu.new': '新增终端',
+  'sidebar.filter.all': '展示所有工作区',
+  'sidebar.filter.withTerminals': '展示有终端的工作区',
   'main.hint': '请在左侧工作区点击 ＋ 新建一个终端',
   'terminal.rename': '重命名',
   'terminal.remove': '删除',

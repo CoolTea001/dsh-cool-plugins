@@ -4,9 +4,14 @@ import type { TerminalKey } from '../locales.js'
 
 export const pt = {
   'view.tab': 'Terminal',
+  'sidebar.header': 'Espaços de trabalho',
   'sidebar.session': 'Sessão atual',
   'sidebar.empty': 'Nenhum espaço de trabalho',
+  'sidebar.emptyFiltered': 'Nenhum espaço de trabalho com terminais',
   'sidebar.new': 'Novo terminal',
+  'sidebar.menu.new': 'Adicionar terminal',
+  'sidebar.filter.all': 'Mostrar todos os espaços de trabalho',
+  'sidebar.filter.withTerminals': 'Mostrar espaços de trabalho com terminais',
   'main.hint': 'Clique em ＋ em um espaço de trabalho à esquerda para abrir um terminal',
   'terminal.rename': 'Renomear',
   'terminal.remove': 'Excluir',

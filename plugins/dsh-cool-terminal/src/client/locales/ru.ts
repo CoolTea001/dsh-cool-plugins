@@ -4,9 +4,14 @@ import type { TerminalKey } from '../locales.js'
 
 export const ru = {
   'view.tab': 'Терминал',
+  'sidebar.header': 'Рабочие пространства',
   'sidebar.session': 'Текущий сеанс',
   'sidebar.empty': 'Нет рабочих пространств',
+  'sidebar.emptyFiltered': 'Нет рабочих пространств с терминалами',
   'sidebar.new': 'Новый терминал',
+  'sidebar.menu.new': 'Добавить терминал',
+  'sidebar.filter.all': 'Показать все рабочие пространства',
+  'sidebar.filter.withTerminals': 'Показать рабочие пространства с терминалами',
   'main.hint': 'Нажмите ＋ в рабочем пространстве слева, чтобы открыть терминал',
   'terminal.rename': 'Переименовать',
   'terminal.remove': 'Удалить',

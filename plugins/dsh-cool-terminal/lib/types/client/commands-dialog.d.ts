@@ -1,7 +1,7 @@
 /**
  * The common-commands dialog.
  *
- * Opens from the sidebar footer's Commands button: a searchable list of saved
+ * Opens from the sidebar title bar's More menu: a searchable list of saved
  * shell snippets, each row inserting its command into the active console's
  * input (no newline — Enter runs it). Rows are outlined cards with
  * always-visible icon actions (edit / copy / delete); copy success is reported
@@ -38,7 +38,10 @@ interface CommandsDialogProps {
     /** Insert one command into the active console; false means none can take it. */
     insert: (body: string) => boolean;
 }
-/** The controlled common-commands dialog; render it with `open` toggled by the footer button. */
+/**
+ * The controlled common-commands dialog; render it with `open` toggled by the
+ * sidebar title bar's More menu.
+ */
 export declare function CommandsDialog(props: CommandsDialogProps): React.ReactElement;
 export {};
 //# sourceMappingURL=commands-dialog.d.ts.map

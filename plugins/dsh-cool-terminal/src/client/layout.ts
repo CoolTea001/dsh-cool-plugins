@@ -22,9 +22,10 @@ const SIDE_DEFAULT = 256
 /**
  * The narrowest the sidebar may be drawn.
  *
- * The header must keep a readable run for a workspace name between its folder
- * glyph and the add button, and the footer button carries a four-character
- * label, so a narrower column would have to clip both to be honest.
+ * The title bar must keep a readable run for its heading between the left inset
+ * and the More trigger, and a workspace header must keep one between its folder
+ * glyph and the add button, so a narrower column would have to clip both to be
+ * honest.
  */
 const SIDE_MIN = 220
 

@@ -69,53 +69,62 @@ export const TERMINAL_CSS = [
   // stops selecting text: the pointer leaves a 1px line at the first frame of a
   // drag, and a crossed row would otherwise highlight under it.
   '.dsh-ct-root[data-resizing=col],.dsh-ct-root[data-resizing=col] *{user-select:none;cursor:col-resize}',
-  // Edge fades: rows dissolve at whichever end hides more list, so the eye can
-  // tell there is something above/below the fold.
+  // Sidebar title bar: the column's name and its one More menu, over the
+  // scrolling list. The hairline under it is what separates the bar from the
+  // rows; the bar itself paints nothing, like the rest of the column.
+  '.dsh-ct-side-head{flex:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
+  '.dsh-ct-side-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:12.5px;font-weight:600}',
+  // The menu's seat: it must not be stretched by the bar's own flex row, and it
+  // must not shrink when the heading elides.
+  '.dsh-ct-side-more{flex:none;display:inline-flex;align-items:center}',
+  // The menu trigger gets a slightly larger seat than a row's own overflow
+  // glyph: it is the column's only control, and it sits in a bar where nothing
+  // else competes for the pointer.
+  '.dsh-ct-icon.dsh-ct-side-more-btn{width:24px;height:24px}',
+  // The title bar's menu card.
   //
-  // This used to be a veil painted over the scroller in the sidebar's own
-  // surface colour. That only works while the column *is* a surface: over the
-  // canvas — and over a wallpaper — such a veil is a coloured band sitting on
-  // the list instead of dissolving it. So the fade is a mask on the scroller
-  // itself: rows lose alpha toward the edge and whatever is behind them shows
-  // through, the same way the console is a window. `mask-image` is not
-  // interpolatable between two gradients, so the switch is instant rather than
-  // the old 0.15s opacity easing; it is tied to real overflow, so it only ever
-  // changes when the user scrolls past an edge.
+  // The primitive sizes this card to `max-content` off its widest row, which
+  // leaves a hole: the trailing check is its own flex child and only the
+  // *selected* row renders one, so the card comes out as wide as whichever row
+  // happens to be checked. Move the check — switch tree/list, or the empty/
+  // filled workspace filter — and the card changes width, because it was
+  // measuring a different row. Two labels of different length therefore made
+  // the menu jump between openings.
   //
-  //   - `mask-size` stops at the scrollbar gutter (`--dsh-ct-fade-right`, set
-  //     by the edge-fade effect in terminal.tsx) so a classic scrollbar never
-  //     fades out; `mask-repeat:no-repeat` keeps the gradient anchored left.
-  //   - `#000` is the opaque mask and `#0000` its clear end — the shorthand the
-  //     shipped sidebar uses for its own label mask.
-  //   - `data-fade-top` / `data-fade-bottom` are written straight to the DOM by
-  //     the edge-fade effect, so a list short enough to fit keeps an unmasked
-  //     first row instead of fading into nothing.
+  // Every row reserves the mark's column instead. The check is taken out of the
+  // flex line (`position:absolute`) and `padding-right` holds its 14px plus the
+  // 8px inset on both sides, so a row's width is always `label + 30px` whether
+  // or not it is checked, and the card is exactly as wide as the longest label
+  // needs with the mark's column beside it, in whatever language is loaded.
+  // The reservation is `padding` rather than a spacer element on purpose: it is
+  // part of the row's `max-content` either way, but padding cannot be folded
+  // away by a row that renders no mark.
   //
-  // The wrapper stays: it carries those attributes and the gutter variable,
-  // neither of which belongs on the scroller's own style.
-  '.dsh-ct-side-list-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}',
-  '.dsh-ct-side-list{flex:1;min-height:0;overflow:auto;padding:8px 6px 10px;mask-image:none;mask-repeat:no-repeat;mask-position:0 0;mask-size:calc(100% - var(--dsh-ct-fade-right,0px)) 100%}',
-  '[data-fade-top] .dsh-ct-side-list{mask-image:linear-gradient(to bottom,#0000,#000 28px)}',
-  '[data-fade-bottom] .dsh-ct-side-list{mask-image:linear-gradient(to top,#0000,#000 28px)}',
-  '[data-fade-top][data-fade-bottom] .dsh-ct-side-list{mask-image:linear-gradient(to bottom,#0000,#000 28px,#000 calc(100% - 28px),#0000)}',
+  // `[role="menuitem"]` is the hook, not the primitives' hashed class: the
+  // class is a CSS-module name that changes between releases, the ARIA role is
+  // the row's contract. Scoped under this card's own class, so no other menu in
+  // the page — including the workspace child card, which has no checks — is
+  // affected. The selector doubles the card's class name for the specificity
+  // tie described on `listClassName` in `sidebar-header.tsx`; the child card
+  // never matches, since only this menu carries the class.
+  '.dsh-ct-side-menu.dsh-ct-side-menu [role="menuitem"]{position:relative;padding-right:30px}',
+  // The mark keeps the primitive's size and takes the reserved column: 8px in
+  // from the edge, vertically centred. `translate` rather than a negative
+  // `margin` so the row's own height cannot shift it off centre.
+  '.dsh-ct-side-menu.dsh-ct-side-menu [role="menuitem"]>svg{position:absolute;right:8px;top:50%;translate:0 -50%}',
+  // The scrolling workspace list, drawn by `@dsh-cool/ui`'s `PanelScroll`: the
+  // bar is the pointer's, it keeps its width whether shown or hidden so the rows
+  // never shift as the pointer crosses the edge, and its width and alpha are the
+  // shared `--dsh-ui-panel-*` variables rather than a second scrollbar drawn
+  // here. `overflow` is deliberately absent: the shared rule owns it per axis,
+  // and a peer declaration in this sheet would be a second opinion the cascade
+  // could resolve the wrong way.
+  //
+  // What stays is this pane's own box — it fills the column under the title bar
+  // — and its inset. No edge fade and no mask: the rows clip at the box the way
+  // the console beside them does.
+  '.dsh-ct-side-list{flex:1;min-height:0;padding:8px 6px 10px}',
   '.dsh-ct-empty{padding:16px 12px;color:var(--dsw-alias-label-tertiary);font-size:11px;text-align:center}',
-
-  // Sidebar footer: the fixed bar under the scrolling workspace list. A
-  // hairline separates it from the list without needing its own background —
-  // it rests on the same surface as the rest of the column.
-  '.dsh-ct-side-footer{flex:none;box-sizing:border-box;padding:4px 8px 10px 8px}',
-  // Quick-action button in the shipped ghost style (the primitives Button
-  // module's neutral variant, restated here so the plugin stays one CSS file):
-  // transparent surface and primary label at rest, a translucent hover fill,
-  // and the control-radius scale for the pill. Content sits flush left with
-  // the same 12px inset as the workspace rows, so the icon column reads as one
-  // line with the list above it.
-  '.dsh-ct-ghost-btn{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;height:44px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer;user-select:none}',
-  '.dsh-ct-ghost-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}',
-  '.dsh-ct-ghost-btn:active{background:var(--dsw-alias-interactive-bg-active)}',
-  // The shipped Button leaves the default focus ring; this restates it in the
-  // product accent so it reads on both schemes instead of the UA's blue.
-  '.dsh-ct-ghost-btn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}',
 
   '.dsh-ct-ws{margin-bottom:4px}',
   '.dsh-ct-ws-head{display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-radius:8px;color:var(--dsw-alias-label-secondary);font-size:13px;cursor:pointer;user-select:none}',
@@ -132,7 +141,13 @@ export const TERMINAL_CSS = [
   // Child rows sit one step in from the group header, so the grouping reads at
   // a glance; the row box and type size still match the header's. The container
   // is the positioning parent of the drop line (see terminal.tsx `ROW_PITCH`).
-  '.dsh-ct-terms{position:relative;display:flex;flex-direction:column;gap:2px;padding:2px 0 4px 16px}',
+  // The container that owns the drag protocol (see `renderDragContainer`). What
+  // stays here is only what both views share: the positioning context the drop
+  // line is absolute against, and the 2px row gap the slot arithmetic assumes.
+  // The inset is each view's own, on the two classes below.
+  '.dsh-ct-terms{position:relative;display:flex;flex-direction:column;gap:2px}',
+  // Tree rows sit one step in from their group header.
+  '.dsh-ct-terms-tree{padding:2px 0 4px 16px}',
 
   // Same box and type as `.dsh-ct-ws-head`: 32px tall, 12px/6px inset, 13px text.
   // `user-select:none` keeps a press-then-move from starting a text selection
@@ -140,7 +155,15 @@ export const TERMINAL_CSS = [
   // its drop mark.
   '.dsh-ct-term{position:relative;display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-radius:8px;color:var(--dsw-alias-label-secondary);font-size:13px;cursor:pointer;user-select:none}',
   '.dsh-ct-term:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
-  '.dsh-ct-term-active{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
+  // The active console takes the one fill stronger than a hover — the shell's
+  // own `interactive-bg-active`, a step above the `-hover` wash both this row
+  // and the pointer use. They used to be the same token, which left an active
+  // row that had just been clicked looking exactly like an idle row under the
+  // cursor; the whole point of the active fill is to say which console the
+  // pane shows after the pointer has left. A hovered *and* active row keeps the
+  // stronger of the two, so moving the pointer along the column never makes the
+  // current console look less current.
+  '.dsh-ct-term-active,.dsh-ct-term-active:hover{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}',
   // Drag-and-drop reorder, scoped to one workspace group's rows. The drop
   // line is a single element per group, absolutely positioned by insertion
   // index at whole row pitches (terminal.tsx `ROW_PITCH`): it always fills

@@ -12,7 +12,6 @@ import {
   IconEdit as BaseEdit,
   IconFolder as BaseFolder,
   IconFolderOpened as BaseFolderOpened,
-  IconList as BaseList,
   IconMoreHorizontal as BaseMore,
   IconPlus as BasePlus,
   IconRefreshCw as BaseRefresh,
@@ -60,9 +59,6 @@ export const IconAutostart = seat(BaseRefresh)
 
 /** Delete a console. */
 export const IconTrash = seat(BaseTrash)
-
-/** Common-commands entry. */
-export const IconList = seat(BaseList)
 
 /** Copy a command to the clipboard. */
 export const IconCopy = seat(BaseCopy)

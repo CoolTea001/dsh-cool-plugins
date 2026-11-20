@@ -13116,6 +13116,31 @@ window.__ModuleLoader__.load({
 		/** The prefix every class in {@link UI_CSS} carries. */
 		const UI_PREFIX = "dsh-ui";
 		/**
+		* The custom properties the scroll panels and {@link UI_CSS} agree on.
+		*
+		* They are written by `Scrollport` as inline style and read by the rules below.
+		* Naming them in one place is what keeps a rule and the component that feeds it
+		* from drifting apart after a rename — the same reason the class names go
+		* through {@link uiClass}.
+		*
+		* `gutterX`/`gutterY` are the odd ones out: they are not configuration but a
+		* measurement, written on every scroll pass. The edge masks need them because a
+		* mask covers the scrollbar as well as the rows, and a faded thumb is a bar the
+		* reader cannot see to grab.
+		*/
+		const PANEL_VARS = {
+			/** The thumb's alpha, as a CSS percentage. */
+			barAlpha: "--dsh-ui-panel-bar-alpha",
+			/** The bar's width. */
+			barWidth: "--dsh-ui-panel-bar-width",
+			/** How far an edge shade reaches in from the edge. */
+			shade: "--dsh-ui-panel-shade",
+			/** The measured width of the vertical scrollbar, or `0px`. */
+			gutterX: "--dsh-ui-panel-gutter-x",
+			/** The measured height of the horizontal scrollbar, or `0px`. */
+			gutterY: "--dsh-ui-panel-gutter-y"
+		};
+		/**
 		* Build a shared class name from a suffix.
 		*
 		* Callers write `uiClass('resize')` rather than `'dsh-ui-resize'`, so the
@@ -13826,6 +13851,339 @@ window.__ModuleLoader__.load({
 			const ceiling = `min(${bounds.max}px,calc(100% - ${bounds.mainMin}px))`;
 			return `${selector}{position:relative;flex:none;display:flex;flex-direction:column;box-sizing:border-box;min-height:0;width:var(${property},${bounds.fallback}px);min-width:${bounds.min}px;max-width:${ceiling};${declarations}}`;
 		}
+		// ../../packages/ui/src/panel/scrollport.tsx
+		/**
+		* The one scrollport behind both panel components.
+		*
+		* Every plugin in this repository draws the same pane twice over, and had begun
+		* to draw it differently in each place: a list whose bar arrives with the
+		* pointer and leaves a moment after it, and a list whose edges dissolve where
+		* the content continues. The two are one element in practice — the same div is
+		* the scroller, carries the bar's colour and wears the edge mask — so the
+		* mechanism lives here once, and `PanelScroll` / `PanelShadow` are two spellings
+		* of it with different defaults.
+		*
+		* Three decisions are worth stating because each one is a bug the naive version
+		* has:
+		*
+		* 1. **The bar's visibility is written to the DOM, not held in React state.**
+		*    A scroll event fires far more often than a page paints, and the answer is
+		*    one attribute — `data-bar=show` — that the shared stylesheet turns into the
+		*    platform's own thumb colour. A hover that re-rendered the rows is a hover
+		*    that costs a frame proportional to the list (see the terminal sidebar's
+		*    edge-fade effect, which made the same choice).
+		*
+		* 2. **The departure delay is a timer, not a CSS transition.** The platform's
+		*    bar colour is a variable the global scrollbar rules read, and a variable
+		*    does not interpolate: the switch is instant either way. So the delay is
+		*    the only interesting part — it is what keeps the bar from blinking out
+		*    while the pointer crosses a boundary — and a plain timeout states it.
+		*
+		* 3. **The edge shade is a mask on the scroller, not a veil painted over it.**
+		*    That is the terminal sidebar's lesson: a veil in the pane's own surface
+		*    colour only works while the pane *is* a surface. Over the canvas — and over
+		*    a theme's wallpaper — it is a coloured band sitting on the list. A mask
+		*    dissolves the rows and lets whatever is behind them through. The one thing
+		*    it must not dissolve is the scrollbar, which lives inside the element's
+		*    own painted box, so the mask is sized to stop short of the measured
+		*    gutter.
+		*/
+		/** The bar's width when the caller does not choose one, in CSS pixels. */
+		const BAR_WIDTH = 5;
+		/** How long the bar lingers after the pointer leaves, in seconds. */
+		const HIDE_DELAY = 1;
+		/** How far an edge shade reaches into the pane when the caller does not say. */
+		const SHADE_SIZE = 28;
+		/** The most a bar may be widened to, so a typo cannot swallow the pane. */
+		const BAR_WIDTH_MAX = 32;
+		/** Whether a value is a direction this component can draw. */
+		function readDirection(value) {
+			return value === "none" || value === "x" || value === "y" || value === "both" ? value : "both";
+		}
+		/**
+		* Read a bar opacity.
+		*
+		* @param value - the caller's number, in 0..1.
+		* @returns the value clamped into range, or fully opaque when it is not a number.
+		*/
+		function readOpacity(value) {
+			if (typeof value !== "number" || !Number.isFinite(value)) return 1;
+			return Math.min(1, Math.max(0, value));
+		}
+		/**
+		* Read one length in CSS pixels.
+		*
+		* @param value - the caller's number.
+		* @param fallback - the length used when the value is missing or unusable.
+		* @returns a positive length, or the fallback.
+		*/
+		function readLength(value, fallback) {
+			if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return fallback;
+			return value;
+		}
+		/**
+		* Read the departure delay in seconds.
+		*
+		* Zero is legal and means the bar leaves with the pointer; a negative or
+		* non-finite value falls back to the default rather than turning a timer into an
+		* immediate hide through arithmetic nobody meant.
+		*
+		* @param value - the caller's delay, in seconds.
+		* @returns a non-negative delay in seconds.
+		*/
+		function readDelay(value) {
+			if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return HIDE_DELAY;
+			return value;
+		}
+		/** Set a custom property only when it would change, so a scroll frame invalidates as little as possible. */
+		function setVariable(element, name, value) {
+			if (element.style.getPropertyValue(name) === value) return;
+			element.style.setProperty(name, value);
+		}
+		/** Take every trace of the edge shade back out of the element. */
+		function clearShade(element) {
+			element.removeAttribute("data-shade-start");
+			element.removeAttribute("data-shade-end");
+			element.style.removeProperty(PANEL_VARS.gutterX);
+			element.style.removeProperty(PANEL_VARS.gutterY);
+		}
+		/**
+		* Read the scroller and publish what the shade rules need.
+		*
+		* The two attributes say which ends hide content, and the two gutter variables
+		* say how wide the scrollbars are, so the mask can stop short of them. Gutter
+		* variables are written even when the shade axis cannot scroll, because the
+		* other axis's bar may still be present.
+		*
+		* @param element - the scrollport.
+		* @param axis - the axis the shade runs along, or null to remove it.
+		* @param direction - which axes the port is allowed to scroll on.
+		*/
+		function syncShade(element, axis, direction) {
+			if (axis === null) {
+				clearShade(element);
+				return;
+			}
+			setVariable(element, PANEL_VARS.gutterX, `${element.offsetWidth - element.clientWidth}px`);
+			setVariable(element, PANEL_VARS.gutterY, `${element.offsetHeight - element.clientHeight}px`);
+			const scrollable = axis === "y" ? direction === "both" || direction === "y" : direction === "both" || direction === "x";
+			const start = axis === "y" ? element.scrollTop : element.scrollLeft;
+			const view = axis === "y" ? element.clientHeight : element.clientWidth;
+			const total = axis === "y" ? element.scrollHeight : element.scrollWidth;
+			const overflow = scrollable && total - view > 1;
+			element.toggleAttribute("data-shade-start", overflow && start > 1);
+			element.toggleAttribute("data-shade-end", overflow && start + view < total - 1);
+		}
+		/**
+		* Show the bar while the pointer, the keyboard or a scroll gesture is using it.
+		*
+		* The bar is hidden at rest, which is the shell's own treatment for its lists: a
+		* pane that keeps a permanent stripe reads as a different kind of surface. What
+		* this adds over the shell's `:hover` rule is the delay — the bar stays for
+		* `hideDelay` seconds after the last reason to show it goes away, so crossing a
+		* boundary on the way to a row does not make it flicker.
+		*
+		* @param ref - the scrollport.
+		* @param hideDelay - seconds to keep the bar after the last activity.
+		*/
+		function useBarVisibility(ref, hideDelay) {
+			const delay = (0, react.useRef)(hideDelay);
+			delay.current = hideDelay;
+			(0, react.useEffect)(() => {
+				const element = ref.current;
+				if (element === null) return;
+				let timer = null;
+				let hovered = false;
+				let focused = false;
+				const clear = () => {
+					if (timer === null) return;
+					clearTimeout(timer);
+					timer = null;
+				};
+				const show = () => {
+					clear();
+					element.setAttribute("data-bar", "show");
+				};
+				const hide = () => {
+					clear();
+					element.removeAttribute("data-bar");
+				};
+				/** Hide the bar once nobody is using it, after the caller's delay. */
+				const settle = () => {
+					if (hovered || focused) return;
+					clear();
+					const milliseconds = delay.current * 1e3;
+					if (milliseconds <= 0) {
+						hide();
+						return;
+					}
+					timer = setTimeout(hide, milliseconds);
+				};
+				const enter = () => {
+					hovered = true;
+					show();
+				};
+				const leave = () => {
+					hovered = false;
+					settle();
+				};
+				const focusIn = () => {
+					focused = true;
+					show();
+				};
+				const focusOut = (event) => {
+					const next = event.relatedTarget;
+					if (next instanceof Node && element.contains(next)) return;
+					focused = false;
+					settle();
+				};
+				const scroll = () => {
+					if (hovered || focused) return;
+					show();
+					settle();
+				};
+				element.addEventListener("pointerenter", enter);
+				element.addEventListener("pointerleave", leave);
+				element.addEventListener("focusin", focusIn);
+				element.addEventListener("focusout", focusOut);
+				element.addEventListener("scroll", scroll, { passive: true });
+				return () => {
+					element.removeEventListener("pointerenter", enter);
+					element.removeEventListener("pointerleave", leave);
+					element.removeEventListener("focusin", focusIn);
+					element.removeEventListener("focusout", focusOut);
+					element.removeEventListener("scroll", scroll);
+					clear();
+					element.removeAttribute("data-bar");
+				};
+			}, [ref]);
+		}
+		/**
+		* Keep the edge shade in step with the scroller.
+		*
+		* Two sources are needed and neither replaces the other. `scroll` covers the
+		* offset in between; `ResizeObserver` covers the box (a window resize, the
+		* sidebar's first layout, a scrollbar arriving). A list that grew *without* its
+		* box changing is the third case — a row was added, an empty state was replaced
+		* — and it arrives as a render, so every commit re-reads too. That is the same
+		* arrangement the terminal sidebar's edge fades use, and for the same reason:
+		* there is no event for "the content got taller".
+		*
+		* @param ref - the scrollport.
+		* @param axis - the axis the shade runs along, or null for a plain panel.
+		* @param direction - which axes the port is allowed to scroll on.
+		*/
+		function useEdgeShade(ref, axis, direction) {
+			const latest = (0, react.useRef)({
+				axis,
+				direction
+			});
+			latest.current = {
+				axis,
+				direction
+			};
+			(0, react.useEffect)(() => {
+				const element = ref.current;
+				if (element === null) return;
+				let frame = null;
+				const run = () => {
+					frame = null;
+					syncShade(element, latest.current.axis, latest.current.direction);
+				};
+				const schedule = () => {
+					if (frame !== null) return;
+					frame = window.requestAnimationFrame(run);
+				};
+				element.addEventListener("scroll", schedule, { passive: true });
+				const observer = typeof ResizeObserver === "undefined" ? void 0 : new ResizeObserver(schedule);
+				observer?.observe(element);
+				return () => {
+					element.removeEventListener("scroll", schedule);
+					if (frame !== null) window.cancelAnimationFrame(frame);
+					observer?.disconnect();
+					clearShade(element);
+				};
+			}, [ref]);
+			(0, react.useLayoutEffect)(() => {
+				const element = ref.current;
+				if (element !== null) syncShade(element, axis, direction);
+			});
+		}
+		/**
+		* Render the shared scrollport.
+		*
+		* Not part of the package's public surface: a plugin picks the behaviour it
+		* wants by naming `PanelScroll` or `PanelShadow`, and the props that only make
+		* sense for one of them stay off the other's type.
+		*/
+		const Scrollport = (0, react.forwardRef)(function Scrollport(props, ref) {
+			const { direction, barOpacity, barWidth, hideDelay, shadeAxis = null, shadeSize, className, style, children, ...rest } = props;
+			const local = (0, react.useRef)(null);
+			useBarVisibility(local, readDelay(hideDelay));
+			useEdgeShade(local, shadeAxis, readDirection(direction));
+			const attach = (0, react.useCallback)((node) => {
+				local.current = node;
+				if (typeof ref === "function") ref(node);
+				else if (ref !== null) ref.current = node;
+			}, [ref]);
+			const variables = {
+				[PANEL_VARS.barAlpha]: `${readOpacity(barOpacity) * 100}%`,
+				[PANEL_VARS.barWidth]: `${Math.min(BAR_WIDTH_MAX, readLength(barWidth, BAR_WIDTH))}px`,
+				...shadeAxis === null ? {} : { [PANEL_VARS.shade]: `${readLength(shadeSize, SHADE_SIZE)}px` }
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				...rest,
+				ref: attach,
+				className: className === void 0 || className === "" ? uiClass("panel") : `${uiClass("panel")} ${className}`,
+				style: {
+					...style,
+					...variables
+				},
+				"data-scroll": readDirection(direction),
+				"data-shade": shadeAxis ?? void 0,
+				children
+			});
+		});
+		// ../../packages/ui/src/panel/panel-scroll.tsx
+		/**
+		* A scroll container whose bar belongs to the pointer, not to the pane.
+		*
+		* The shell's lists already behave this way: the thumb is bound to `transparent`
+		* and rebound while the pointer is inside, so the bar arrives with the pointer
+		* and leaves with it. What this component adds is the leaving delay — the bar
+		* stays for `hideDelay` seconds after the last reason to show it, because a
+		* pointer crossing a boundary on its way to a row should not make a stripe blink
+		* in and out of the pane. Since the bar is the same width hidden or shown, the
+		* rows never shift as the pointer crosses the edge.
+		*
+		* It also owns the two geometry facts a plugin kept restating by hand:
+		*
+		* - **Which axes may scroll.** A vertical list that paints a horizontal bar for
+		*   an overflowing pixel says a gesture exists with nothing behind it, so the
+		*   axis is a decision rather than a side effect of `overflow:auto`.
+		* - **How wide and how opaque the bar is.** Both are custom properties on the
+		*   port, and the platform's own scrollbar rules read them, so a resized bar is
+		*   still the platform's bar — same pill shape, same track, same hover token —
+		*   rather than a second scrollbar drawn from `::-webkit-scrollbar` rules that
+		*   would drift from every other scroller in the app.
+		*
+		* The visible consequence worth knowing: a caller that hides the bar to zero
+		* width on a platform without custom scrollbars (Firefox) gets `scrollbar-width:
+		* thin` from the platform instead, because that engine has no pixel width to
+		* set. Everything else — colour, opacity, delay, direction — is engine-neutral.
+		*/
+		/**
+		* Render a panel that scrolls, with a bar that follows the pointer.
+		*
+		* @param props - the scroll behaviour, plus any attribute a `div` takes.
+		* @returns the scrollport element.
+		*/
+		const PanelScroll = (0, react.forwardRef)(function PanelScroll(props, ref) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Scrollport, {
+				...props,
+				ref
+			});
+		});
 		// ../../packages/icons/src/copy.tsx
 		function IconCopy$1(props) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
@@ -13890,21 +14248,6 @@ window.__ModuleLoader__.load({
 					strokeLinejoin: "round",
 					strokeWidth: "2",
 					d: "m6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
-				})
-			});
-		}
-		// ../../packages/icons/src/list.tsx
-		function IconList$1(props) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(IconBase, {
-				...props,
-				viewBox: "0 0 24 24",
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
-					fill: "none",
-					stroke: "currentColor",
-					strokeLinecap: "round",
-					strokeLinejoin: "round",
-					strokeWidth: "2",
-					d: "M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13"
 				})
 			});
 		}
@@ -14030,8 +14373,6 @@ window.__ModuleLoader__.load({
 		const IconAutostart = seat(IconRefreshCw);
 		/** Delete a console. */
 		const IconTrash = seat(IconTrash$1);
-		/** Common-commands entry. */
-		const IconList = seat(IconList$1);
 		/** Copy a command to the clipboard. */
 		const IconCopy = seat(IconCopy$1);
 		// src/client/api.ts
@@ -14208,7 +14549,7 @@ window.__ModuleLoader__.load({
 		/**
 		* The common-commands dialog.
 		*
-		* Opens from the sidebar footer's Commands button: a searchable list of saved
+		* Opens from the sidebar title bar's More menu: a searchable list of saved
 		* shell snippets, each row inserting its command into the active console's
 		* input (no newline — Enter runs it). Rows are outlined cards with
 		* always-visible icon actions (edit / copy / delete); copy success is reported
@@ -14228,7 +14569,7 @@ window.__ModuleLoader__.load({
 		* package renders: this component is controlled — it renders what it is handed
 		* and reports changes upward.
 		*/
-		const h$2 = react.createElement;
+		const h$3 = react.createElement;
 		/** How long the copy toast stays before fading (shorter than the default 3s). */
 		const COPIED_MS = 1500;
 		/**
@@ -14238,11 +14579,11 @@ window.__ModuleLoader__.load({
 		*/
 		function CommandRow(props) {
 			const { command, t, insertable, onInsert, onEdit, onCopy, onRemove } = props;
-			const action = (key, label, danger, onClick, icon) => h$2(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
+			const action = (key, label, danger, onClick, icon) => h$3(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
 				key,
 				label,
 				side: "top",
-				children: h$2("button", {
+				children: h$3("button", {
 					type: "button",
 					className: `dsh-ct-icon dsh-ct-cmd-icon${danger ? " dsh-ct-cmd-danger" : ""}`,
 					"aria-label": label,
@@ -14252,29 +14593,29 @@ window.__ModuleLoader__.load({
 					}
 				}, icon)
 			});
-			return h$2("div", {
+			return h$3("div", {
 				key: command.id,
 				className: "dsh-ct-cmd-row",
 				title: insertable ? t("commands.insertHint") : t("commands.noActiveTerminal"),
 				onClick: () => {
 					onInsert(command.body);
 				}
-			}, h$2("div", {
+			}, h$3("div", {
 				key: "main",
 				className: "dsh-ct-cmd-main"
-			}, h$2("span", {
+			}, h$3("span", {
 				key: "body",
 				className: "dsh-ct-cmd-body"
-			}, command.body), command.description === "" ? h$2("span", {
+			}, command.body), command.description === "" ? h$3("span", {
 				key: "desc",
 				className: "dsh-ct-cmd-desc dsh-ct-cmd-desc-none"
-			}, t("commands.noDescription")) : h$2("span", {
+			}, t("commands.noDescription")) : h$3("span", {
 				key: "desc",
 				className: "dsh-ct-cmd-desc"
-			}, command.description)), h$2("div", {
+			}, command.description)), h$3("div", {
 				key: "actions",
 				className: "dsh-ct-cmd-actions"
-			}, action("edit", t("commands.edit"), false, () => onEdit(command), h$2(IconEdit, { key: "edit" })), action("copy", t("commands.copy"), false, () => onCopy(), h$2(IconCopy, { key: "copy" })), action("remove", t("commands.remove"), true, () => onRemove(command.id), h$2(IconTrash, { key: "remove" }))));
+			}, action("edit", t("commands.edit"), false, () => onEdit(command), h$3(IconEdit, { key: "edit" })), action("copy", t("commands.copy"), false, () => onCopy(), h$3(IconCopy, { key: "copy" })), action("remove", t("commands.remove"), true, () => onRemove(command.id), h$3(IconTrash, { key: "remove" }))));
 		}
 		/** The inline add/edit form: two inputs plus a right-aligned cancel / save row. */
 		function CommandForm(props) {
@@ -14283,7 +14624,7 @@ window.__ModuleLoader__.load({
 			const commit = () => {
 				if (canSave) onSave();
 			};
-			return h$2("div", { className: "dsh-ct-cmd-edit" }, h$2(Input, {
+			return h$3("div", { className: "dsh-ct-cmd-edit" }, h$3(Input, {
 				className: "dsh-ct-cmd-input",
 				value: editing.body,
 				placeholder: t("commands.bodyPlaceholder"),
@@ -14298,7 +14639,7 @@ window.__ModuleLoader__.load({
 				onKeyDown: (event) => {
 					if (event.key === "Enter") commit();
 				}
-			}), h$2(Input, {
+			}), h$3(Input, {
 				className: "dsh-ct-cmd-input",
 				value: editing.description,
 				placeholder: t("commands.descriptionPlaceholder"),
@@ -14309,21 +14650,24 @@ window.__ModuleLoader__.load({
 						description: event.target.value
 					});
 				}
-			}), h$2("div", {
+			}), h$3("div", {
 				key: "actions",
 				className: "dsh-ct-cmd-edit-actions"
-			}, h$2(_deepseek_ai_dsh_client_ui_primitives.Button, {
+			}, h$3(_deepseek_ai_dsh_client_ui_primitives.Button, {
 				key: "cancel",
 				variant: "outline",
 				onClick: onCancel
-			}, t("commands.cancel")), h$2(_deepseek_ai_dsh_client_ui_primitives.Button, {
+			}, t("commands.cancel")), h$3(_deepseek_ai_dsh_client_ui_primitives.Button, {
 				key: "save",
 				variant: "primary",
 				disabled: !canSave,
 				onClick: commit
 			}, t("commands.save"))));
 		}
-		/** The controlled common-commands dialog; render it with `open` toggled by the footer button. */
+		/**
+		* The controlled common-commands dialog; render it with `open` toggled by the
+		* sidebar title bar's More menu.
+		*/
 		function CommandsDialog(props) {
 			const { open, commands, t, insertable, onChange, onClose, insert } = props;
 			const [query, setQuery] = react.useState("");
@@ -14392,7 +14736,7 @@ window.__ModuleLoader__.load({
 			const renderList = () => {
 				/** The inline form in either of its slots: replacing a row, or the add
 				*  card at the top of the list. The two sites differ only in the key. */
-				const renderForm = (editing, key) => h$2(CommandForm, {
+				const renderForm = (editing, key) => h$3(CommandForm, {
 					key,
 					editing,
 					t,
@@ -14402,7 +14746,7 @@ window.__ModuleLoader__.load({
 				});
 				const rows = visible.map((command) => {
 					if (editing !== null && editing.id === command.id) return renderForm(editing, `edit-${command.id}`);
-					return h$2(CommandRow, {
+					return h$3(CommandRow, {
 						key: command.id,
 						command,
 						t,
@@ -14421,29 +14765,29 @@ window.__ModuleLoader__.load({
 				});
 				const adding = editing !== null && editing.id === null;
 				if (adding) rows.unshift(renderForm(editing, "add-form"));
-				if (!adding && rows.length === 0) return h$2("div", {
+				if (!adding && rows.length === 0) return h$3("div", {
 					key: "empty",
 					className: "dsh-ct-cmd-empty"
 				}, commands.length === 0 ? t("commands.empty") : t("commands.noMatch"));
-				return h$2("div", {
+				return h$3("div", {
 					key: "wrap",
 					className: "dsh-ct-cmd-list-wrap",
 					ref: listWrap
-				}, h$2("div", {
+				}, h$3("div", {
 					key: "scroll",
 					className: "dsh-ct-cmd-list",
 					ref: listScroll
-				}, rows), h$2("span", {
+				}, rows), h$3("span", {
 					key: "fade-top",
 					className: "dsh-ct-cmd-fade dsh-ct-cmd-fade-top",
 					"aria-hidden": "true"
-				}), h$2("span", {
+				}), h$3("span", {
 					key: "fade-bottom",
 					className: "dsh-ct-cmd-fade dsh-ct-cmd-fade-bottom",
 					"aria-hidden": "true"
 				}));
 			};
-			return h$2(react.Fragment, null, h$2(_deepseek_ai_dsh_client_ui_primitives.Modal, {
+			return h$3(react.Fragment, null, h$3(_deepseek_ai_dsh_client_ui_primitives.Modal, {
 				open,
 				onClose,
 				title: t("commands.title"),
@@ -14457,27 +14801,27 @@ window.__ModuleLoader__.load({
 						setEditing(null);
 					}
 				},
-				children: [h$2("div", {
+				children: [h$3("div", {
 					key: "toolbar",
 					className: "dsh-ct-cmd-toolbar"
-				}, h$2(Input, {
+				}, h$3(Input, {
 					key: "search",
 					className: "dsh-ct-cmd-search",
 					value: query,
 					placeholder: t("commands.search"),
 					"aria-label": t("commands.searchLabel"),
 					onChange: (event) => setQuery(event.target.value)
-				}), h$2(_deepseek_ai_dsh_client_ui_primitives.Button, {
+				}), h$3(_deepseek_ai_dsh_client_ui_primitives.Button, {
 					key: "add",
 					variant: "primary",
-					icon: h$2(IconPlus, { key: "plus" }),
+					icon: h$3(IconPlus, { key: "plus" }),
 					onClick: () => setEditing({
 						id: null,
 						body: "",
 						description: ""
 					})
 				}, t("commands.add"))), renderList()]
-			}), toast === null ? null : h$2(_deepseek_ai_dsh_client_ui_primitives.Toast, {
+			}), toast === null ? null : h$3(_deepseek_ai_dsh_client_ui_primitives.Toast, {
 				key: toast.stamp,
 				text: toast.text,
 				tone: "success",
@@ -14497,7 +14841,7 @@ window.__ModuleLoader__.load({
 		* opening. Keeping it here means typing a command re-renders only the dialog —
 		* not the sidebar, the consoles, and every xterm they hold.
 		*/
-		const h$1 = react.createElement;
+		const h$2 = react.createElement;
 		/**
 		* Render the Command autostart dialog.
 		* @param props - saved values, copy, and the close/save commands.
@@ -14510,29 +14854,29 @@ window.__ModuleLoader__.load({
 			const commit = () => {
 				onSave(command, autoRun);
 			};
-			return h$1(_deepseek_ai_dsh_client_ui_primitives.Modal, {
+			return h$2(_deepseek_ai_dsh_client_ui_primitives.Modal, {
 				open: true,
 				onClose,
 				title: t("terminal.startup"),
 				closeLabel: t("terminal.close"),
 				description: t("terminal.startupDescription"),
 				className: "dsh-ct-startup-dialog",
-				footer: h$1(react.Fragment, null, h$1(_deepseek_ai_dsh_client_ui_primitives.Button, {
+				footer: h$2(react.Fragment, null, h$2(_deepseek_ai_dsh_client_ui_primitives.Button, {
 					key: "cancel",
 					variant: "outline",
 					onClick: onClose
-				}, t("terminal.cancel")), h$1(_deepseek_ai_dsh_client_ui_primitives.Button, {
+				}, t("terminal.cancel")), h$2(_deepseek_ai_dsh_client_ui_primitives.Button, {
 					key: "save",
 					variant: "primary",
 					onClick: commit
 				}, t("terminal.save")))
-			}, h$1("div", {
+			}, h$2("div", {
 				key: "command",
 				className: "dsh-ct-startup-field"
-			}, h$1("span", {
+			}, h$2("span", {
 				key: "label",
 				className: "dsh-ct-startup-label"
-			}, t("terminal.startupCommand")), h$1(Input, {
+			}, t("terminal.startupCommand")), h$2(Input, {
 				key: "input",
 				className: "dsh-ct-startup-input",
 				value: command,
@@ -14544,13 +14888,13 @@ window.__ModuleLoader__.load({
 				onKeyDown: (event) => {
 					if (event.key === "Enter" && !event.nativeEvent.isComposing) commit();
 				}
-			})), h$1("div", {
+			})), h$2("div", {
 				key: "auto",
 				className: "dsh-ct-startup-auto"
-			}, h$1("span", {
+			}, h$2("span", {
 				key: "label",
 				className: "dsh-ct-startup-label"
-			}, t("terminal.startupAutoRun")), h$1(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+			}, t("terminal.startupAutoRun")), h$2(_deepseek_ai_dsh_client_ui_primitives.Switch, {
 				key: "switch",
 				checked: autoRun,
 				label: t("terminal.startupAutoRun"),
@@ -14685,6 +15029,130 @@ window.__ModuleLoader__.load({
 		};
 		/** Where the width is remembered. A storage that refuses the write is not worth surfacing. */
 		const SIDE_STORE = { key: LAYOUT_KEY };
+		// src/client/sidebar-header.tsx
+		/**
+		* The sidebar's title bar: the column's name, and the one menu that shapes it.
+		*
+		* The bar is the top seam of the terminal sidebar, above the scrolling
+		* workspace list. Its menu collects what used to be scattered across the
+		* column — creating a console (`New terminal`, with a workspace chooser as its
+		* second level), which workspaces the list shows, whether consoles are drawn as
+		* a tree or as cards, and the common-commands dialog that used to have its own
+		* footer button. One entry point means the sidebar's footer can go away
+		* entirely, and the list gets the whole column.
+		*
+		* The menu itself is the shell's `Menu`: it owns the anchored card, the child
+		* card, the keyboard walk, Escape, and focus return, so this file only decides
+		* what the rows are and what choosing one means. It is portaled because the
+		* page root clips its overflow, which would crop an in-place card.
+		*
+		* Both preference groups are independent, so each pair of rows shares one
+		* `selectedIds` list: the shell marks whichever row in each group is in force.
+		*/
+		const h$1 = react.createElement;
+		/** Menu id prefix for the "New terminal" child rows, so a workspace id can never collide with a sibling entry. */
+		const NEW_PREFIX = "new:";
+		/**
+		* Render the sidebar's title bar.
+		*
+		* @param props - the copy, the workspaces, both preferences, and the actions.
+		* @returns the header element with its More menu.
+		*/
+		function SidebarHeader(props) {
+			const { t, groups, filter, onFilter, onNewTerminal, onCommands } = props;
+			const [open, setOpen] = react.useState(false);
+			/** The trigger, named as the portaled card's CSS anchor. */
+			const anchor = react.useRef(null);
+			const items = [
+				{
+					id: "new",
+					label: t("sidebar.menu.new"),
+					disabled: groups.length === 0,
+					submenu: groups.map((group) => ({
+						id: `${NEW_PREFIX}${group.key}`,
+						label: group.title
+					}))
+				},
+				{
+					type: "separator",
+					id: "after-new"
+				},
+				{
+					id: "filter-all",
+					label: t("sidebar.filter.all")
+				},
+				{
+					id: "filter-with",
+					label: t("sidebar.filter.withTerminals")
+				},
+				{
+					type: "separator",
+					id: "after-filter"
+				},
+				{
+					id: "commands",
+					label: t("commands.title")
+				}
+			];
+			return h$1("div", { className: "dsh-ct-side-head" }, h$1("span", {
+				key: "title",
+				className: "dsh-ct-side-title"
+			}, t("sidebar.header")), h$1("span", {
+				key: "menu",
+				className: "dsh-ct-side-more"
+			}, h$1(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+				open,
+				items,
+				portal: true,
+				align: "end",
+				anchorRef: anchor,
+				listClassName: "dsh-ct-side-menu",
+				selectedIds: [filter === "all" ? "filter-all" : "filter-with"],
+				onSelect: (id) => {
+					setOpen(false);
+					if (id.startsWith(NEW_PREFIX)) onNewTerminal(id.slice(4));
+					else if (id === "filter-all") onFilter("all");
+					else if (id === "filter-with") onFilter("withTerminals");
+					else if (id === "commands") onCommands();
+				},
+				onClose: () => setOpen(false),
+				anchor: h$1("button", {
+					type: "button",
+					className: "dsh-ct-icon dsh-ct-side-more-btn",
+					title: t("terminal.more"),
+					"aria-label": t("terminal.more"),
+					"aria-haspopup": "menu",
+					"aria-expanded": open,
+					onClick: (event) => {
+						anchor.current = event.currentTarget;
+						setOpen((current) => !current);
+					}
+				}, h$1(IconMore))
+			})));
+		}
+		// src/client/sidebar-prefs.ts
+		/** Where the "which workspaces" choice is remembered. */
+		const FILTER_KEY = "dsh-cool-terminal.filter.v1";
+		/**
+		* Read the saved workspace filter.
+		*
+		* The default lists every workspace, including one the user has not opened a
+		* console in yet: the header's ＋ is the way into a fresh group, so hiding
+		* empty groups by default would hide the very rows that lead there.
+		*/
+		function readFilter() {
+			try {
+				return window.localStorage.getItem(FILTER_KEY) === "withTerminals" ? "withTerminals" : "all";
+			} catch {
+				return "all";
+			}
+		}
+		/** Remember the workspace filter. */
+		function writeFilter(filter) {
+			try {
+				window.localStorage.setItem(FILTER_KEY, filter);
+			} catch {}
+		}
 		/** A fresh line: nothing typed, nothing captured, nothing to distrust yet. */
 		function emptyLine() {
 			return {
@@ -15550,6 +16018,18 @@ window.__ModuleLoader__.load({
 		* the 2px gap before the row at the insertion index.
 		*/
 		const ROW_PITCH = 34;
+		/**
+		* The workspace list's scrollbar alpha, 0..1.
+		*
+		* `PanelScroll` multiplies the platform's thumb token by this, so the bar keeps
+		* its box and its colour — a theme that retints its scrollbars still reaches
+		* this pane — and only loses strength. 0.3 keeps it legible against a row it
+		* passes under without letting a solid stripe cut across the column; the thumb
+		* is a hint that the list continues, not a control the eye should find first.
+		* It matches the alpha the Files tab's panes use, so two lists in the same app
+		* do not read as two different kinds of scrollbar.
+		*/
+		const LIST_BAR_OPACITY = .3;
 		const h = react.createElement;
 		/** Drop trailing line breaks and spaces from a message bound for the screen. */
 		function trimTail(text) {
@@ -16100,6 +16580,8 @@ window.__ModuleLoader__.load({
 				const [slot, setSlot] = react.useState(null);
 				/** Groups the user expanded; anything absent is collapsed. */
 				const [expanded, setExpanded] = react.useState(() => loadExpanded());
+				/** Which workspaces the title bar's menu asks the list to show. */
+				const [filter, setFilter] = react.useState(() => readFilter());
 				const [version, setVersion] = react.useState(0);
 				const bump = react.useCallback(() => setVersion((value) => value + 1), []);
 				/** Escape unmounts the rename input, and the unmount fires blur; this
@@ -16110,10 +16592,6 @@ window.__ModuleLoader__.load({
 				*  the very commit that closes the field. */
 				const renamingRef = react.useRef(null);
 				renamingRef.current = renamingId;
-				/** The scrollable console list, and the wrapper that carries the edge-fade
-				*  state (`data-fade-*`) and the scrollbar gutter the list's mask reads. */
-				const listScroll = react.useRef(null);
-				const listWrap = react.useRef(null);
 				/**
 				* The view root, which carries the dragged sidebar width and the
 				* mid-gesture attribute the shared stylesheet reads.
@@ -16190,9 +16668,29 @@ window.__ModuleLoader__.load({
 					t
 				]);
 				const rowSignature = rows.map((row) => row.key).join("|");
+				/**
+				* The groups the title bar's filter lets through.
+				*
+				* Filtering never touches the account: a group hidden here keeps every
+				* console it holds, so switching back to "all workspaces" restores the
+				* column exactly as it was. A workspace with no console yet is hidden only
+				* by the narrower filter, which is the point of having it.
+				*
+				* The active group is always visible: the selection effect below only ever
+				* settles on a group that holds a console, and hiding empty groups cannot
+				* remove one that holds any.
+				*/
+				const visibleRows = react.useMemo(() => filter === "withTerminals" ? rows.filter((row) => terminalsFor(account, row.key).length > 0) : rows, [
+					rows,
+					account,
+					filter
+				]);
 				react.useEffect(() => {
 					saveAccount(account);
 				}, [account]);
+				react.useEffect(() => {
+					writeFilter(filter);
+				}, [filter]);
 				react.useEffect(() => {
 					saveExpanded(expanded);
 				}, [expanded]);
@@ -16289,43 +16787,6 @@ window.__ModuleLoader__.load({
 					startupOpen,
 					publish
 				]);
-				/**
-				* Show each sidebar edge fade only where the list really hides content.
-				*
-				* Scrolling fires far too often to push two booleans through `setVersion`,
-				* so the answer is written straight onto the wrapper as `data-fade-top` /
-				* `data-fade-bottom` — no re-render, and nothing re-renders the rows; the
-				* rules in styles.ts turn those attributes into the list's mask. The
-				* effect deliberately has no dependency list: every content change (a
-				* group expanded, a console added, the Workspace list attaching) arrives
-				* as a commit, and re-running it is what re-reads the new heights;
-				* `scroll` covers the offset in between, `ResizeObserver` covers the box
-				* itself (window resize, the sidebar's first layout).
-				*
-				* The same pass records the scrollbar gutter in `--dsh-ct-fade-right`, so
-				* the mask covers the content column and leaves a classic scrollbar
-				* untouched.
-				*/
-				react.useEffect(() => {
-					const scroll = listScroll.current;
-					const wrap = listWrap.current;
-					if (scroll === null || wrap === null) return;
-					const update = () => {
-						const overflow = scroll.scrollHeight - scroll.clientHeight > 1;
-						wrap.toggleAttribute("data-fade-top", overflow && scroll.scrollTop > 1);
-						wrap.toggleAttribute("data-fade-bottom", overflow && scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1);
-						const gutter = `${scroll.offsetWidth - scroll.clientWidth}px`;
-						if (wrap.style.getPropertyValue("--dsh-ct-fade-right") !== gutter) wrap.style.setProperty("--dsh-ct-fade-right", gutter);
-					};
-					update();
-					scroll.addEventListener("scroll", update, { passive: true });
-					const observer = typeof ResizeObserver === "undefined" ? void 0 : new ResizeObserver(update);
-					observer?.observe(scroll);
-					return () => {
-						scroll.removeEventListener("scroll", update);
-						observer?.disconnect();
-					};
-				});
 				const select = (key, terminalId) => setSelection({
 					key,
 					terminalId
@@ -16467,11 +16928,18 @@ window.__ModuleLoader__.load({
 					}
 				});
 				/**
-				* One console row's overflow menu, driven by the shipped Menu primitive: it
+				* One console's overflow menu, driven by the shipped Menu primitive: it
 				* portals out of the sidebar's scroll clip and owns outside-click, Escape,
 				* and repositioning.
+				*
+				* @param row - the group the console belongs to.
+				* @param terminal - the console this menu acts on.
+				* @param wrapperClass - the seat the trigger is drawn in. Both views use the
+				*   same seat (`.dsh-ct-term-actions`), which hides the trigger until the
+				*   row is hovered or active; it is a parameter because the seat is the one
+				*   part of the row a future layout might want to place differently.
 				*/
-				const renderOverflowMenu = (row, terminal) => {
+				const renderOverflowMenu = (row, terminal, wrapperClass) => {
 					const menuItems = [
 						{
 							id: "rename",
@@ -16496,7 +16964,7 @@ window.__ModuleLoader__.load({
 					];
 					return h("span", {
 						key: "actions",
-						className: "dsh-ct-term-actions"
+						className: wrapperClass
 					}, h(_deepseek_ai_dsh_client_ui_primitives.Menu, {
 						key: "menu",
 						open: menuId === terminal.id,
@@ -16536,7 +17004,6 @@ window.__ModuleLoader__.load({
 				const renderConsole = (row, terminal) => {
 					const isActive = selection?.terminalId === terminal.id;
 					const isRenaming = renamingId === terminal.id;
-					const live = runtimes.get(terminal.id)?.status === "live";
 					const children = [h("span", {
 						key: "icon",
 						className: "dsh-ct-term-icon"
@@ -16547,12 +17014,12 @@ window.__ModuleLoader__.load({
 							key: "title",
 							className: "dsh-ct-term-title"
 						}, terminal.title));
-						children.push(renderOverflowMenu(row, terminal));
+						children.push(renderOverflowMenu(row, terminal, "dsh-ct-term-actions"));
 					}
 					const menuOpen = menuId === terminal.id;
 					return h("div", {
 						key: terminal.id,
-						className: `dsh-ct-term${isActive ? " dsh-ct-term-active" : ""}${menuOpen ? " dsh-ct-term-menu-open" : ""}${live ? " dsh-ct-term-live" : ""}${drag?.id === terminal.id ? " dsh-ct-term-dragging" : ""}`,
+						className: `dsh-ct-term${isActive ? " dsh-ct-term-active" : ""}${menuOpen ? " dsh-ct-term-menu-open" : ""}${drag?.id === terminal.id ? " dsh-ct-term-dragging" : ""}`,
 						title: row.path,
 						draggable: !isRenaming,
 						onDragStart: (event) => {
@@ -16569,6 +17036,56 @@ window.__ModuleLoader__.load({
 						}
 					}, children);
 				};
+				/**
+				* The drag protocol for one workspace's rows, stated once.
+				*
+				* Both views reorder consoles inside a workspace and both must do it the
+				* same way, so the handlers live here rather than in either renderer. What
+				* the caller supplies is only the box the protocol is attached to and the
+				* rows inside it; everything else — which drags are accepted, where the
+				* drop lands, and how the artifacts are cleaned up — is this function's.
+				*
+				* @param row - the workspace whose rows this container holds.
+				* @param list - the container's current consoles, in display order.
+				* @param extraClass - the caller's own class for the container, which also
+				*   gives it the `position:relative` the drop line is absolute against.
+				* @param rows - the rendered rows, in the same order as `list`.
+				* @returns the container element.
+				*/
+				const renderDragContainer = (row, list, extraClass, rows) => h("div", {
+					key: "terms",
+					className: `dsh-ct-terms ${extraClass}`,
+					onDragOver: (event) => {
+						if (drag === null || drag.key !== row.key) return;
+						event.preventDefault();
+						event.dataTransfer.dropEffect = "move";
+						setSlot(slotFor(event, list.length));
+					},
+					onDrop: (event) => {
+						event.preventDefault();
+						const source = drag;
+						setDrag(null);
+						setSlot(null);
+						if (source === null || source.key !== row.key) return;
+						const next = moveTerminal(terminalsFor(account, row.key), source.id, slotFor(event, list.length));
+						setAccount(withTerminalList(account, row.key, next));
+					},
+					onDragEnd: () => {
+						setDrag(null);
+						setSlot(null);
+					},
+					onDragLeave: (event) => {
+						if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+						setSlot(null);
+					}
+				}, rows, drag?.key === row.key && slot !== null ? h("span", {
+					key: "drop-line",
+					className: "dsh-ct-drop-line",
+					style: {
+						top: `${snapToDevicePx(ROW_PITCH * slot)}px`,
+						height: `${snapToDevicePx(2)}px`
+					}
+				}) : null);
 				const renderGroup = (row) => {
 					const list = terminalsFor(account, row.key);
 					const isCollapsed = !expanded.includes(row.key);
@@ -16593,44 +17110,34 @@ window.__ModuleLoader__.load({
 							addConsole(row.key);
 						}
 					}, h(IconPlus)))];
-					if (!isCollapsed && list.length > 0) children.push(h("div", {
-						key: "terms",
-						className: "dsh-ct-terms",
-						onDragOver: (event) => {
-							if (drag === null || drag.key !== row.key) return;
-							event.preventDefault();
-							event.dataTransfer.dropEffect = "move";
-							setSlot(slotFor(event, list.length));
-						},
-						onDrop: (event) => {
-							event.preventDefault();
-							const source = drag;
-							setDrag(null);
-							setSlot(null);
-							if (source === null || source.key !== row.key) return;
-							const next = moveTerminal(terminalsFor(account, row.key), source.id, slotFor(event, list.length));
-							setAccount(withTerminalList(account, row.key, next));
-						},
-						onDragEnd: () => {
-							setDrag(null);
-							setSlot(null);
-						},
-						onDragLeave: (event) => {
-							if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
-							setSlot(null);
-						}
-					}, list.map((terminal) => renderConsole(row, terminal)), drag?.key === row.key && slot !== null ? h("span", {
-						key: "drop-line",
-						className: "dsh-ct-drop-line",
-						style: {
-							top: `${snapToDevicePx(ROW_PITCH * slot)}px`,
-							height: `${snapToDevicePx(2)}px`
-						}
-					}) : null));
+					if (!isCollapsed && list.length > 0) children.push(renderDragContainer(row, list, "dsh-ct-terms-tree", list.map((terminal) => renderConsole(row, terminal))));
 					return h("div", {
 						key: row.key,
 						className: "dsh-ct-ws"
 					}, children);
+				};
+				/**
+				* The list's body, or the note that explains why it has no rows left.
+				*
+				* Only two cases reach the note, and both are about the *workspace* list
+				* rather than about consoles: no workspace at all, and a filter that hid
+				* every one of them. Neither can draw rows, so neither has anything to put
+				* a ＋ on.
+				*
+				* Every visible workspace draws its group even when it holds no console:
+				* the group header carries the ＋ that fills it, so a column of empty groups
+				* explains itself better than a sentence replacing them could.
+				*/
+				const renderListBody = () => {
+					if (rows.length === 0) return h("div", {
+						key: "empty",
+						className: "dsh-ct-empty"
+					}, t("sidebar.empty"));
+					if (visibleRows.length === 0) return h("div", {
+						key: "empty",
+						className: "dsh-ct-empty"
+					}, t("sidebar.emptyFiltered"));
+					return visibleRows.map((row) => renderGroup(row));
 				};
 				const sidebar = h(ResizablePanel, {
 					key: "side",
@@ -16639,28 +17146,23 @@ window.__ModuleLoader__.load({
 					property: "--dsh-ct-side-width",
 					bounds: SIDE_BOUNDS,
 					store: SIDE_STORE
-				}, h("div", {
+				}, h(SidebarHeader, {
+					key: "head",
+					t,
+					groups: rows.map((row) => ({
+						key: row.key,
+						title: row.title
+					})),
+					filter,
+					onFilter: setFilter,
+					onNewTerminal: addConsole,
+					onCommands: () => setCommandsOpen(true)
+				}), h(PanelScroll, {
 					key: "list",
-					className: "dsh-ct-side-list-wrap",
-					ref: listWrap
-				}, h("div", {
-					key: "scroll",
 					className: "dsh-ct-side-list",
-					ref: listScroll
-				}, rows.length === 0 ? h("div", {
-					key: "empty",
-					className: "dsh-ct-empty"
-				}, t("sidebar.empty")) : rows.map((row) => renderGroup(row)))), h("footer", {
-					key: "footer",
-					className: "dsh-ct-side-footer"
-				}, h("button", {
-					key: "commands",
-					type: "button",
-					className: "dsh-ct-ghost-btn",
-					title: t("commands.title"),
-					"aria-label": t("commands.title"),
-					onClick: () => setCommandsOpen(true)
-				}, h(IconList, { key: "icon" }), h("span", { key: "label" }, t("commands.title")))));
+					direction: "y",
+					barOpacity: LIST_BAR_OPACITY
+				}, renderListBody()));
 				/**
 				* The completion popup, positioned against the caret inside its console's
 				* screen wrapper.
@@ -16866,17 +17368,14 @@ window.__ModuleLoader__.load({
 				declarations: "border-right:.5px solid var(--dsw-alias-border-l3);background:transparent;"
 			}),
 			".dsh-ct-root[data-resizing=col],.dsh-ct-root[data-resizing=col] *{user-select:none;cursor:col-resize}",
-			".dsh-ct-side-list-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}",
-			".dsh-ct-side-list{flex:1;min-height:0;overflow:auto;padding:8px 6px 10px;mask-image:none;mask-repeat:no-repeat;mask-position:0 0;mask-size:calc(100% - var(--dsh-ct-fade-right,0px)) 100%}",
-			"[data-fade-top] .dsh-ct-side-list{mask-image:linear-gradient(to bottom,#0000,#000 28px)}",
-			"[data-fade-bottom] .dsh-ct-side-list{mask-image:linear-gradient(to top,#0000,#000 28px)}",
-			"[data-fade-top][data-fade-bottom] .dsh-ct-side-list{mask-image:linear-gradient(to bottom,#0000,#000 28px,#000 calc(100% - 28px),#0000)}",
+			".dsh-ct-side-head{flex:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l3)}",
+			".dsh-ct-side-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:12.5px;font-weight:600}",
+			".dsh-ct-side-more{flex:none;display:inline-flex;align-items:center}",
+			".dsh-ct-icon.dsh-ct-side-more-btn{width:24px;height:24px}",
+			".dsh-ct-side-menu.dsh-ct-side-menu [role=\"menuitem\"]{position:relative;padding-right:30px}",
+			".dsh-ct-side-menu.dsh-ct-side-menu [role=\"menuitem\"]>svg{position:absolute;right:8px;top:50%;translate:0 -50%}",
+			".dsh-ct-side-list{flex:1;min-height:0;padding:8px 6px 10px}",
 			".dsh-ct-empty{padding:16px 12px;color:var(--dsw-alias-label-tertiary);font-size:11px;text-align:center}",
-			".dsh-ct-side-footer{flex:none;box-sizing:border-box;padding:4px 8px 10px 8px}",
-			".dsh-ct-ghost-btn{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;height:44px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer;user-select:none}",
-			".dsh-ct-ghost-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}",
-			".dsh-ct-ghost-btn:active{background:var(--dsw-alias-interactive-bg-active)}",
-			".dsh-ct-ghost-btn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}",
 			".dsh-ct-ws{margin-bottom:4px}",
 			".dsh-ct-ws-head{display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-radius:8px;color:var(--dsw-alias-label-secondary);font-size:13px;cursor:pointer;user-select:none}",
 			".dsh-ct-ws-head:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
@@ -16885,10 +17384,11 @@ window.__ModuleLoader__.load({
 			".dsh-ct-ws-add{opacity:0;pointer-events:none;transition:opacity .1s ease}",
 			".dsh-ct-ws-head:hover .dsh-ct-ws-add,.dsh-ct-ws-head:focus-within .dsh-ct-ws-add{opacity:1;pointer-events:auto}",
 			".dsh-ct-icon.dsh-ct-ws-add{width:24px;height:24px}",
-			".dsh-ct-terms{position:relative;display:flex;flex-direction:column;gap:2px;padding:2px 0 4px 16px}",
+			".dsh-ct-terms{position:relative;display:flex;flex-direction:column;gap:2px}",
+			".dsh-ct-terms-tree{padding:2px 0 4px 16px}",
 			".dsh-ct-term{position:relative;display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-radius:8px;color:var(--dsw-alias-label-secondary);font-size:13px;cursor:pointer;user-select:none}",
 			".dsh-ct-term:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
-			".dsh-ct-term-active{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-ct-term-active,.dsh-ct-term-active:hover{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary)}",
 			".dsh-ct-term-dragging{opacity:.4}",
 			".dsh-ct-drop-line{position:absolute;left:16px;right:0;height:2px;border-radius:1px;background:var(--dsw-alias-state-business-primary);pointer-events:none;z-index:1}",
 			".dsh-ct-term-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
@@ -16975,9 +17475,14 @@ window.__ModuleLoader__.load({
 		*/
 		const zh = {
 			"view.tab": "终端",
+			"sidebar.header": "工作区",
 			"sidebar.session": "当前会话",
 			"sidebar.empty": "暂无工作区",
+			"sidebar.emptyFiltered": "暂无有终端的工作区",
 			"sidebar.new": "新建终端",
+			"sidebar.menu.new": "新增终端",
+			"sidebar.filter.all": "展示所有工作区",
+			"sidebar.filter.withTerminals": "展示有终端的工作区",
 			"main.hint": "请在左侧工作区点击 ＋ 新建一个终端",
 			"terminal.rename": "重命名",
 			"terminal.remove": "删除",
@@ -17024,9 +17529,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/en.ts
 		const en = {
 			"view.tab": "Terminal",
+			"sidebar.header": "Workspaces",
 			"sidebar.session": "Current session",
 			"sidebar.empty": "No workspaces",
+			"sidebar.emptyFiltered": "No workspaces with terminals",
 			"sidebar.new": "New terminal",
+			"sidebar.menu.new": "New terminal",
+			"sidebar.filter.all": "Show all workspaces",
+			"sidebar.filter.withTerminals": "Show workspaces with terminals",
 			"main.hint": "Click ＋ on a workspace on the left to open a terminal",
 			"terminal.rename": "Rename",
 			"terminal.remove": "Delete",
@@ -17073,9 +17583,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/ja.ts
 		const ja = {
 			"view.tab": "ターミナル",
+			"sidebar.header": "ワークスペース",
 			"sidebar.session": "現在のセッション",
 			"sidebar.empty": "ワークスペースがありません",
+			"sidebar.emptyFiltered": "ターミナルのあるワークスペースがありません",
 			"sidebar.new": "新しいターミナル",
+			"sidebar.menu.new": "ターミナルを追加",
+			"sidebar.filter.all": "すべてのワークスペースを表示",
+			"sidebar.filter.withTerminals": "ターミナルのあるワークスペースを表示",
 			"main.hint": "左のワークスペースの ＋ をクリックしてターミナルを開きます",
 			"terminal.rename": "名前を変更",
 			"terminal.remove": "削除",
@@ -17122,9 +17637,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/es.ts
 		const es = {
 			"view.tab": "Terminal",
+			"sidebar.header": "Espacios de trabajo",
 			"sidebar.session": "Sesión actual",
 			"sidebar.empty": "Sin espacios de trabajo",
+			"sidebar.emptyFiltered": "Ningún espacio de trabajo con terminales",
 			"sidebar.new": "Nueva terminal",
+			"sidebar.menu.new": "Añadir terminal",
+			"sidebar.filter.all": "Mostrar todos los espacios de trabajo",
+			"sidebar.filter.withTerminals": "Mostrar espacios de trabajo con terminales",
 			"main.hint": "Haz clic en ＋ de un espacio de trabajo a la izquierda para abrir una terminal",
 			"terminal.rename": "Renombrar",
 			"terminal.remove": "Eliminar",
@@ -17171,9 +17691,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/fr.ts
 		const fr = {
 			"view.tab": "Terminal",
+			"sidebar.header": "Espaces de travail",
 			"sidebar.session": "Session actuelle",
 			"sidebar.empty": "Aucun espace de travail",
+			"sidebar.emptyFiltered": "Aucun espace de travail avec des terminaux",
 			"sidebar.new": "Nouveau terminal",
+			"sidebar.menu.new": "Ajouter un terminal",
+			"sidebar.filter.all": "Afficher tous les espaces de travail",
+			"sidebar.filter.withTerminals": "Afficher les espaces de travail avec des terminaux",
 			"main.hint": "Cliquez sur ＋ sur un espace de travail à gauche pour ouvrir un terminal",
 			"terminal.rename": "Renommer",
 			"terminal.remove": "Supprimer",
@@ -17220,9 +17745,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/de.ts
 		const de = {
 			"view.tab": "Terminal",
+			"sidebar.header": "Arbeitsbereiche",
 			"sidebar.session": "Aktuelle Sitzung",
 			"sidebar.empty": "Keine Arbeitsbereiche",
+			"sidebar.emptyFiltered": "Keine Arbeitsbereiche mit Terminals",
 			"sidebar.new": "Neues Terminal",
+			"sidebar.menu.new": "Terminal hinzufügen",
+			"sidebar.filter.all": "Alle Arbeitsbereiche anzeigen",
+			"sidebar.filter.withTerminals": "Arbeitsbereiche mit Terminals anzeigen",
 			"main.hint": "Klicke links in einem Arbeitsbereich auf ＋, um ein Terminal zu öffnen",
 			"terminal.rename": "Umbenennen",
 			"terminal.remove": "Löschen",
@@ -17269,9 +17799,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/ru.ts
 		const ru = {
 			"view.tab": "Терминал",
+			"sidebar.header": "Рабочие пространства",
 			"sidebar.session": "Текущий сеанс",
 			"sidebar.empty": "Нет рабочих пространств",
+			"sidebar.emptyFiltered": "Нет рабочих пространств с терминалами",
 			"sidebar.new": "Новый терминал",
+			"sidebar.menu.new": "Добавить терминал",
+			"sidebar.filter.all": "Показать все рабочие пространства",
+			"sidebar.filter.withTerminals": "Показать рабочие пространства с терминалами",
 			"main.hint": "Нажмите ＋ в рабочем пространстве слева, чтобы открыть терминал",
 			"terminal.rename": "Переименовать",
 			"terminal.remove": "Удалить",
@@ -17318,9 +17853,14 @@ window.__ModuleLoader__.load({
 		// src/client/locales/pt.ts
 		const pt = {
 			"view.tab": "Terminal",
+			"sidebar.header": "Espaços de trabalho",
 			"sidebar.session": "Sessão atual",
 			"sidebar.empty": "Nenhum espaço de trabalho",
+			"sidebar.emptyFiltered": "Nenhum espaço de trabalho com terminais",
 			"sidebar.new": "Novo terminal",
+			"sidebar.menu.new": "Adicionar terminal",
+			"sidebar.filter.all": "Mostrar todos os espaços de trabalho",
+			"sidebar.filter.withTerminals": "Mostrar espaços de trabalho com terminais",
 			"main.hint": "Clique em ＋ em um espaço de trabalho à esquerda para abrir um terminal",
 			"terminal.rename": "Renomear",
 			"terminal.remove": "Excluir",

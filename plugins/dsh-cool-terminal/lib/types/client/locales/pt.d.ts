@@ -1,9 +1,14 @@
 /** Brazilian Portuguese dictionary. Words follow pt-BR usage. */
 export declare const pt: {
     'view.tab': string;
+    'sidebar.header': string;
     'sidebar.session': string;
     'sidebar.empty': string;
+    'sidebar.emptyFiltered': string;
     'sidebar.new': string;
+    'sidebar.menu.new': string;
+    'sidebar.filter.all': string;
+    'sidebar.filter.withTerminals': string;
     'main.hint': string;
     'terminal.rename': string;
     'terminal.remove': string;

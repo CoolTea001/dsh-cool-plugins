@@ -25,6 +25,7 @@ import {
   Button,
   Menu,
   Modal,
+  PanelScroll,
   type MenuEntry,
 } from '@dsh-cool/ui'
 import {
@@ -32,7 +33,6 @@ import {
   IconEdit,
   IconFolderClosed,
   IconFolderOpened,
-  IconList,
   IconMore,
   IconPlus,
   IconTerminal,
@@ -51,6 +51,8 @@ import { loadCommands, saveCommands, type CommandDef } from './commands.js'
 import { writeGeometry } from './geometry.js'
 import { ResizablePanel } from '@dsh-cool/ui'
 import { SIDE_BOUNDS, SIDE_STORE } from './layout.js'
+import { SidebarHeader } from './sidebar-header.js'
+import { readFilter, writeFilter, type SidebarFilter } from './sidebar-prefs.js'
 import {
   anchorOf,
   emptySession,
@@ -198,6 +200,19 @@ const SUBMITTED = /[\r\n]/
  * the 2px gap before the row at the insertion index.
  */
 const ROW_PITCH = 34
+
+/**
+ * The workspace list's scrollbar alpha, 0..1.
+ *
+ * `PanelScroll` multiplies the platform's thumb token by this, so the bar keeps
+ * its box and its colour — a theme that retints its scrollbars still reaches
+ * this pane — and only loses strength. 0.3 keeps it legible against a row it
+ * passes under without letting a solid stripe cut across the column; the thumb
+ * is a hint that the list continues, not a control the eye should find first.
+ * It matches the alpha the Files tab's panes use, so two lists in the same app
+ * do not read as two different kinds of scrollbar.
+ */
+const LIST_BAR_OPACITY = 0.3
 
 const h = React.createElement
 
@@ -911,6 +926,8 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     const [slot, setSlot] = React.useState<number | null>(null)
     /** Groups the user expanded; anything absent is collapsed. */
     const [expanded, setExpanded] = React.useState<readonly string[]>(() => loadExpanded())
+    /** Which workspaces the title bar's menu asks the list to show. */
+    const [filter, setFilter] = React.useState<SidebarFilter>(() => readFilter())
     const [version, setVersion] = React.useState(0)
     const bump = React.useCallback((): void => setVersion((value) => value + 1), [])
     /** Escape unmounts the rename input, and the unmount fires blur; this
@@ -921,10 +938,6 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
      *  the very commit that closes the field. */
     const renamingRef = React.useRef<string | null>(null)
     renamingRef.current = renamingId
-    /** The scrollable console list, and the wrapper that carries the edge-fade
-     *  state (`data-fade-*`) and the scrollbar gutter the list's mask reads. */
-    const listScroll = React.useRef<HTMLDivElement | null>(null)
-    const listWrap = React.useRef<HTMLDivElement | null>(null)
     /**
      * The view root, which carries the dragged sidebar width and the
      * mid-gesture attribute the shared stylesheet reads.
@@ -1003,9 +1016,32 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
 
     const rowSignature = rows.map((row) => row.key).join('|')
 
+    /**
+     * The groups the title bar's filter lets through.
+     *
+     * Filtering never touches the account: a group hidden here keeps every
+     * console it holds, so switching back to "all workspaces" restores the
+     * column exactly as it was. A workspace with no console yet is hidden only
+     * by the narrower filter, which is the point of having it.
+     *
+     * The active group is always visible: the selection effect below only ever
+     * settles on a group that holds a console, and hiding empty groups cannot
+     * remove one that holds any.
+     */
+    const visibleRows = React.useMemo<GroupRow[]>(
+      () => (filter === 'withTerminals'
+        ? rows.filter((row) => terminalsFor(account, row.key).length > 0)
+        : rows),
+      [rows, account, filter],
+    )
+
     React.useEffect(() => {
       saveAccount(account)
     }, [account])
+
+    React.useEffect(() => {
+      writeFilter(filter)
+    }, [filter])
 
     React.useEffect(() => {
       saveExpanded(expanded)
@@ -1140,52 +1176,12 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       publish(null)
     }, [activeId, commands, commandsOpen, removeOpen, startupOpen, publish])
 
-    /**
-     * Show each sidebar edge fade only where the list really hides content.
-     *
-     * Scrolling fires far too often to push two booleans through `setVersion`,
-     * so the answer is written straight onto the wrapper as `data-fade-top` /
-     * `data-fade-bottom` — no re-render, and nothing re-renders the rows; the
-     * rules in styles.ts turn those attributes into the list's mask. The
-     * effect deliberately has no dependency list: every content change (a
-     * group expanded, a console added, the Workspace list attaching) arrives
-     * as a commit, and re-running it is what re-reads the new heights;
-     * `scroll` covers the offset in between, `ResizeObserver` covers the box
-     * itself (window resize, the sidebar's first layout).
-     *
-     * The same pass records the scrollbar gutter in `--dsh-ct-fade-right`, so
-     * the mask covers the content column and leaves a classic scrollbar
-     * untouched.
-     */
-    React.useEffect(() => {
-      const scroll = listScroll.current
-      const wrap = listWrap.current
-      if (scroll === null || wrap === null) return
-      const update = (): void => {
-        const overflow = scroll.scrollHeight - scroll.clientHeight > 1
-        wrap.toggleAttribute('data-fade-top', overflow && scroll.scrollTop > 1)
-        wrap.toggleAttribute(
-          'data-fade-bottom',
-          overflow && scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1,
-        )
-        // The gutter only changes with the scrollbar, and re-setting it on
-        // every scroll frame would invalidate style for nothing.
-        const gutter = `${scroll.offsetWidth - scroll.clientWidth}px`
-        if (wrap.style.getPropertyValue('--dsh-ct-fade-right') !== gutter) {
-          wrap.style.setProperty('--dsh-ct-fade-right', gutter)
-        }
-      }
-      update()
-      scroll.addEventListener('scroll', update, { passive: true })
-      // A box change needs no commit of its own, so it is not something a
-      // re-render would pick up — hence the observer, not just `update()`.
-      const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update)
-      observer?.observe(scroll)
-      return () => {
-        scroll.removeEventListener('scroll', update)
-        observer?.disconnect()
-      }
-    })
+    // The sidebar list scrolls without an edge fade. A mask made the first and
+    // last rows dissolve into whatever is behind the column; over a wallpaper
+    // that read as the list being cut off rather than continuing, and the
+    // gradient switched on and off with the scroll offset, which was itself
+    // something the eye caught. The list now simply clips at its box, the way
+    // the console beside it does.
 
     const select = (key: string, terminalId: string): void => setSelection({ key, terminalId })
 
@@ -1201,7 +1197,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       const runtime = runtimes.get(activeId)
       if (runtime === undefined || runtime.terminalId === undefined) return false
       queueInput(runtime, body)
-      // The dialog closing restores focus to its opener (the footer button);
+      // The dialog closing restores focus to its opener (the More trigger);
       // the deferred focus lands after that pass, back on the console that
       // just received the command.
       window.setTimeout(() => runtime.term.focus(), 0)
@@ -1341,11 +1337,22 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
     })
 
     /**
-     * One console row's overflow menu, driven by the shipped Menu primitive: it
+     * One console's overflow menu, driven by the shipped Menu primitive: it
      * portals out of the sidebar's scroll clip and owns outside-click, Escape,
      * and repositioning.
+     *
+     * @param row - the group the console belongs to.
+     * @param terminal - the console this menu acts on.
+     * @param wrapperClass - the seat the trigger is drawn in. Both views use the
+     *   same seat (`.dsh-ct-term-actions`), which hides the trigger until the
+     *   row is hovered or active; it is a parameter because the seat is the one
+     *   part of the row a future layout might want to place differently.
      */
-    const renderOverflowMenu = (row: GroupRow, terminal: TerminalDef): React.ReactElement => {
+    const renderOverflowMenu = (
+      row: GroupRow,
+      terminal: TerminalDef,
+      wrapperClass: string,
+    ): React.ReactElement => {
       const menuItems: MenuEntry[] = [
         { id: 'rename', label: t('terminal.rename'), icon: h(IconEdit, { key: 'icon' }) },
         { id: 'startup', label: t('terminal.startup'), icon: h(IconAutostart, { key: 'icon' }) },
@@ -1359,7 +1366,7 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
           danger: true,
         },
       ]
-      return h('span', { key: 'actions', className: 'dsh-ct-term-actions' },
+      return h('span', { key: 'actions', className: wrapperClass },
         h(Menu, {
           key: 'menu',
           open: menuId === terminal.id,
@@ -1404,13 +1411,12 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       )
     }
 
-    // A row only arms the drag; every other drag event is handled once per
+    // A tree row only arms the drag; every other drag event is handled once per
     // group on the container (see `renderGroup`).
+    //
     const renderConsole = (row: GroupRow, terminal: TerminalDef): React.ReactElement => {
       const isActive = selection?.terminalId === terminal.id
       const isRenaming = renamingId === terminal.id
-      const runtime = runtimes.get(terminal.id)
-      const live = runtime?.status === 'live'
       const children: React.ReactNode[] = [
         h('span', { key: 'icon', className: 'dsh-ct-term-icon' }, h(IconTerminal)),
       ]
@@ -1418,12 +1424,12 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         children.push(renderRenameInput(row, terminal))
       } else {
         children.push(h('span', { key: 'title', className: 'dsh-ct-term-title' }, terminal.title))
-        children.push(renderOverflowMenu(row, terminal))
+        children.push(renderOverflowMenu(row, terminal, 'dsh-ct-term-actions'))
       }
       const menuOpen = menuId === terminal.id
       return h('div', {
         key: terminal.id,
-        className: `dsh-ct-term${isActive ? ' dsh-ct-term-active' : ''}${menuOpen ? ' dsh-ct-term-menu-open' : ''}${live ? ' dsh-ct-term-live' : ''}${drag?.id === terminal.id ? ' dsh-ct-term-dragging' : ''}`,
+        className: `dsh-ct-term${isActive ? ' dsh-ct-term-active' : ''}${menuOpen ? ' dsh-ct-term-menu-open' : ''}${drag?.id === terminal.id ? ' dsh-ct-term-dragging' : ''}`,
         title: row.path,
         // An open rename field must not turn a click on the text into a row
         // drag, so dragging is armed only on settled rows.
@@ -1440,6 +1446,84 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
         },
       }, children)
     }
+
+    /**
+     * The drag protocol for one workspace's rows, stated once.
+     *
+     * Both views reorder consoles inside a workspace and both must do it the
+     * same way, so the handlers live here rather than in either renderer. What
+     * the caller supplies is only the box the protocol is attached to and the
+     * rows inside it; everything else — which drags are accepted, where the
+     * drop lands, and how the artifacts are cleaned up — is this function's.
+     *
+     * @param row - the workspace whose rows this container holds.
+     * @param list - the container's current consoles, in display order.
+     * @param extraClass - the caller's own class for the container, which also
+     *   gives it the `position:relative` the drop line is absolute against.
+     * @param rows - the rendered rows, in the same order as `list`.
+     * @returns the container element.
+     */
+    const renderDragContainer = (
+      row: GroupRow,
+      list: readonly TerminalDef[],
+      extraClass: string,
+      rows: readonly React.ReactNode[],
+    ): React.ReactElement => h('div', {
+      key: 'terms',
+      className: `dsh-ct-terms ${extraClass}`,
+      // The whole drag protocol lives here, once per container, instead of on
+      // every row. `dragover` and `drop` share {@link slotFor}, so the line
+      // always shows exactly where the drop will land.
+      onDragOver: (event: React.DragEvent<HTMLDivElement>) => {
+        // A console belongs to exactly one workspace: a drag from another
+        // group is rejected by not calling `preventDefault`, which keeps
+        // the browser's not-allowed cursor and never fires `drop`.
+        if (drag === null || drag.key !== row.key) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        setSlot(slotFor(event, list.length))
+      },
+      onDrop: (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        const source = drag
+        setDrag(null)
+        setSlot(null)
+        if (source === null || source.key !== row.key) return
+        // A self-slot is a no-op inside `moveTerminal`; reordering never
+        // disturbs the active selection.
+        const next = moveTerminal(terminalsFor(account, row.key), source.id, slotFor(event, list.length))
+        setAccount(withTerminalList(account, row.key, next))
+      },
+      // `dragend` bubbles from the source row: fires whether or not the
+      // drop landed, so this alone cleans every drag artifact up.
+      onDragEnd: () => {
+        setDrag(null)
+        setSlot(null)
+      },
+      // Leaving the container (its padding included) hides the line; moving
+      // between rows does not, and the next `dragover` re-answers it.
+      onDragLeave: (event: React.DragEvent<HTMLDivElement>) => {
+        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+        setSlot(null)
+      },
+    },
+      rows,
+      // One line per container, a child of it — never of a row — at whole row
+      // pitches, so it fills exactly the 2px gap of the target slot and looks
+      // identical everywhere, including next to the dragged row (which a
+      // row-anchored mark would fade along with). Offset and thickness are
+      // snapped to device pixels: under fractional display scaling an
+      // unsnapped 2px line rasterizes to 2 device pixels in some gaps and 3 in
+      // others.
+      drag?.key === row.key && slot !== null ? h('span', {
+        key: 'drop-line',
+        className: 'dsh-ct-drop-line',
+        style: {
+          top: `${snapToDevicePx(ROW_PITCH * slot)}px`,
+          height: `${snapToDevicePx(2)}px`,
+        },
+      }) : null,
+    )
 
     const renderGroup = (row: GroupRow): React.ReactElement => {
       const list = terminalsFor(account, row.key)
@@ -1467,69 +1551,38 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       )
       const children: React.ReactNode[] = [head]
       if (!isCollapsed && list.length > 0) {
-        children.push(h('div', {
-          key: 'terms',
-          className: 'dsh-ct-terms',
-          // The whole drag protocol lives here, once per group, instead of on
-          // every row. `dragover` and `drop` share {@link slotFor}, so the
-          // line always shows exactly where the drop will land.
-          onDragOver: (event: React.DragEvent<HTMLDivElement>) => {
-            // A console belongs to exactly one workspace: a drag from another
-            // group is rejected by not calling `preventDefault`, which keeps
-            // the browser's not-allowed cursor and never fires `drop`.
-            if (drag === null || drag.key !== row.key) return
-            event.preventDefault()
-            event.dataTransfer.dropEffect = 'move'
-            setSlot(slotFor(event, list.length))
-          },
-          onDrop: (event: React.DragEvent<HTMLDivElement>) => {
-            event.preventDefault()
-            const source = drag
-            setDrag(null)
-            setSlot(null)
-            if (source === null || source.key !== row.key) return
-            // A self-slot is a no-op inside `moveTerminal`; reordering never
-            // disturbs the active selection.
-            const next = moveTerminal(terminalsFor(account, row.key), source.id, slotFor(event, list.length))
-            setAccount(withTerminalList(account, row.key, next))
-          },
-          // `dragend` bubbles from the source row: fires whether or not the
-          // drop landed, so this alone cleans every drag artifact up.
-          onDragEnd: () => {
-            setDrag(null)
-            setSlot(null)
-          },
-          // Leaving the group (its padding included) hides the line; moving
-          // between rows does not, and the next `dragover` re-answers it.
-          onDragLeave: (event: React.DragEvent<HTMLDivElement>) => {
-            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
-            setSlot(null)
-          },
-        },
+        // The tree's own inset class supplies the indentation the header gives
+        // it; the drag protocol itself is shared with the flat list.
+        children.push(renderDragContainer(
+          row,
+          list,
+          'dsh-ct-terms-tree',
           list.map((terminal) => renderConsole(row, terminal)),
-          // One line per group, a child of the container — never of a row —
-          // at whole row pitches, so it fills exactly the 2px gap of the
-          // target slot and looks identical everywhere, including next to the
-          // dragged row (which a row-anchored mark would fade along with).
-          // Offset and thickness are snapped to device pixels: under
-          // fractional display scaling an unsnapped 2px line rasterizes to 2
-          // device pixels in some gaps and 3 in others.
-          drag?.key === row.key && slot !== null ? h('span', {
-            key: 'drop-line',
-            className: 'dsh-ct-drop-line',
-            style: {
-              top: `${snapToDevicePx(ROW_PITCH * slot)}px`,
-              height: `${snapToDevicePx(2)}px`,
-            },
-          }) : null,
         ))
       }
       return h('div', { key: row.key, className: 'dsh-ct-ws' }, children)
     }
 
-    // The sidebar's own right edge is the boundary its width is dragged by; the
-    // shared panel draws it, measures the column, and records the width it is
-    // left at.
+    /**
+     * The list's body, or the note that explains why it has no rows left.
+     *
+     * Only two cases reach the note, and both are about the *workspace* list
+     * rather than about consoles: no workspace at all, and a filter that hid
+     * every one of them. Neither can draw rows, so neither has anything to put
+     * a ＋ on.
+     *
+     * Every visible workspace draws its group even when it holds no console:
+     * the group header carries the ＋ that fills it, so a column of empty groups
+     * explains itself better than a sentence replacing them could.
+     */
+    const renderListBody = (): React.ReactNode => {
+      if (rows.length === 0) return h('div', { key: 'empty', className: 'dsh-ct-empty' }, t('sidebar.empty'))
+      if (visibleRows.length === 0) {
+        return h('div', { key: 'empty', className: 'dsh-ct-empty' }, t('sidebar.emptyFiltered'))
+      }
+      return visibleRows.map((row) => renderGroup(row))
+    }
+
     const sidebar = h(ResizablePanel, {
       key: 'side',
       className: 'dsh-ct-side',
@@ -1538,31 +1591,28 @@ export function createTerminalView(bridge: WorkspaceBridge, t: Translate): Termi
       bounds: SIDE_BOUNDS,
       store: SIDE_STORE,
     },
-      h('div', { key: 'list', className: 'dsh-ct-side-list-wrap', ref: listWrap },
-        h('div', { key: 'scroll', className: 'dsh-ct-side-list', ref: listScroll },
-          rows.length === 0
-            ? h('div', { key: 'empty', className: 'dsh-ct-empty' }, t('sidebar.empty'))
-            : rows.map((row) => renderGroup(row))),
-        // No fade elements: the edge fades are a mask on the scroller itself
-        // (styles.ts), so the rows dissolve into whatever is behind the View
-        // instead of into a painted band. The wrapper still carries the
-        // overflow state and the scrollbar gutter those rules read.
-      ),
-      // Footer seam: the sidebar splits into the scrolling workspace list on
-      // top and a fixed quick-action bar below, so the list scrolls in place
-      // while the action stays pinned to the column's bottom edge.
-      h('footer', { key: 'footer', className: 'dsh-ct-side-footer' },
-        h('button', {
-          key: 'commands',
-          type: 'button',
-          className: 'dsh-ct-ghost-btn',
-          title: t('commands.title'),
-          'aria-label': t('commands.title'),
-          onClick: () => setCommandsOpen(true),
-        },
-        h(IconList, { key: 'icon' }),
-        h('span', { key: 'label' }, t('commands.title'))),
-      ),
+      h(SidebarHeader, {
+        key: 'head',
+        t,
+        groups: rows.map((row) => ({ key: row.key, title: row.title })),
+        filter,
+        onFilter: setFilter,
+        onNewTerminal: addConsole,
+        onCommands: () => setCommandsOpen(true),
+      }),
+      // `y` only: a console name is elided, never reached by scrolling
+      // sideways, so a horizontal bar here would advertise a gesture with
+      // nothing behind it. The alpha is the shared pane's — a list bar that
+      // arrive at full strength cuts across the rows it sits among, so it is
+      // held back and arrives with the pointer.
+      h(PanelScroll, {
+        key: 'list',
+        className: 'dsh-ct-side-list',
+        direction: 'y',
+        barOpacity: LIST_BAR_OPACITY,
+      }, renderListBody()),
+      // No footer: the common-commands entry moved into the title bar's More
+      // menu, so the list owns the whole column down to its bottom edge.
     )
 
     /**
