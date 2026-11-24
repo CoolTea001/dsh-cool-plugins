@@ -11,19 +11,36 @@
  * The Host stays authoritative about *which* workspace is browsed. A request may
  * name the session it belongs to, but never a directory: the root is read from
  * that session's own header, so a page cannot point the plugin at a tree the
- * session does not own. Four routes read; the fifth is the editor's save, and
- * it accepts nothing but the text of one file already inside that workspace.
+ * session does not own. Five routes read; the save is the editor's one write,
+ * and it accepts nothing but the text of one file already inside that workspace.
+ *
+ * The last four are the tree's context-menu commands — rename, create, delete,
+ * reveal — and they are the only routes that change what is on disk. Each is a
+ * path plus, for the two that need one, a single name: the fence that decides
+ * whether the path is inside the session's workspace and whether the policy
+ * allows a write lives in the module that performs the change, so a route here
+ * carries the request and nothing else.
  */
-/** Route table, kept in one place so the two halves cannot drift. */
+/**
+ * Route table, kept in one place so the two halves cannot drift.
+ *
+ * Five read, one edits, four change the tree: the row commands the context menu
+ * offers. Every one of them answers JSON and never rejects, and every one of
+ * them is fenced by the session's own workspace and sandbox policy.
+ */
 export declare const ROUTES: {
     readonly list: "/dsh-cool-file/api/list";
     readonly read: "/dsh-cool-file/api/read";
     readonly text: "/dsh-cool-file/api/text";
     readonly write: "/dsh-cool-file/api/write";
     readonly raw: "/dsh-cool-file/api/raw";
+    readonly rename: "/dsh-cool-file/api/rename";
+    readonly create: "/dsh-cool-file/api/create";
+    readonly remove: "/dsh-cool-file/api/delete";
+    readonly reveal: "/dsh-cool-file/api/reveal";
 };
 /**
- * Register the five routes on the browser HTTP carrier.
+ * Register every route on the browser HTTP carrier.
  *
  * @param ctx - the Host plugin context.
  * @returns the disposer that removes the routes with the plugin.

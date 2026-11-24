@@ -146,6 +146,13 @@ const FILES_CSS = [
   // opening the file: a lost edit is the one thing this tab must not hide.
   '.dsh-cf-row-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--dsw-alias-state-warn-primary)}',
 
+  // The row a context menu was opened on says so until the menu closes: the menu
+  // floats over the page, and without the mark the reader's next glance would
+  // have to find how far up the tree the subject is. It takes the stronger wash
+  // the selected row uses, so a file that is both selected and right-clicked
+  // keeps one unmistakable state instead of losing its mark to the later rule.
+  '.dsh-cf-row[data-menu]{background:var(--dsw-alias-interactive-bg-active)}',
+
   // 5. Sidebar states: empty, loading, failure and the entry cap.
   //
   // The two notice surfaces are `layer-2` rather than `layer-1`: the wallpaper
@@ -182,6 +189,29 @@ const FILES_CSS = [
   '.dsh-cf-save-error{flex:none;display:flex;align-items:center;gap:10px;margin:8px 16px 0;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px}',
   '.dsh-cf-save-error-text{flex:1 1 auto;min-width:0}',
   '.dsh-cf-link{flex:none;padding:0;border:0;background:transparent;color:var(--dsw-alias-brand-primary);font:inherit;font-size:11.5px;text-decoration:underline;cursor:pointer}',
+  // The name and delete questions the row menu opens.
+  //
+  // The shell's `Modal` owns the card, the mask, the focus trap and Escape;
+  // what this page adds is the one field and the one confirmation.
+  //
+  // Every rule here declares `box-sizing` itself. The dialog is portaled to
+  // `document.body`, which is outside this page's root, so the page's own
+  // `*{box-sizing:border-box}` reset does not reach it: the field's frame is a
+  // span with padding and a hairline border, and at `width:100%` under the
+  // default content-box those add to the card's padded column and push the
+  // field past the card's right edge.
+  '.dsh-cf-prompt-field{display:flex;flex-direction:column;box-sizing:border-box;margin-top:4px}',
+  '.dsh-cf-prompt-field>*{box-sizing:border-box}',
+  '.dsh-cf-prompt-field>*:last-child{display:flex;width:100%}',
+  // A failed command stays in the dialog it was asked from: the reader's name is
+  // still in the field, and closing the question would throw away the one thing
+  // that could be fixed.
+  '.dsh-cf-prompt-error{box-sizing:border-box;margin-top:12px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary);font-size:11.5px;word-break:break-word}',
+  // The destructive action keeps the shell's outlined face — DSH never fills a
+  // delete button solid — and takes the error colour through the one token the
+  // outline reads, which is why the hover wash has to be restated beside it.
+  '.dsh-cf-danger-button{color:var(--dsw-alias-state-error-primary);--dsh-button-outline-color:var(--dsw-alias-state-error-primary)}',
+  '.dsh-cf-danger-button:hover:not(:disabled){background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 8%,transparent)}',
   // The editor is the preview with a caret in it, so the body stops being a
   // scroll container: the field inside owns both axes and the artwork follows it
   // (see `editor.tsx`). A page scrollbar beside the field's own would be a

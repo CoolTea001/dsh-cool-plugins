@@ -11,21 +11,46 @@
  * The Host stays authoritative about *which* workspace is browsed. A request may
  * name the session it belongs to, but never a directory: the root is read from
  * that session's own header, so a page cannot point the plugin at a tree the
- * session does not own. Four routes read; the fifth is the editor's save, and
- * it accepts nothing but the text of one file already inside that workspace.
+ * session does not own. Five routes read; the save is the editor's one write,
+ * and it accepts nothing but the text of one file already inside that workspace.
+ *
+ * The last four are the tree's context-menu commands — rename, create, delete,
+ * reveal — and they are the only routes that change what is on disk. Each is a
+ * path plus, for the two that need one, a single name: the fence that decides
+ * whether the path is inside the session's workspace and whether the policy
+ * allows a write lives in the module that performs the change, so a route here
+ * carries the request and nothing else.
  */
 
 import { RAW_ROUTE } from '../shared/kinds.js'
 import { listDirectory, readFile, readImage, readWholeFile, saveFile } from './files.js'
-import type { ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
+import { createEntry, deleteEntry, renameEntry, revealEntry } from './changes.js'
+import type {
+  ListPayload,
+  MutationPayload,
+  ReadPayload,
+  RevealPayload,
+  SavePayload,
+  TextPayload,
+} from '../shared/contract.js'
 
-/** Route table, kept in one place so the two halves cannot drift. */
+/**
+ * Route table, kept in one place so the two halves cannot drift.
+ *
+ * Five read, one edits, four change the tree: the row commands the context menu
+ * offers. Every one of them answers JSON and never rejects, and every one of
+ * them is fenced by the session's own workspace and sandbox policy.
+ */
 export const ROUTES = {
   list: '/dsh-cool-file/api/list',
   read: '/dsh-cool-file/api/read',
   text: '/dsh-cool-file/api/text',
   write: '/dsh-cool-file/api/write',
   raw: RAW_ROUTE,
+  rename: '/dsh-cool-file/api/rename',
+  create: '/dsh-cool-file/api/create',
+  remove: '/dsh-cool-file/api/delete',
+  reveal: '/dsh-cool-file/api/reveal',
 } as const
 
 /** Longest body the read routes accept; each is a path and a session id. */
@@ -113,7 +138,9 @@ function sameOrigin(req: any): boolean {
 async function handle(
   req: any,
   res: any,
-  run: (body: Record<string, unknown>) => Promise<ListPayload | ReadPayload | TextPayload | SavePayload>,
+  run: (
+    body: Record<string, unknown>,
+  ) => Promise<ListPayload | ReadPayload | TextPayload | SavePayload | MutationPayload | RevealPayload>,
   limit: number = MAX_BODY_BYTES,
 ): Promise<void> {
   if (!methodAllowed(req, res, ['POST'])) return
@@ -165,7 +192,7 @@ async function handleRaw(ctx: any, req: any, res: any): Promise<void> {
 }
 
 /**
- * Register the five routes on the browser HTTP carrier.
+ * Register every route on the browser HTTP carrier.
  *
  * @param ctx - the Host plugin context.
  * @returns the disposer that removes the routes with the plugin.
@@ -200,6 +227,12 @@ export function registerRoutes(ctx: any): () => void {
       ),
     ),
     route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res)),
+    route(ROUTES.rename, (req, res) => handle(req, res, (body) => renameEntry(ctx, body.sessionId, body.path, body.name))),
+    route(ROUTES.create, (req, res) =>
+      handle(req, res, (body) =>
+        createEntry(ctx, body.sessionId, body.path, body.name, body.kind === 'directory' ? 'directory' : 'file'))),
+    route(ROUTES.remove, (req, res) => handle(req, res, (body) => deleteEntry(ctx, body.sessionId, body.path))),
+    route(ROUTES.reveal, (req, res) => handle(req, res, (body) => revealEntry(ctx, body.sessionId, body.path))),
   ]
 
   return () => {

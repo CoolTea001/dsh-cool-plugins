@@ -6,7 +6,14 @@
  * exactly one failure shape no matter how the answer went wrong.
  */
 
-import type { ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
+import type {
+  ListPayload,
+  MutationPayload,
+  ReadPayload,
+  RevealPayload,
+  SavePayload,
+  TextPayload,
+} from '../shared/contract.js'
 
 const BASE = '/dsh-cool-file/api'
 
@@ -85,4 +92,60 @@ export function saveFile(
   version: string | undefined,
 ): Promise<SavePayload> {
   return postJson('/write', { sessionId, path, text, version })
+}
+
+/**
+ * Rename one entry in place.
+ *
+ * @param sessionId - the session whose workspace holds it, when known.
+ * @param path - the entry as a workspace path.
+ * @param name - the new name, as one path segment.
+ * @returns the new workspace path, or an `ok: false` answer.
+ */
+export function renameEntry(
+  sessionId: string | undefined,
+  path: string,
+  name: string,
+): Promise<MutationPayload> {
+  return postJson('/rename', { sessionId, path, name })
+}
+
+/**
+ * Create one new file or directory under an existing directory.
+ *
+ * @param sessionId - the session whose workspace holds it, when known.
+ * @param path - the parent directory as a workspace path; empty for the root.
+ * @param name - the new entry's name, as one path segment.
+ * @param kind - which kind of entry to create.
+ * @returns the new workspace path, or an `ok: false` answer.
+ */
+export function createEntry(
+  sessionId: string | undefined,
+  path: string,
+  name: string,
+  kind: 'file' | 'directory',
+): Promise<MutationPayload> {
+  return postJson('/create', { sessionId, path, name, kind })
+}
+
+/**
+ * Delete one file or directory.
+ *
+ * @param sessionId - the session whose workspace holds it, when known.
+ * @param path - the entry as a workspace path.
+ * @returns the removed path, or an `ok: false` answer.
+ */
+export function deleteEntry(sessionId: string | undefined, path: string): Promise<MutationPayload> {
+  return postJson('/delete', { sessionId, path })
+}
+
+/**
+ * Show one entry in the Host desktop's file manager.
+ *
+ * @param sessionId - the session whose workspace holds it, when known.
+ * @param path - the entry as a workspace path.
+ * @returns the reveal outcome, or an `ok: false` answer.
+ */
+export function revealEntry(sessionId: string | undefined, path: string): Promise<RevealPayload> {
+  return postJson('/reveal', { sessionId, path })
 }

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { mkdir, rename, rm } from "node:fs/promises";
 // src/shared/kinds.ts
 /**
 * What kind of preview one workspace path earns.
@@ -372,39 +373,22 @@ async function platformHiddenNames(ctx, directory) {
 	}
 	return names;
 }
-// src/host/files.ts
+// src/host/scope.ts
 /**
-* Workspace reads — and the editor's one guarded write — for the Files tab.
+* The fences every route stands behind, in one place.
 *
-* Two questions the page asks, and one answer it gives: what a directory holds,
-* what a text file says (paged for the preview, whole for the editor), and the
-* text the editor wants written back. Reads are answered through the composed
-* `workspaceFiles` service, so the session's own workspace root is the only
-* directory a page can reach and every listing stays inside it. The write is the
-* exception: that service is read-only, so saving goes through `ctx.fs`, fenced
-* by the session's own sandbox policy and guarded by the freshness token the
-* editor was handed. A session that is not live yet still owns a durable header,
-* and that header's `cwd` is what lets a reopened page answer for its workspace
-* on the first request.
+* Four facts are asked of every request the page makes — which workspace it
+* belongs to, which workspace path it names, which process path that resolves
+* to, and which sandbox policy the write may run under — and each of them has
+* exactly one right answer rather than one per route. Keeping them here means a
+* read route and a mutation route cannot drift apart about what "inside the
+* workspace" means, and a new route inherits the whole fence by asking the same
+* three questions.
 *
-* A session the Host cannot name at all falls back to the executor's default
-* directory, which is at least a directory that exists; the page then shows
-* whatever that directory holds rather than an empty tab.
+* Nothing in this module touches the plugin's own state: it reads the session
+* header, the composed filesystem and the sandbox policy, and answers with
+* plain values.
 */
-/** How many lines one preview asks for; the service's own cap still applies. */
-const READ_LINES = 5e3;
-/**
-* Largest file the editor will open or overwrite, in bytes.
-*
-* The preview pages its answer, so it can show the head of any file; the editor
-* cannot — it hands back a whole document, and a whole document is what must be
-* written. A cap keeps a mistaken click on a 500 MB log from pinning the Host
-* and the browser at once. Refusing is the honest answer: the page says the file
-* is too large and leaves it in preview.
-*/
-const EDIT_BYTES = 2097152;
-/** Copy may read a whole text file without making it editable in the browser. */
-const COPY_BYTES = 16777216;
 /** A stand-in session identity for a request that named none. */
 const LOCAL_SESSION = "local";
 /**
@@ -412,7 +396,7 @@ const LOCAL_SESSION = "local";
 *
 * Live header first, then the durable header of a session the Host has not
 * resumed yet, then the executor's default directory. Every read is
-* best-effort: an unreadable store is not this route's answer to give.
+* best-effort: an unreadable store is not a route's answer to give.
 *
 * @param ctx - the Host plugin context.
 * @param sessionId - the session the page belongs to, when it named one.
@@ -469,6 +453,25 @@ function readPath(value) {
 	return path;
 }
 /**
+* Read a name the page wants a new file or directory to have.
+*
+* A name is one path segment, never a path: a slash, a backslash, a NUL, an
+* empty string, `.` and `..` are all refused here, and the answer is the name
+* to create rather than a silent rewrite of it. Surrounding whitespace is
+* trimmed because a name that only looks empty would otherwise create a file
+* nobody can see in the tree.
+*
+* @param value - the raw body value.
+* @returns the name, or undefined when it is not one segment.
+*/
+function readName(value) {
+	if (typeof value !== "string") return void 0;
+	const name = value.trim();
+	if (name === "" || name === "." || name === "..") return void 0;
+	if (name.includes("\0") || name.includes("/") || name.includes("\\")) return void 0;
+	return name;
+}
+/**
 * One failure, as the page's error state words it.
 *
 * @param error - whatever the service threw.
@@ -478,6 +481,601 @@ function messageOf(error) {
 	if (error instanceof Error && error.message !== "") return error.message;
 	return String(error);
 }
+/**
+* The sandbox policy one write runs under.
+*
+* The session's own mode and `cwd` are the fence, exactly as they are for the
+* agent's write tool — the file tree must not be a way around a read-only
+* session. A request that names no live session has no policy to inherit; the
+* deployment default then applies, bounded by its own fallback root, and a
+* workspace the default does not cover is refused rather than quietly widened.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @returns the policy for this call, or undefined when no service owns one.
+*/
+function policyFor(ctx, sessionId) {
+	const policy = ctx.get("sandboxPolicy");
+	if (policy === void 0 || typeof policy.resolve !== "function") return void 0;
+	try {
+		const sessions = ctx.get("sessions");
+		const session = typeof sessionId === "string" && sessionId !== "" ? sessions?.get(sessionId) : void 0;
+		return policy.resolve(session === void 0 ? {} : { session });
+	} catch {
+		return;
+	}
+}
+/**
+* The sandbox mode a policy carries, when it carries one.
+*
+* @param policy - whatever {@link policyFor} answered.
+* @returns the mode, or undefined when the policy is not an object with one.
+*/
+function modeOf(policy) {
+	if (typeof policy !== "object" || policy === null || !("mode" in policy)) return void 0;
+	const mode = policy.mode;
+	return typeof mode === "string" ? mode : void 0;
+}
+/** Whether a caught error carries one of the filesystem service's stable codes. */
+function hasCode(error, code) {
+	return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+/**
+* The canonical process path of one target, when it is also a path on this host.
+*
+* Three facts have to agree before a path may be handed to a native operation:
+* the provider can spell it as a process path, the host can map that path back
+* into the provider's world, and the round trip lands on the same identity.
+* That is the same test the session controller applies before it opens a path
+* natively, and it is what keeps a remote or sandboxed workspace from having a
+* host filesystem operation applied to a path that merely looks like one.
+*
+* @param fs - the composed filesystem service.
+* @param target - the resolved target.
+* @returns the absolute process path, or undefined when the host cannot reach it.
+*/
+async function hostPathOf(fs, target) {
+	try {
+		const path = typeof fs.processPath === "function" ? fs.processPath(target) : void 0;
+		if (typeof path !== "string" || path === "") return void 0;
+		const mapped = typeof fs.processPathFromHostPath === "function" ? fs.processPathFromHostPath(path) : void 0;
+		if (typeof mapped !== "string" || mapped === "") return void 0;
+		const again = await fs.resolve(mapped);
+		return fs.processPath(again) === path ? path : void 0;
+	} catch {
+		return;
+	}
+}
+/**
+* The workspace path of one child, given its parent and its own name.
+*
+* @param parent - the parent's workspace path; empty for the root.
+* @param name - the child's own name.
+* @returns the child's workspace path.
+*/
+function childPathOf(parent, name) {
+	return parent === "" ? name : `${parent}/${name}`;
+}
+/**
+* The workspace path of the directory holding one path.
+*
+* @param path - a `/`-joined workspace path.
+* @returns the parent's path, or the empty string (the root).
+*/
+function parentPathOf(path) {
+	const at = path.lastIndexOf("/");
+	return at === -1 ? "" : path.slice(0, at);
+}
+/**
+* Join one workspace path and one child name the way the Host spells a path.
+*
+* The tree's own vocabulary is `/`-joined, but the composed filesystem resolves
+* against the platform's spelling; `join` is what keeps the two apart — and
+* what makes a resolved target the same identity the listing reported.
+*
+* @param root - the absolute workspace root.
+* @param path - the workspace-relative path.
+* @returns the absolute path.
+*/
+function absoluteOf(root, path) {
+	return path === "" ? root : join(root, path);
+}
+// src/host/changes.ts
+/**
+* The tree's four commands — rename, create, delete, reveal — as the Host
+* performs them.
+*
+* The Files tab reads; these are the four ways it writes. Everything they share
+* is one fence: the path must name a workspace entry inside the session's own
+* workspace, and the write must be one the session's sandbox policy allows, so
+* a read-only session cannot use the tree to do what its own agent tools
+* refuse. Which effect performs the change depends on what is being changed:
+*
+* - **Files are created and removed** through the composed `fs` service, which
+*   is where the workspace fence already lives: `writeText` with `createIfAbsent`
+*   creates an empty file, and `deleteFile` removes one. Both are atomic there,
+*   so a failure leaves the file as it was.
+* - **Renames, directory creations and directory removals** have no counterpart
+*   in that service: its `moveFile` publishes the source's *text* at the
+*   destination, which refuses a binary file and refuses a directory outright,
+*   and it never creates or removes a directory at all. Those four go through
+*   `node:fs/promises`, and only once the entry has been proven to be a path on
+*   *this* machine and inside the session's workspace. A workspace living in a
+*   sandbox or over SSH answers `unsupported` rather than having a host
+*   operation applied to a path that merely looks local, and an entry whose
+*   identity lies outside the workspace — a symlink out of the tree — answers
+*   `invalid` rather than being followed.
+*
+* The policy check runs for every mutation, including the directory ones, so
+* the tree cannot be a way around the session's own mode.
+*/
+/**
+* The answer when the composed filesystem is not mounted.
+*
+* @returns the failure both halves word the same way.
+*/
+function noFilesystem() {
+	return {
+		ok: false,
+		error: "The filesystem service is not mounted"
+	};
+}
+/**
+* How one failure is worded for the page.
+*
+* A cause the page has words of its own travels as `reason`; everything else —
+* a permission denial, an I/O fault, a sandbox refusal — travels as `error` and
+* is drawn verbatim, because the Host's sentence is more specific than anything
+* this page could substitute.
+*
+* @param error - whatever the service threw.
+* @returns the failure payload.
+*/
+function failureOf(error) {
+	if (hasCode(error, "FS_ALREADY_EXISTS") || hasCode(error, "EEXIST") || hasCode(error, "FS_NOT_OBSERVED")) return {
+		ok: false,
+		reason: "exists",
+		error: "Something with that name already exists"
+	};
+	if (hasCode(error, "FS_STALE_VERSION") || hasCode(error, "FS_NOT_FOUND") || hasCode(error, "ENOENT")) return {
+		ok: false,
+		reason: "missing",
+		error: "That path no longer exists"
+	};
+	if (hasCode(error, "FS_SANDBOX_DENIED")) return {
+		ok: false,
+		reason: "read-only",
+		error: "This session cannot write to its workspace"
+	};
+	if (hasCode(error, "FS_NOT_REGULAR_FILE") || hasCode(error, "EISDIR")) return {
+		ok: false,
+		reason: "unsupported",
+		error: "That change is not supported for this kind of entry"
+	};
+	if (hasCode(error, "FS_NOT_TEXT")) return {
+		ok: false,
+		reason: "unsupported",
+		error: "That change is not supported for this kind of entry"
+	};
+	return {
+		ok: false,
+		error: messageOf(error)
+	};
+}
+/**
+* Whether one sandbox policy permits a write at all.
+*
+* @param policy - the resolved policy, when the composition has one.
+* @returns false only for a policy that is present and says `read-only`; a
+*   composition with no policy layer has nothing to refuse with.
+*/
+function permitsWrite(policy) {
+	return modeOf(policy) !== "read-only";
+}
+/**
+* The root one command runs against, or the failure it answers with.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @returns the root, or the failure the caller returns unchanged.
+*/
+async function requireRoot(ctx, sessionId) {
+	const root = await resolveRoot(ctx, sessionId);
+	if (root === void 0) return {
+		ok: false,
+		failure: {
+			ok: false,
+			error: "This session has no working directory to browse"
+		}
+	};
+	return {
+		ok: true,
+		root
+	};
+}
+/**
+* What the serving desktop can do with a workspace path.
+*
+* The page draws Reveal from this answer, so the question is asked of the same
+* service that would perform it — a Host with no native opener answers that
+* reveals are unavailable instead of offering a command that must fail after
+* the click.
+*
+* @param ctx - the Host plugin context.
+* @returns the desktop facts; every field is false when nothing can answer.
+*/
+function desktopFacts(ctx) {
+	const controller = ctx.get("sessionController");
+	if (controller !== void 0 && typeof controller.workspaceDesktop === "function") try {
+		const desktop = controller.workspaceDesktop();
+		const manager = desktop?.fileManager;
+		if (desktop?.available === true && (manager === "finder" || manager === "explorer" || manager === "directory")) return {
+			reveal: true,
+			fileManager: manager
+		};
+	} catch {}
+	return { reveal: false };
+}
+/**
+* Whether the session's policy lets the page mutate its workspace.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @returns true when a write would not be refused by the policy alone.
+*/
+function writableWorkspace(ctx, sessionId) {
+	return permitsWrite(policyFor(ctx, sessionId));
+}
+/**
+* Where one workspace path really is, when a Host operation may touch it.
+*
+* Two questions are asked and they fail differently, which is why the answer is
+* not simply a path. The first is containment: the entry has to resolve inside
+* the session's workspace, and on its *identity* rather than its spelling — a
+* symlink inside the tree may point outside it, and an operation performed
+* through that link would act on a file the session does not own. The second is
+* reach: the path has to be one this Host can map back to itself, which a
+* workspace living in a sandbox or over SSH cannot answer.
+*
+* @param fs - the composed filesystem service.
+* @param root - the absolute workspace root.
+* @param path - the entry as a workspace path.
+* @returns where it is, or which of the two questions refused.
+*/
+async function localPathOf(fs, root, path) {
+	try {
+		const workspace = await fs.resolve(".", { cwd: root });
+		const target = await fs.resolve(path === "" ? "." : path, { cwd: root });
+		if (!fs.contains(workspace, target)) return { refusal: {
+			ok: false,
+			reason: "invalid",
+			error: "That entry points outside this workspace"
+		} };
+		const host = await hostPathOf(fs, target);
+		if (host === void 0) return { refusal: {
+			ok: false,
+			reason: "unsupported",
+			error: "This workspace does not live on the Host filesystem"
+		} };
+		return { path: host };
+	} catch (error) {
+		return { refusal: failureOf(error) };
+	}
+}
+/**
+* Whether a workspace path exists, and what it is.
+*
+* @param fs - the composed filesystem service.
+* @param root - the absolute workspace root.
+* @param path - the entry as a workspace path.
+* @returns its kind, or undefined when nothing is there.
+*/
+async function kindOf(fs, root, path) {
+	try {
+		return (await fs.stat(await fs.resolve(path, { cwd: root })))?.type;
+	} catch (error) {
+		if (hasCode(error, "FS_NOT_FOUND") || hasCode(error, "ENOENT")) return void 0;
+		throw error;
+	}
+}
+/**
+* Rename one file or directory in place.
+*
+* A file is renamed by the filesystem service's own move, which keeps the
+* content, the line endings and the mode. A directory is renamed on the Host
+* filesystem once the target has been proven local, because the service has no
+* directory move and inventing one across a sandbox boundary would be worse
+* than refusing.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the entry to rename, as a workspace path.
+* @param rawName - the new name, as one path segment.
+* @returns the new workspace path, or an `ok: false` answer.
+*/
+async function renameEntry(ctx, sessionId, rawPath, rawName) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		reason: "invalid",
+		error: "The path must name a workspace entry"
+	};
+	const name = readName(rawName);
+	if (name === void 0) return {
+		ok: false,
+		reason: "invalid",
+		error: "That is not a valid name"
+	};
+	const answer = await requireRoot(ctx, sessionId);
+	if (!answer.ok) return answer.failure;
+	const fs = ctx.get("fs");
+	if (fs === void 0) return noFilesystem();
+	if (!permitsWrite(policyFor(ctx, sessionId))) return {
+		ok: false,
+		reason: "read-only",
+		error: "This session cannot write to its workspace"
+	};
+	const next = childPathOf(parentPathOf(path), name);
+	try {
+		if (await kindOf(fs, answer.root, path) === void 0) return {
+			ok: false,
+			reason: "missing",
+			error: "That path no longer exists"
+		};
+		if (next === path) return {
+			ok: true,
+			path,
+			name
+		};
+		if (await kindOf(fs, answer.root, next) !== void 0) return {
+			ok: false,
+			reason: "exists",
+			error: "Something with that name already exists"
+		};
+		const source = await localPathOf(fs, answer.root, path);
+		if ("refusal" in source) return source.refusal;
+		const destination = await localPathOf(fs, answer.root, next);
+		if ("refusal" in destination) return destination.refusal;
+		await rename(source.path, destination.path);
+		return {
+			ok: true,
+			path: next,
+			name
+		};
+	} catch (error) {
+		return failureOf(error);
+	}
+}
+/**
+* Create one new file or directory under an existing directory.
+*
+* A file is created empty — the reader's next click opens it, and the editor is
+* what puts text in it. A directory is made on the Host filesystem once the
+* parent has been proven local, for the same reason a directory rename is.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawParent - the directory to create in, as a workspace path (empty for the root).
+* @param rawName - the new entry's name, as one path segment.
+* @param kind - which kind of entry to create.
+* @returns the new workspace path, or an `ok: false` answer.
+*/
+async function createEntry(ctx, sessionId, rawParent, rawName, kind) {
+	const parent = readPath(rawParent);
+	if (parent === void 0) return {
+		ok: false,
+		reason: "invalid",
+		error: "The path must be a workspace-relative path"
+	};
+	const name = readName(rawName);
+	if (name === void 0) return {
+		ok: false,
+		reason: "invalid",
+		error: "That is not a valid name"
+	};
+	const answer = await requireRoot(ctx, sessionId);
+	if (!answer.ok) return answer.failure;
+	const fs = ctx.get("fs");
+	if (fs === void 0) return noFilesystem();
+	const policy = policyFor(ctx, sessionId);
+	if (!permitsWrite(policy)) return {
+		ok: false,
+		reason: "read-only",
+		error: "This session cannot write to its workspace"
+	};
+	const path = childPathOf(parent, name);
+	try {
+		const folderKind = await kindOf(fs, answer.root, parent === "" ? "." : parent);
+		if (folderKind === void 0) return {
+			ok: false,
+			reason: "missing",
+			error: "That folder no longer exists"
+		};
+		if (folderKind !== "directory") return {
+			ok: false,
+			reason: "invalid",
+			error: "That is not a folder"
+		};
+		if (await kindOf(fs, answer.root, path) !== void 0) return {
+			ok: false,
+			reason: "exists",
+			error: "Something with that name already exists"
+		};
+		if (kind === "directory") {
+			const target = await localPathOf(fs, answer.root, path);
+			if ("refusal" in target) return target.refusal;
+			await mkdir(target.path);
+			return {
+				ok: true,
+				path,
+				name
+			};
+		}
+		await fs.writeText(await fs.resolve(path, { cwd: answer.root }), "", { kind: "createIfAbsent" }, void 0, policy);
+		return {
+			ok: true,
+			path,
+			name
+		};
+	} catch (error) {
+		return failureOf(error);
+	}
+}
+/**
+* Delete one file or directory.
+*
+* A regular file goes through the filesystem service, which is bounded and
+* version-aware. A directory is removed recursively on the Host filesystem: the
+* page has already asked the reader to confirm, and "delete this folder" in a
+* tree means the folder and what it holds — leaving the children behind would
+* leave a workspace the reader cannot see half of.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the entry to delete, as a workspace path.
+* @returns the removed path, or an `ok: false` answer.
+*/
+async function deleteEntry(ctx, sessionId, rawPath) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		reason: "invalid",
+		error: "The path must name a workspace entry"
+	};
+	const answer = await requireRoot(ctx, sessionId);
+	if (!answer.ok) return answer.failure;
+	const fs = ctx.get("fs");
+	if (fs === void 0) return noFilesystem();
+	const policy = policyFor(ctx, sessionId);
+	if (!permitsWrite(policy)) return {
+		ok: false,
+		reason: "read-only",
+		error: "This session cannot write to its workspace"
+	};
+	try {
+		const kind = await kindOf(fs, answer.root, path);
+		if (kind === void 0) return {
+			ok: false,
+			reason: "missing",
+			error: "That path no longer exists"
+		};
+		if (kind === "directory") {
+			const target = await localPathOf(fs, answer.root, path);
+			if ("refusal" in target) return target.refusal;
+			await rm(target.path, {
+				recursive: true,
+				force: true
+			});
+			return {
+				ok: true,
+				path
+			};
+		}
+		await fs.deleteFile(await fs.resolve(path, { cwd: answer.root }), void 0, void 0, policy);
+		return {
+			ok: true,
+			path
+		};
+	} catch (error) {
+		return failureOf(error);
+	}
+}
+/**
+* Show one workspace path in the Host desktop's file manager.
+*
+* The path is verified before it is handed over: it must resolve inside the
+* session's workspace, and it must also be a path this Host can reach — the
+* same canonical round trip the session controller makes before it opens
+* anything. The reveal then belongs to that service rather than to this plugin,
+* so the Finder/Explorer command itself stays one implementation in the product.
+*
+* @param ctx - the Host plugin context.
+* @param sessionId - the session the page belongs to, when it named one.
+* @param rawPath - the entry to reveal, as a workspace path.
+* @returns the reveal outcome, or an `ok: false` answer.
+*/
+async function revealEntry(ctx, sessionId, rawPath) {
+	const path = readPath(rawPath);
+	if (path === void 0 || path === "") return {
+		ok: false,
+		error: "The path must name a workspace entry"
+	};
+	const answer = await requireRoot(ctx, sessionId);
+	if (!answer.ok) return {
+		ok: false,
+		error: answer.failure.error ?? "This session has no working directory to browse"
+	};
+	const fs = ctx.get("fs");
+	if (fs === void 0) return {
+		ok: false,
+		error: "The filesystem service is not mounted"
+	};
+	const controller = ctx.get("sessionController");
+	if (controller === void 0 || typeof controller.openWorkspacePath !== "function") return {
+		ok: false,
+		reason: "unavailable",
+		error: "This Host has no desktop to show the file on"
+	};
+	try {
+		const target = await fs.resolve(path, { cwd: answer.root });
+		if (await fs.stat(target) === void 0) return {
+			ok: false,
+			error: "That path no longer exists"
+		};
+		const hostPath = await hostPathOf(fs, target);
+		if (hostPath === void 0) return {
+			ok: false,
+			reason: "unavailable",
+			error: "This workspace is not on the Host filesystem"
+		};
+		if ((await controller.openWorkspacePath({
+			path: hostPath,
+			action: "reveal"
+		}, new AbortController().signal))?.opened !== true) return {
+			ok: false,
+			error: "The file manager did not open"
+		};
+		return { ok: true };
+	} catch (error) {
+		return {
+			ok: false,
+			error: messageOf(error)
+		};
+	}
+}
+// src/host/files.ts
+/**
+* Workspace reads — and the editor's one guarded write — for the Files tab.
+*
+* Two questions the page asks, and one answer it gives: what a directory holds,
+* what a text file says (paged for the preview, whole for the editor), and the
+* text the editor wants written back. Reads are answered through the composed
+* `workspaceFiles` service, so the session's own workspace root is the only
+* directory a page can reach and every listing stays inside it. The write is the
+* exception: that service is read-only, so saving goes through `ctx.fs`, fenced
+* by the session's own sandbox policy and guarded by the freshness token the
+* editor was handed. A session that is not live yet still owns a durable header,
+* and that header's `cwd` is what lets a reopened page answer for its workspace
+* on the first request.
+*
+* A session the Host cannot name at all falls back to the executor's default
+* directory, which is at least a directory that exists; the page then shows
+* whatever that directory holds rather than an empty tab.
+*/
+/** How many lines one preview asks for; the service's own cap still applies. */
+const READ_LINES = 5e3;
+/**
+* Largest file the editor will open or overwrite, in bytes.
+*
+* The preview pages its answer, so it can show the head of any file; the editor
+* cannot — it hands back a whole document, and a whole document is what must be
+* written. A cap keeps a mistaken click on a 500 MB log from pinning the Host
+* and the browser at once. Refusing is the honest answer: the page says the file
+* is too large and leaves it in preview.
+*/
+const EDIT_BYTES = 2097152;
+/** Copy may read a whole text file without making it editable in the browser. */
+const COPY_BYTES = 16777216;
 /**
 * The workspace's display name for the page's breadcrumb.
 *
@@ -528,7 +1126,7 @@ async function listDirectory(ctx, sessionId, rawPath) {
 	try {
 		const listing = await files.list(scopeOf(sessionId, root), path === "" ? "." : path, void 0);
 		const entries = Array.isArray(listing.entries) ? listing.entries : [];
-		const absolute = typeof listing.path === "string" && listing.path !== "" ? join(root, listing.path) : root;
+		const absolute = typeof listing.path === "string" ? absoluteOf(root, listing.path) : root;
 		const names = entries.map((entry) => String(entry.name));
 		const [marked, excluded] = await Promise.all([platformHiddenNames(ctx, absolute), ignoredNames(ctx, absolute, names)]);
 		return {
@@ -546,7 +1144,9 @@ async function listDirectory(ctx, sessionId, rawPath) {
 					...excluded.has(name) ? { ignored: true } : {}
 				};
 			}),
-			truncated: listing.truncated === true
+			truncated: listing.truncated === true,
+			writable: writableWorkspace(ctx, sessionId),
+			desktop: desktopFacts(ctx)
 		};
 	} catch (error) {
 		return {
@@ -740,34 +1340,6 @@ async function readImage(ctx, sessionId, rawPath) {
 	}
 }
 /**
-* The sandbox policy one save runs under.
-*
-* The session's own mode and `cwd` are the fence, exactly as they are for the
-* agent's write tool — the editor must not be a way around a read-only session.
-* A request that names no live session has no policy to inherit; the deployment
-* default then applies, bounded by its own fallback root, and a workspace the
-* default does not cover is refused rather than quietly widened.
-*
-* @param ctx - the Host plugin context.
-* @param sessionId - the session the page belongs to, when it named one.
-* @returns the policy for this call, or undefined when no service owns one.
-*/
-function policyFor(ctx, sessionId) {
-	const policy = ctx.get("sandboxPolicy");
-	if (policy === void 0 || typeof policy.resolve !== "function") return void 0;
-	try {
-		const sessions = ctx.get("sessions");
-		const session = typeof sessionId === "string" && sessionId !== "" ? sessions?.get(sessionId) : void 0;
-		return policy.resolve(session === void 0 ? {} : { session });
-	} catch {
-		return;
-	}
-}
-/** Whether a caught error carries one of the filesystem service's stable codes. */
-function hasCode(error, code) {
-	return typeof error === "object" && error !== null && "code" in error && error.code === code;
-}
-/**
 * How many lines a stored text holds, by the read service's own convention: a
 * final newline terminates the last line instead of starting an empty one.
 */
@@ -869,16 +1441,33 @@ async function saveFile(ctx, sessionId, rawPath, rawText, rawVersion) {
 * The Host stays authoritative about *which* workspace is browsed. A request may
 * name the session it belongs to, but never a directory: the root is read from
 * that session's own header, so a page cannot point the plugin at a tree the
-* session does not own. Four routes read; the fifth is the editor's save, and
-* it accepts nothing but the text of one file already inside that workspace.
+* session does not own. Five routes read; the save is the editor's one write,
+* and it accepts nothing but the text of one file already inside that workspace.
+*
+* The last four are the tree's context-menu commands — rename, create, delete,
+* reveal — and they are the only routes that change what is on disk. Each is a
+* path plus, for the two that need one, a single name: the fence that decides
+* whether the path is inside the session's workspace and whether the policy
+* allows a write lives in the module that performs the change, so a route here
+* carries the request and nothing else.
 */
-/** Route table, kept in one place so the two halves cannot drift. */
+/**
+* Route table, kept in one place so the two halves cannot drift.
+*
+* Five read, one edits, four change the tree: the row commands the context menu
+* offers. Every one of them answers JSON and never rejects, and every one of
+* them is fenced by the session's own workspace and sandbox policy.
+*/
 const ROUTES = {
 	list: "/dsh-cool-file/api/list",
 	read: "/dsh-cool-file/api/read",
 	text: "/dsh-cool-file/api/text",
 	write: "/dsh-cool-file/api/write",
-	raw: RAW_ROUTE
+	raw: RAW_ROUTE,
+	rename: "/dsh-cool-file/api/rename",
+	create: "/dsh-cool-file/api/create",
+	remove: "/dsh-cool-file/api/delete",
+	reveal: "/dsh-cool-file/api/reveal"
 };
 /** Longest body the read routes accept; each is a path and a session id. */
 const MAX_BODY_BYTES = 16384;
@@ -1008,7 +1597,7 @@ async function handleRaw(ctx, req, res) {
 	res.end(req.method === "HEAD" ? void 0 : Buffer.from(answer.data));
 }
 /**
-* Register the five routes on the browser HTTP carrier.
+* Register every route on the browser HTTP carrier.
 *
 * @param ctx - the Host plugin context.
 * @returns the disposer that removes the routes with the plugin.
@@ -1036,7 +1625,11 @@ function registerRoutes(ctx) {
 		route(ROUTES.read, (req, res) => handle(req, res, (body) => readFile(ctx, body.sessionId, body.path))),
 		route(ROUTES.text, (req, res) => handle(req, res, (body) => readWholeFile(ctx, body.sessionId, body.path, body.purpose === "copy" ? "copy" : "edit"))),
 		route(ROUTES.write, (req, res) => handle(req, res, (body) => saveFile(ctx, body.sessionId, body.path, body.text, body.version), MAX_WRITE_BODY_BYTES)),
-		route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res))
+		route(ROUTES.raw, (req, res) => handleRaw(ctx, req, res)),
+		route(ROUTES.rename, (req, res) => handle(req, res, (body) => renameEntry(ctx, body.sessionId, body.path, body.name))),
+		route(ROUTES.create, (req, res) => handle(req, res, (body) => createEntry(ctx, body.sessionId, body.path, body.name, body.kind === "directory" ? "directory" : "file"))),
+		route(ROUTES.remove, (req, res) => handle(req, res, (body) => deleteEntry(ctx, body.sessionId, body.path))),
+		route(ROUTES.reveal, (req, res) => handle(req, res, (body) => revealEntry(ctx, body.sessionId, body.path)))
 	];
 	return () => {
 		for (const dispose of disposers) dispose();

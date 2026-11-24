@@ -56,7 +56,16 @@ import {
 } from 'react'
 import { IconChevronRight, IconFile, IconFolder } from '@dsh-cool/icons'
 import { PanelScroll, ResizablePanel, Toast, useComposerSeatSuppression, writeClipboard } from '@dsh-cool/ui'
-import { fetchFile, fetchListing, fetchText, saveFile } from './api.js'
+import {
+  createEntry,
+  deleteEntry,
+  fetchFile,
+  fetchListing,
+  fetchText,
+  renameEntry,
+  revealEntry,
+  saveFile,
+} from './api.js'
 
 import { CodePreview } from './code.js'
 import { CodeEditor, EDIT_HIGHLIGHT_CHARS } from './editor.js'
@@ -66,10 +75,12 @@ import type { Translate } from './locales.js'
 import { MarkdownPreview } from './markdown.js'
 import { FileMenu, TreeMenu, readMode, readWrap, writeMode, writeWrap, type FilesMode } from './mode.js'
 import { rawImageUrl } from './raw.js'
+import { RowDialog, type RowPrompt } from './row-dialog.js'
+import { RowMenu, type RowCommand, type RowTarget } from './row-menu.js'
 import { FILES_ROOT_CLASS } from './styles.js'
 import { readViewState, readWorkspaceViewState, writeViewState } from './viewstate.js'
 import { IMAGE_MAX_BYTES, fileKindOf, isPictureKind } from '../shared/kinds.js'
-import type { FileEntry, ListPayload, ReadPayload } from '../shared/contract.js'
+import type { DesktopFacts, FileEntry, ListPayload, MutationPayload, ReadPayload } from '../shared/contract.js'
 
 /** The root is the whole conversation body, sized the way the shell hands it over. */
 const PAGE: CSSProperties = {
@@ -363,6 +374,49 @@ function childPath(parent: string, name: string): string {
 }
 
 /**
+ * One path after a rename: the entry, and everything below it, changes prefix.
+ *
+ * A rename moves a path in the workspace, and a folder's rename moves every
+ * path underneath it too. One function for both cases — a path that is not the
+ * entry and not below it comes back unchanged.
+ *
+ * @param path - the path to translate.
+ * @param from - the entry's path before the rename.
+ * @param to - the entry's path after it.
+ * @returns the translated path.
+ */
+function renamePath(path: string, from: string, to: string): string {
+  if (path === from) return to
+  if (path.startsWith(`${from}/`)) return to + path.slice(from.length)
+  return path
+}
+
+/**
+ * One record's keys after a rename, or the same record when nothing moved.
+ *
+ * Returning the original reference for a record no path in which changed keeps
+ * React from repainting the editor and every tree row for a rename that only
+ * touched a sibling.
+ *
+ * @param previous - the record keyed by workspace path.
+ * @param translate - the path translation to apply.
+ * @returns the rewritten record, or the original when no key moved.
+ */
+function renameKeys<T>(
+  previous: Readonly<Record<string, T>>,
+  translate: (path: string) => string,
+): Readonly<Record<string, T>> {
+  const next: Record<string, T> = {}
+  let changed = false
+  for (const [path, value] of Object.entries(previous)) {
+    const moved = translate(path)
+    if (moved !== path) changed = true
+    next[moved] = value
+  }
+  return changed ? next : previous
+}
+
+/**
  * The workspace path of the directory holding one path.
  *
  * @param path - a `/`-joined workspace path.
@@ -432,10 +486,41 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   const [mode, setMode] = useState<FilesMode>(readMode)
   /** Whether long source rows wrap in both the preview and the editor. */
   const [wrap, setWrap] = useState(readWrap)
+  /**
+   * The row the context menu is open on, or null while it is closed.
+   *
+   * Held here rather than inside each row: only one menu may be open at a time,
+   * and the page owns the question of which row the commands would apply to.
+   */
+  const [rowTarget, setRowTarget] = useState<RowTarget | null>(null)
+  /** The question a chosen row command opened, or null when none is open. */
+  const [prompt, setPrompt] = useState<RowPrompt | null>(null)
+  /** Whether the command behind the open dialog is still in flight. */
+  const [promptBusy, setPromptBusy] = useState(false)
+  /** The Host's failure for the open dialog, worded for the reader. */
+  const [promptError, setPromptError] = useState<string | null>(null)
+  /**
+   * Whether the session's policy lets this page change the workspace.
+   *
+   * Read from every listing, because the answer is the Host's: a read-only
+   * session lists its workspace through the very same route and refuses every
+   * change. Optimistic until a listing answers, since the commands are also
+   * fenced on the Host and a wrong guess costs a refused request rather than a
+   * change nobody allowed.
+   */
+  const [writable, setWritable] = useState(true)
+  /** What the Host's desktop can do with a workspace path; nothing until it says. */
+  const [desktop, setDesktop] = useState<DesktopFacts>({ reveal: false })
   /** Whether the last copy action succeeded, for short trigger feedback. */
   const [copied, setCopied] = useState(false)
-  /** Copy outcomes live outside the menu, which closes as soon as Copy is chosen. */
-  const [copyNotice, setCopyNotice] = useState<{ readonly id: number; readonly text: string; readonly ok: boolean } | null>(null)
+  /**
+   * The short-lived banner a finished action leaves behind.
+   *
+   * It lives outside every menu and dialog because both of those close as soon
+   * as a command is chosen: the answer arrives after the surface that asked the
+   * question is gone, so the place to report it is the page itself.
+   */
+  const [notice, setNotice] = useState<{ readonly id: number; readonly text: string; readonly ok: boolean } | null>(null)
   /** Every file opened for editing, by workspace path. */
   const [docs, setDocs] = useState<Readonly<Record<string, EditorDoc>>>({})
   /** The unsaved drafts, by workspace path: a path present here is dirty. */
@@ -466,20 +551,21 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
    * generation belongs to a tree that is no longer on screen and is dropped.
    */
   const generation = useRef(0)
-  /** Owns the short-lived copy feedback so a closed page cannot be updated. */
-  const copyTimer = useRef<number | undefined>(undefined)
+  /** Owns the short-lived banner, so two answers cannot leave two of them. */
+  const noticeTimer = useRef<number | undefined>(undefined)
   /** Changes on every copy request, so an older answer cannot report for a new file. */
   const copyGeneration = useRef(0)
+  /** Changes on every banner request, so an older one cannot name the newer one. */
+  const noticeGeneration = useRef(0)
   /** Latest selected file/session, read only when an awaited copy completes. */
   const copyContext = useRef<{ path: string | null; sessionId: string | undefined }>({ path: selected, sessionId })
   copyContext.current = { path: selected, sessionId }
   useEffect(() => () => {
-    if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
+    if (noticeTimer.current !== undefined) window.clearTimeout(noticeTimer.current)
   }, [])
   useEffect(() => {
     copyGeneration.current += 1
     setCopied(false)
-    setCopyNotice(null)
   }, [selected, sessionId])
 
   // Layout effect, not a passive one: the composer seat is already in the tree
@@ -529,6 +615,11 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 ? workspaceNameOf(payload.root)
                 : ''
           if (name !== '') setWorkspaceName(name)
+          // The two facts the row commands are drawn from. An older Host answers
+          // neither, and its own route still fences every change, so the page
+          // keeps offering the commands rather than disabling what may work.
+          if (typeof payload.writable === 'boolean') setWritable(payload.writable)
+          if (payload.desktop !== undefined) setDesktop(payload.desktop)
           // The absolute root is what this page's saved shape is keyed by, so a
           // first visit learns it here and can start remembering from now on. A
           // relative path whose root the memory did not name is that first visit:
@@ -627,6 +718,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   /** The directory answers the walk reads, for the same reason. */
   const directoriesRef = useRef(directories)
   directoriesRef.current = directories
+  /**
+   * The editor's documents and drafts, read by the row commands.
+   *
+   * A rename has to answer "does the file I just moved hold unsaved text?"
+   * before it can decide whether to read the file again, and reading that from
+   * the state directly would put the whole document map in the callback's
+   * dependencies — recreating it on every keystroke in the editor.
+   */
+  const docsRef = useRef(docs)
+  docsRef.current = docs
+  const draftsRef = useRef(drafts)
+  draftsRef.current = drafts
   /** The branches the memory restored, which a failed answer may still fold away. */
   const restoredBranches = useRef<Set<string>>(new Set())
   /** The workspace root the restored shape belongs to, or '' when none was drawn. */
@@ -843,6 +946,12 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     inFlight.current.clear()
     previewToken.current += 1
     setWorkspaceName('')
+    setWritable(true)
+    setDesktop({ reveal: false })
+    setRowTarget(null)
+    setPrompt(null)
+    setPromptBusy(false)
+    setPromptError(null)
     setDirectories({})
     setWorkspaceRoot(restored?.root ?? '')
     // The root this mount's shape belongs to, and the branches it restored:
@@ -1107,8 +1216,8 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
     const generation = copyGeneration.current + 1
     copyGeneration.current = generation
     setCopied(false)
-    setCopyNotice(null)
-    if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
+    setNotice(null)
+    if (noticeTimer.current !== undefined) window.clearTimeout(noticeTimer.current)
     const doc = docs[path]
     const draft = drafts[path]
     const available = mode === 'editor'
@@ -1116,12 +1225,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       : preview !== null && preview.eof ? preview.text : undefined
     const current = (): boolean => generation === copyGeneration.current
       && copyContext.current.path === path && copyContext.current.sessionId === session
-    const report = (text: string, ok: boolean): void => {
+    const say = (text: string, ok: boolean): void => {
       if (!current()) return
       setCopied(ok)
-      setCopyNotice({ id: generation, text, ok })
-      if (copyTimer.current !== undefined) window.clearTimeout(copyTimer.current)
-      copyTimer.current = window.setTimeout(() => {
+      // One id space for every banner on the page, so the copy answer and a row
+      // command's answer cannot name each other's notice.
+      const id = noticeGeneration.current + 1
+      noticeGeneration.current = id
+      setNotice({ id, text, ok })
+      if (noticeTimer.current !== undefined) window.clearTimeout(noticeTimer.current)
+      noticeTimer.current = window.setTimeout(() => {
         if (copyGeneration.current === generation) setCopied(false)
       }, 3000)
     }
@@ -1130,14 +1243,14 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       if (text === undefined) {
         const answer = await fetchText(session, path, 'copy')
         if (!answer.ok || answer.text === undefined) {
-          report(answer.error ?? t('error.read'), false)
+          say(answer.error ?? t('error.read'), false)
           return
         }
         text = answer.text
       }
       if (!current()) return
       const success = await writeClipboard(text)
-      report(success ? t('action.copied') : t('action.copyFailed'), success)
+      say(success ? t('action.copied') : t('action.copyFailed'), success)
     })()
   }, [docs, drafts, mode, preview, selected, sessionId, t])
 
@@ -1243,6 +1356,352 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   }, [directories, docs, drafts, expanded, loadDirectory, loadDocument, openFile, selected])
 
   /**
+   * Re-read the directories one change touched, keeping the tree's shape.
+   *
+   * A rename, a creation and a deletion change the rows of one directory and,
+   * when the entry was an open folder, of every open branch below it. Asking the
+   * Host for the whole tree would replace branches nobody touched and lose the
+   * reader's place, so the reload is bounded to the parent and to the branches
+   * the caller says still exist under it.
+   *
+   * The two lists are taken together on purpose. Everything dropped from the
+   * cache is asked for again — a branch dropped but not requested would draw
+   * "Loading…" for good — and everything asked for is dropped first, so the
+   * answer drawn is the Host's new one rather than the one already held.
+   *
+   * @param parent - the directory whose children changed.
+   * @param branches - the open branches below it, named by their post-change
+   *   paths, which the caller has already rewritten.
+   */
+  const reloadParent = useCallback(
+    (parent: string, branches: readonly string[] = expandedRef.current): void => {
+      const prefix = parent === '' ? '' : `${parent}/`
+      const below = branches.filter((path) => path !== parent && path.startsWith(prefix))
+      // A request already in flight for one of these paths would make the
+      // reload a no-op, and its answer is the stale one; dropping the guard is
+      // what lets the new read through. Any late answer from the old request is
+      // harmless: it lands under the same key and is replaced by this one.
+      for (const path of [parent, ...below]) inFlight.current.delete(path)
+      setDirectories((previous) => {
+        let next: Record<string, DirectoryState> | undefined
+        for (const path of [parent, ...below]) {
+          if (previous[path] === undefined) continue
+          next ??= { ...previous }
+          delete next[path]
+        }
+        return next ?? previous
+      })
+      loadRef.current(parent)
+      for (const path of below) loadRef.current(path)
+    },
+    [],
+  )
+
+  /**
+   * Report one finished row command in the page's own banner.
+   *
+   * @param text - the sentence to show.
+   * @param ok - whether the command succeeded.
+   */
+  const report = useCallback((text: string, ok: boolean): void => {
+    const id = noticeGeneration.current + 1
+    noticeGeneration.current = id
+    setNotice({ id, text, ok })
+    if (noticeTimer.current !== undefined) window.clearTimeout(noticeTimer.current)
+    // The shell's toast holds for three seconds and then fades for one; the
+    // banner is removed after the fade, not during it, or the exit animation is
+    // cut in half every time.
+    noticeTimer.current = window.setTimeout(() => {
+      setNotice((current) => (current?.id === id ? null : current))
+    }, 4000)
+  }, [])
+
+  /**
+   * Word one failed row command.
+   *
+   * A cause the Host names is worded here, because its own sentence is written
+   * for a developer; anything else — a permission denial, an I/O fault — is
+   * drawn verbatim, since the Host's diagnosis is more specific than anything
+   * this page could substitute for it.
+   *
+   * @param payload - the failed answer.
+   * @param fallback - the sentence to use when the answer carried no text.
+   * @returns the words to draw.
+   */
+  const failureText = useCallback(
+    (payload: { readonly reason?: string; readonly error?: string }, fallback: string): string => {
+      if (payload.reason === 'exists') return t('menu.exists')
+      if (payload.reason === 'invalid') return t('menu.invalid')
+      if (payload.reason === 'missing') return t('menu.gone')
+      if (payload.reason === 'read-only') return t('menu.readOnly')
+      if (payload.reason === 'unavailable') return t('menu.revealUnavailable')
+      if (payload.reason === 'unsupported') return t('menu.unsupported')
+      if (typeof payload.error === 'string' && payload.error !== '') return payload.error
+      return fallback
+    },
+    [t],
+  )
+
+  /** Close the open question, discarding what it asked. */
+  const dismissPrompt = useCallback((): void => {
+    setPrompt(null)
+    setPromptError(null)
+    setPromptBusy(false)
+  }, [])
+
+  /**
+   * Ask what one chosen row command needs, or run it when it needs nothing.
+   *
+   * Rename and the two creations ask for a name first; delete asks for a
+   * confirmation; reveal asks for nothing and is simply performed. Every
+   * command is routed through the row the menu captured, never through the
+   * selection, so a menu opened on one row cannot act on another.
+   *
+   * @param command - the row command chosen from the menu.
+   * @param target - the row the menu was opened on.
+   */
+  const runCommand = useCallback(
+    (command: RowCommand, target: RowTarget): void => {
+      /**
+       * Open a question one turn after the menu closes.
+       *
+       * The menu hands the keyboard back to the row it was opened on in a
+       * microtask, and the dialog records the control it must return focus to
+       * in a layout effect. Opening both in one commit therefore makes the
+       * dialog record the page body — the row has not received focus yet — and
+       * closing the dialog would strand the keyboard there. One macrotask later
+       * the row holds focus, and the dialog captures it faithfully.
+       *
+       * @param next - the question to open.
+       */
+      const ask = (next: RowPrompt): void => {
+        setPromptError(null)
+        window.setTimeout(() => setPrompt(next), 0)
+      }
+      if (command === 'rename') {
+        const at = target.path.lastIndexOf('/')
+        ask({
+          kind: 'rename',
+          path: target.path,
+          initial: at === -1 ? target.path : target.path.slice(at + 1),
+        })
+        return
+      }
+      if (command === 'create-file' || command === 'create-folder') {
+        ask({ kind: command, path: target.path, initial: '' })
+        return
+      }
+      if (command === 'delete') {
+        const at = target.path.lastIndexOf('/')
+        ask({
+          kind: 'delete',
+          path: target.path,
+          name: at === -1 ? target.path : target.path.slice(at + 1),
+          directory: target.type === 'directory',
+        })
+        return
+      }
+      // Reveal changes nothing on disk, so it has no question to ask and no
+      // tree to reload. A success is also not reported: the file manager
+      // opening *is* the answer, and a banner over the file the reader just
+      // jumped to says nothing they cannot see. Only a refusal is worded — the
+      // reader would otherwise be left with a closed menu and nothing else.
+      void revealEntry(sessionId, target.path).then((payload) => {
+        if (payload.ok) return
+        report(failureText(payload, t('menu.revealFailed')), false)
+      })
+    },
+    [failureText, report, sessionId, t],
+  )
+
+  /**
+   * Submit a name for the open rename or creation question.
+   *
+   * The tree is reloaded from the parent directory afterwards, and a successful
+   * file creation opens what it just made in the preview: a reader who asked for
+   * a new empty file almost always means to put something in it, and the header's
+   * Preview/Editor switch is one click away from the field that does that. A new
+   * folder opens instead — the reader's next move is inside it, so it is drawn
+   * expanded.
+   *
+   * The folder the entry was created in is opened as well. The menu can be
+   * raised on a closed branch — a row is a row whether or not its children are
+   * drawn — and a reload of a branch that stays closed would put the new entry
+   * somewhere the reader cannot see. Opening the parent is what makes the
+   * creation visible at the place it happened.
+   *
+   * @param name - the name the dialog's field holds.
+   */
+  const submitName = useCallback(
+    (name: string): void => {
+      if (prompt === null || prompt.kind === 'delete') return
+      const parent = prompt.kind === 'rename' ? parentOf(prompt.path) : prompt.path
+      setPromptBusy(true)
+      setPromptError(null)
+      const answer: Promise<MutationPayload> = prompt.kind === 'rename'
+        ? renameEntry(sessionId, prompt.path, name)
+        : createEntry(sessionId, prompt.path, name, prompt.kind === 'create-folder' ? 'directory' : 'file')
+      void answer.then((payload) => {
+        setPromptBusy(false)
+        if (!payload.ok) {
+          setPromptError(failureText(payload, t('menu.failed')))
+          return
+        }
+        setPrompt(null)
+        if (prompt.kind === 'rename') {
+          // The entry moved, so everything that names it moves with it: the
+          // selection, the open branches, the editor's document and draft. A
+          // folder carries its whole subtree, which is why every path below it
+          // is rewritten rather than only the one the menu was opened on.
+          const from = prompt.path
+          const next = typeof payload.path === 'string' && payload.path !== '' ? payload.path : from
+          const moved = (path: string): string => renamePath(path, from, next)
+          const branches = expandedRef.current.map(moved)
+          expandedRef.current = branches
+          setExpanded(branches)
+          if (selected !== null) setSelected(moved(selected))
+          // The cached answers are keyed by path too, so they move with the
+          // entry: without this an open branch below a renamed folder would keep
+          // its children under a path the tree can no longer name.
+          const cached = renameKeys(directoriesRef.current, moved)
+          directoriesRef.current = cached
+          setDirectories(cached)
+          // The editor's document is read under its old path, and a file's move
+          // rewrites it: the freshness token the read returned no longer
+          // describes what is on disk. A file with no unsaved draft is therefore
+          // read again, which is also what keeps the next save from being
+          // refused as stale; a draft is kept exactly as it was, because it is
+          // the reader's text and not the file's.
+          const movedDocs = renameKeys(docsRef.current, moved)
+          const dirty = draftsRef.current[from] !== undefined
+          if (movedDocs[next] !== undefined && !dirty) {
+            const rest = { ...movedDocs }
+            delete rest[next]
+            setDocs(rest)
+            loadDocument(next)
+          } else {
+            setDocs(movedDocs)
+          }
+          const movedDrafts = renameKeys(draftsRef.current, moved)
+          draftsRef.current = movedDrafts
+          setDrafts(movedDrafts)
+          // No banner: the row is drawn under its new name, which is the
+          // result. Only a refusal is worth words, and it stays in the dialog.
+          reloadParent(parentOf(next), branches)
+          return
+        }
+        // No banner here either: a created file opens in the preview and a
+        // created folder is drawn open, so both already show what happened.
+        const created = typeof payload.path === 'string' ? payload.path : undefined
+        // The folder the entry was created in is opened whether or not the
+        // reader had it open: the menu can be raised on a closed row, and an
+        // entry added to a branch that stays closed is one nothing draws.
+        const opened = prompt.kind === 'create-folder' && created !== undefined
+          ? [parent, created]
+          : [parent]
+        const branches = [...expandedRef.current]
+        // The root is drawn whatever the list says, so it is never recorded as
+        // an open branch: an entry for it would travel into the saved shape and
+        // name a row that has no disclosure to open.
+        for (const path of opened) {
+          if (path !== '' && !branches.includes(path)) branches.push(path)
+        }
+        if (branches.length !== expandedRef.current.length) {
+          expandedRef.current = branches
+          setExpanded(branches)
+        }
+        // The reload is given the branches that exist now, so the new folder is
+        // asked for by the same walk that asks for its parent — a branch added
+        // to the list but never requested would draw "Loading…" for good.
+        reloadParent(parent, branches)
+        if (prompt.kind === 'create-file' && created !== undefined) {
+          setRevealLine(undefined)
+          openFileRef.current(created)
+        }
+      })
+    },
+    [failureText, prompt, selected, sessionId, t],
+  )
+
+  /**
+   * Confirm the open delete question.
+   *
+   * A deleted entry leaves the tree, so its selection, its branch and its cached
+   * text go with it: an editor holding a document for a file that is no longer
+   * on disk would only be able to fail the next save.
+   */
+  const confirmDelete = useCallback((): void => {
+    if (prompt === null || prompt.kind !== 'delete') return
+    const target = prompt.path
+    setPromptBusy(true)
+    setPromptError(null)
+    void deleteEntry(sessionId, target).then((payload) => {
+      setPromptBusy(false)
+      if (!payload.ok) {
+        setPromptError(failureText(payload, t('menu.failed')))
+        return
+      }
+      setPrompt(null)
+      const gone = (path: string): boolean => path === target || path.startsWith(`${target}/`)
+      // The surviving branches are what the reload is given: the deleted ones
+      // must not be asked for, or every one of them would answer "no such
+      // directory" and draw an error under a folder that is simply gone.
+      const surviving = expandedRef.current.filter((path) => !gone(path))
+      expandedRef.current = surviving
+      setExpanded(surviving)
+      if (selected !== null && gone(selected)) {
+        setSelected(null)
+        setPreview(null)
+        setFileError(null)
+        setFileLoading(false)
+      }
+      setDirectories((previous) => {
+        const next: Record<string, DirectoryState> = {}
+        let changed = false
+        for (const [path, state] of Object.entries(previous)) {
+          if (gone(path)) changed = true
+          else next[path] = state
+        }
+        return changed ? next : previous
+      })
+      const forgetDocs = <T,>(previous: Readonly<Record<string, T>>): Readonly<Record<string, T>> => {
+        const next: Record<string, T> = {}
+        let changed = false
+        for (const [path, value] of Object.entries(previous)) {
+          if (gone(path)) changed = true
+          else next[path] = value
+        }
+        return changed ? next : previous
+      }
+      const remainingDocs = forgetDocs(docsRef.current)
+      docsRef.current = remainingDocs
+      setDocs(remainingDocs)
+      const remainingDrafts = forgetDocs(draftsRef.current)
+      draftsRef.current = remainingDrafts
+      setDrafts(remainingDrafts)
+      reloadParent(parentOf(target), surviving)
+      report(t('menu.deleted'), true)
+    })
+  }, [failureText, prompt, report, selected, sessionId, t])
+
+  /**
+   * Run one command the row menu handed back.
+   *
+   * The menu passes the target it captured, not the page's current one: an
+   * answer that arrives after a re-render still applies to the row the reader
+   * right-clicked, and the menu's own subject cannot drift under it.
+   *
+   * @param command - the chosen command.
+   * @param target - the row the menu was opened on.
+   */
+  const onRowCommand = useCallback(
+    (command: RowCommand, target: RowTarget): void => {
+      runCommand(command, target)
+    },
+    [runCommand],
+  )
+
+  /**
    * One directory's rows, and the rows of every open folder inside it.
    *
    * Recursion rather than a flattened list: an open folder owns its children in
@@ -1268,12 +1727,18 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
         </div>,
       ]
     }
+    // An empty folder draws no rows and no notice: the open branch is the whole
+    // answer, and a line under it would say "nothing" where nothing already
+    // reads as nothing. A folder still being read keeps its note, because there
+    // the alternative is a branch that looks empty before it is known to be.
     if (state.entries.length === 0) {
-      return [
-        <div className="dsh-cf-note" key={`${path}:empty`}>
-          {state.loading ? t('side.loading') : t('side.empty')}
-        </div>,
-      ]
+      return state.loading
+        ? [
+            <div className="dsh-cf-note" key={`${path}:pending`}>
+              {t('side.loading')}
+            </div>,
+          ]
+        : []
     }
 
     // Hidden is the Host's judgement, not this page's: the listing carries the
@@ -1304,6 +1769,7 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
             data-ignored={entry.ignored === true ? '' : undefined}
             data-open={open ? '' : undefined}
             data-selected={!isDirectory && selected === target ? '' : undefined}
+            data-menu={rowTarget?.path === target ? '' : undefined}
             title={entry.name}
             aria-expanded={isDirectory ? open : undefined}
             disabled={entry.type === 'other'}
@@ -1316,6 +1782,39 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
                 setRevealLine(undefined)
                 openFile(target)
               }
+            }}
+            onContextMenu={(event) => {
+              // The gesture is the menu's, not the browser's: the row owns the
+              // command list, and the platform's own context menu would offer a
+              // page-level set of items instead. The row is focused before the
+              // menu opens because it is where the menu hands the keyboard back.
+              event.preventDefault()
+              event.stopPropagation()
+              event.currentTarget.focus({ preventScroll: true })
+              setRowTarget({
+                path: target,
+                type: entry.type,
+                x: event.clientX,
+                y: event.clientY,
+                element: event.currentTarget,
+              })
+            }}
+            onKeyDown={(event) => {
+              // The keyboard's own context-menu gesture, on the platform's two
+              // spellings: the dedicated key, and Shift+F10.
+              const requested = event.key === 'ContextMenu'
+                || (event.shiftKey && event.key === 'F10')
+              if (!requested) return
+              event.preventDefault()
+              event.currentTarget.focus({ preventScroll: true })
+              const rect = event.currentTarget.getBoundingClientRect()
+              setRowTarget({
+                path: target,
+                type: entry.type,
+                x: rect.left,
+                y: rect.bottom,
+                element: event.currentTarget,
+              })
             }}
           >
             <span className="dsh-cf-twist" aria-hidden="true">
@@ -1429,14 +1928,38 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       // selection lock follow the gesture without this View re-rendering.
       style={PAGE}
     >
-      {copyNotice === null ? null : (
+      {notice === null ? null : (
         <Toast
-          key={copyNotice.id}
-          text={copyNotice.text}
-          tone={copyNotice.ok ? 'success' : undefined}
+          key={notice.id}
+          text={notice.text}
+          tone={notice.ok ? 'success' : undefined}
           onDone={() => {
-            setCopyNotice(current => current?.id === copyNotice.id ? null : current)
+            setNotice(current => current?.id === notice.id ? null : current)
           }}
+        />
+      )}
+      {/* The row menu and its question live at the page root: the menu is
+          portaled to the body and the dialog to its own layer, so neither is
+          cropped by the tree's scrollport. */}
+      <RowMenu
+        target={rowTarget}
+        writable={writable}
+        reveal={desktop.reveal}
+        fileManager={desktop.fileManager}
+        onClose={() => setRowTarget(null)}
+        onCommand={onRowCommand}
+        t={t}
+      />
+      {prompt === null ? null : (
+        <RowDialog
+          key={`${prompt.kind}:${prompt.path}`}
+          prompt={prompt}
+          busy={promptBusy}
+          error={promptError}
+          onCancel={dismissPrompt}
+          onSubmitName={submitName}
+          onConfirmDelete={confirmDelete}
+          t={t}
         />
       )}
       {/* The sidebar's own right edge is the boundary its width is dragged by;
@@ -1450,7 +1973,31 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
         bounds={SIDE_BOUNDS}
         store={SIDE_STORE}
       >
-        <div className="dsh-cf-side-head">
+        {/* The header is the root's own row: right-clicking it offers the
+            commands a row would, with the two that change the root's identity
+            left out (see `RowTarget.root`). Without it a workspace whose root
+            holds no folder would have nowhere to create one. */}
+        <div
+          className="dsh-cf-side-head"
+          tabIndex={-1}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            const element = event.currentTarget
+            // Not a tab stop of its own: the focus is what the menu hands back
+            // to, and a header that joined the tab order would be one more stop
+            // between the workspace and its tree.
+            element.focus({ preventScroll: true })
+            setRowTarget({
+              path: '',
+              type: 'directory',
+              root: true,
+              x: event.clientX,
+              y: event.clientY,
+              element,
+            })
+          }}
+        >
           <div className="dsh-cf-side-title" title={workspaceName}>
             <span className="dsh-cf-side-name">{workspaceName}</span>
           </div>

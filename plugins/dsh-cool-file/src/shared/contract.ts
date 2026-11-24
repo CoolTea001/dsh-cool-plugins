@@ -64,6 +64,37 @@ export interface ListPayload {
   readonly entries?: readonly FileEntry[]
   /** The Host's entry cap dropped children from `entries`. */
   readonly truncated?: boolean
+  /**
+   * Whether the row commands may mutate this workspace at all.
+   *
+   * The fence is the session's own sandbox policy, the same one the editor's
+   * save runs under: a read-only session lists its workspace and refuses every
+   * create, rename and delete. The page reads the answer here so a command it
+   * cannot complete is drawn disabled instead of failing after the click.
+   */
+  readonly writable?: boolean
+  /** The native reveal this Host can perform, when it can perform any. */
+  readonly desktop?: DesktopFacts
+}
+
+/**
+ * The desktop facts the page needs before it offers a native action.
+ *
+ * A tree row's Reveal is the one command that leaves the browser: it hands a
+ * path to Finder, Explorer, or the desktop's file manager. Whether that is
+ * possible is a fact about the Host, not the page — a remote workspace has no
+ * desktop the path could be shown on, and a Host whose composition has no
+ * native opener has nowhere to send it. The listing carries the answer so the
+ * page can draw the row disabled rather than offer a command that must fail.
+ */
+export interface DesktopFacts {
+  /** Whether a native file-manager reveal is available on the serving Host. */
+  readonly reveal: boolean
+  /**
+   * Which file manager the reveal means: Finder on macOS, Explorer on Windows
+   * (and WSL), the desktop's own manager on Linux. Absent when none can answer.
+   */
+  readonly fileManager?: 'finder' | 'explorer' | 'directory'
 }
 
 /** `POST /read`: one page of one workspace text file. */
@@ -131,4 +162,46 @@ export interface SavePayload {
   readonly bytes?: number
   /** Freshness token after the write, which the next save carries. */
   readonly version?: string
+}
+
+/**
+ * The failure vocabulary the four row commands share.
+ *
+ * The Host answers `ok: false` with a `reason` for every cause the page can
+ * phrase itself, so the copy follows the active language rather than the Host's
+ * English text. Anything not listed here travels as `error` and is drawn
+ * verbatim: it is a diagnosis this page has no better words for.
+ */
+export type MutationReason =
+  /** The path named is outside the workspace, or is not a single name. */
+  | 'invalid'
+  /** Something already holds that name. */
+  | 'exists'
+  /** The path named is no longer there. */
+  | 'missing'
+  /** The session's sandbox policy does not allow writes. */
+  | 'read-only'
+  /** A directory rename or delete that the filesystem service cannot perform. */
+  | 'unsupported'
+
+/** The outcome of one row command: what changed, in the page's own vocabulary. */
+export interface MutationPayload {
+  readonly ok: boolean
+  /** Raw diagnostic text, when the answer failed and the page has no words of its own. */
+  readonly error?: string
+  /** The machine-readable cause, for the failures the page words itself. */
+  readonly reason?: MutationReason
+  /** The path the command produced, as a workspace path. */
+  readonly path?: string
+  /** The name the command produced, for a create. */
+  readonly name?: string
+}
+
+/** `POST /reveal`: show one workspace path in the Host desktop's file manager. */
+export interface RevealPayload {
+  readonly ok: boolean
+  /** Raw diagnostic text, when the answer failed. */
+  readonly error?: string
+  /** A cause the page words itself: no desktop can show this path. */
+  readonly reason?: 'unavailable'
 }

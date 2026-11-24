@@ -17,10 +17,11 @@
  * whatever that directory holds rather than an empty tab.
  */
 
-import { join } from 'node:path'
 import { IMAGE_MAX_BYTES, imageMediaTypeOf } from '../shared/kinds.js'
 import { ignoredNames } from './gitignore.js'
 import { isHiddenName, platformHiddenNames } from './hidden.js'
+import { absoluteOf, hasCode, messageOf, policyFor, readPath, resolveRoot, scopeOf } from './scope.js'
+import { desktopFacts, writableWorkspace } from './changes.js'
 import type { FileEntry, ListPayload, ReadPayload, SavePayload, TextPayload } from '../shared/contract.js'
 
 /** How many lines one preview asks for; the service's own cap still applies. */
@@ -39,98 +40,6 @@ const EDIT_BYTES = 2 * 1024 * 1024
 
 /** Copy may read a whole text file without making it editable in the browser. */
 const COPY_BYTES = 16 * 1024 * 1024
-
-/** A stand-in session identity for a request that named none. */
-const LOCAL_SESSION = 'local'
-
-/**
- * The session's own workspace root.
- *
- * Live header first, then the durable header of a session the Host has not
- * resumed yet, then the executor's default directory. Every read is
- * best-effort: an unreadable store is not this route's answer to give.
- *
- * @param ctx - the Host plugin context.
- * @param sessionId - the session the page belongs to, when it named one.
- * @returns the absolute workspace root, or undefined when none can be named.
- */
-async function resolveRoot(ctx: any, sessionId: unknown): Promise<string | undefined> {
-  if (typeof sessionId === 'string' && sessionId !== '') {
-    const sessions = ctx.get('sessions')
-    try {
-      const cwd = sessions?.get(sessionId)?.header?.cwd
-      if (typeof cwd === 'string' && cwd !== '') return cwd
-    } catch {
-      /* an unreadable live store falls through to the durable header */
-    }
-
-    const controller = ctx.get('sessionController')
-    if (controller !== undefined && typeof controller.inspect === 'function') {
-      try {
-        const inspection = await controller.inspect(sessionId)
-        const cwd = inspection?.meta?.cwd
-        if (typeof cwd === 'string' && cwd !== '') return cwd
-      } catch {
-        /* an unreadable durable header falls through to the default directory */
-      }
-    }
-  }
-
-  const shell = ctx.get('shell')
-  try {
-    const spec = shell?.resolve({ command: 'pwd' })
-    if (typeof spec?.workdir === 'string' && spec.workdir !== '') return spec.workdir
-  } catch {
-    /* a shell that cannot resolve has no directory to offer */
-  }
-  return undefined
-}
-
-/**
- * The header-derived scope the workspace service expects.
- *
- * @param sessionId - the session the page belongs to, when it named one.
- * @param root - the session's absolute workspace root.
- * @returns the scope for one request.
- */
-function scopeOf(sessionId: unknown, root: string): { sessionId: string; workspaceRoot: string } {
-  return {
-    sessionId: typeof sessionId === 'string' && sessionId !== '' ? sessionId : LOCAL_SESSION,
-    workspaceRoot: root,
-  }
-}
-
-/**
- * Read a path the page named as a workspace-relative `/`-separated path.
- *
- * Absolute paths and parent segments are refused here rather than passed on:
- * the tab's vocabulary is the workspace tree, and a route is not the place to
- * widen it.
- *
- * @param value - the raw body value.
- * @returns the normalized path, or undefined when it is not one.
- */
-function readPath(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined
-  if (value.includes('\0')) return undefined
-  const path = value.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '')
-  if (path.startsWith('/')) return undefined
-  for (const segment of path.split('/')) {
-    if (segment === '..') return undefined
-  }
-  return path
-}
-
-/**
- * One failure, as the page's error state words it.
- *
- * @param error - whatever the service threw.
- * @returns the text the page draws.
- */
-function messageOf(error: unknown): string {
-  if (error instanceof Error && error.message !== '') return error.message
-  return String(error)
-}
 
 /**
  * The workspace's display name for the page's breadcrumb.
@@ -187,7 +96,7 @@ export async function listDirectory(ctx: any, sessionId: unknown, rawPath: unkno
     // for once per level rather than once per child. The directory the answer
     // actually came from is the one to probe: a symlinked level resolves to its
     // target, and the names to judge are that target's children.
-    const absolute = typeof listing.path === 'string' && listing.path !== '' ? join(root, listing.path) : root
+    const absolute = typeof listing.path === 'string' ? absoluteOf(root, listing.path) : root
     const names = entries.map((entry: any): string => String(entry.name))
     // The two questions are independent — a hidden entry is not an ignored one —
     // and both answer for the whole level, so they are asked together rather than
@@ -213,6 +122,13 @@ export async function listDirectory(ctx: any, sessionId: unknown, rawPath: unkno
         }
       }),
       truncated: listing.truncated === true,
+      // The two facts the row commands are drawn from. Both are answers about
+      // the Host, not about the directory just listed, so they are asked once
+      // per listing rather than once per row: `writable` is the session policy
+      // the mutations run under, and `desktop` is whether a native reveal
+      // exists at all.
+      writable: writableWorkspace(ctx, sessionId),
+      desktop: desktopFacts(ctx),
     }
   } catch (error) {
     return { ok: false, error: messageOf(error) }
@@ -359,36 +275,6 @@ export async function readImage(
   } catch (error) {
     return { ok: false, error: messageOf(error) }
   }
-}
-
-/**
- * The sandbox policy one save runs under.
- *
- * The session's own mode and `cwd` are the fence, exactly as they are for the
- * agent's write tool — the editor must not be a way around a read-only session.
- * A request that names no live session has no policy to inherit; the deployment
- * default then applies, bounded by its own fallback root, and a workspace the
- * default does not cover is refused rather than quietly widened.
- *
- * @param ctx - the Host plugin context.
- * @param sessionId - the session the page belongs to, when it named one.
- * @returns the policy for this call, or undefined when no service owns one.
- */
-function policyFor(ctx: any, sessionId: unknown): unknown {
-  const policy = ctx.get('sandboxPolicy')
-  if (policy === undefined || typeof policy.resolve !== 'function') return undefined
-  try {
-    const sessions = ctx.get('sessions')
-    const session = typeof sessionId === 'string' && sessionId !== '' ? sessions?.get(sessionId) : undefined
-    return policy.resolve(session === undefined ? {} : { session })
-  } catch {
-    return undefined
-  }
-}
-
-/** Whether a caught error carries one of the filesystem service's stable codes. */
-function hasCode(error: unknown, code: string): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
 /**
