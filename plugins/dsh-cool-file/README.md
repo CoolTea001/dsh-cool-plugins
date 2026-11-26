@@ -1,4 +1,4 @@
-![dsh-cool-file cover](https://cdn.cooltea.top/dsh-cool-file/readme-cover-v0.1.0.png)
+![dsh-cool-file cover](https://cdn.cooltea.top/dsh-cool-file/readme-cover-v0.2.0.png)
 
 # dsh-cool-file
 
@@ -8,11 +8,12 @@ English · [中文](./README.zh.md)
 
 ## Description
 
-DeepSeek Harness file plugin — adds a Files tab to the session tab bar that shows the file tree of the workspace, with preview and editing.
+DeepSeek Harness file plugin — adds a Files tab to the session tab bar that shows the file tree of the workspace, with basic file management, preview and editing.
 
 ## Features
 
 - **Workspace file tree:** shows the file tree that matches the currently active session's workspace
+- **File management:** the file tree supports basic file management
 - **Preview and edit:** preview or edit a file, with syntax highlighting
 
 ## Installation

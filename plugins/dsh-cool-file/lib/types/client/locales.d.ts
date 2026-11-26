@@ -50,7 +50,6 @@ declare const en: {
     'menu.revealUnavailable': string;
     'menu.unsupported': string;
     'menu.failed': string;
-    'menu.deleted': string;
     'menu.revealFailed': string;
     'mode.label': string;
     'mode.preview': string;

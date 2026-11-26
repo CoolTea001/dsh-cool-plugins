@@ -1,7 +1,7 @@
 {
   "name": "dsh-cool-file",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness file plugin — adds a Files tab to the session tab bar that shows the file tree of the workspace, with preview and editing.",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness file plugin — adds a Files tab to the session tab bar that shows the file tree of the workspace, with basic file management, preview and editing.",
   "type": "module",
   "license": "MIT",
   "author": "CoolTea",

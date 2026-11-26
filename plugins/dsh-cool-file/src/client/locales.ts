@@ -55,7 +55,6 @@ const en = {
   'menu.revealUnavailable': 'This workspace has no file manager to show it in.',
   'menu.unsupported': 'Only entries on the Host’s own filesystem can be changed here.',
   'menu.failed': 'That change could not be made',
-  'menu.deleted': 'Deleted',
   'menu.revealFailed': 'Could not show this item',
 
   'mode.label': 'View mode',
@@ -145,7 +144,6 @@ export const zh: typeof en = {
   'menu.revealUnavailable': '当前工作区没有可显示它的文件管理器。',
   'menu.unsupported': '此处只能修改宿主文件系统上的条目。',
   'menu.failed': '无法完成该修改',
-  'menu.deleted': '已删除',
   'menu.revealFailed': '无法显示该项',
 
   'mode.label': '查看模式',

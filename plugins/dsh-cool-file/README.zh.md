@@ -1,4 +1,4 @@
-![dsh-cool-file cover](https://cdn.cooltea.top/dsh-cool-file/readme-cover-v0.1.0-zh.png)
+![dsh-cool-file cover](https://cdn.cooltea.top/dsh-cool-file/readme-cover-v0.2.0-zh.png)
 
 # dsh-cool-file
 
@@ -8,11 +8,12 @@
 
 ## 简介
 
-DeepSeek Harness 文件插件 —— 在会话标签栏中新增文件标签页，展示工作区对应的文件树，支持预览/编辑文件。
+DeepSeek Harness 文件插件 —— 在会话标签栏中新增文件标签页，展示工作区对应的文件树，基础的文件管理功能，支持预览/编辑文件。
 
 ## 功能
 
 - **工作区文件树**：根据当前激活会话的工作区展示对应的文件树
+- **文件管理**：文件树列表支持基础的文件管理能力
 - **预览/编辑文件**：支持预览/编辑文件、代码高亮
 
 ## 安装

@@ -1398,10 +1398,16 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
   )
 
   /**
-   * Report one finished row command in the page's own banner.
+   * Report one refused row command in the page's own banner.
+   *
+   * Only refusals reach this banner. A command that worked is visible as the
+   * change it made — a row under a new name, a new row, a row gone from the
+   * tree — so a banner repeating it would be a second, quieter statement of
+   * something the page already shows.
    *
    * @param text - the sentence to show.
-   * @param ok - whether the command succeeded.
+   * @param ok - whether the command succeeded; always false today, kept so the
+   *   banner can still carry a success if a command ever needs one.
    */
   const report = useCallback((text: string, ok: boolean): void => {
     const id = noticeGeneration.current + 1
@@ -1679,10 +1685,12 @@ export function FilesView(props: { readonly sessionId?: unknown; readonly t: Tra
       const remainingDrafts = forgetDocs(draftsRef.current)
       draftsRef.current = remainingDrafts
       setDrafts(remainingDrafts)
+      // No banner: the row leaving the tree is the result, and a creation
+      // reported itself the same way. Only a refusal is worth words, and it
+      // stays in the dialog that asked.
       reloadParent(parentOf(target), surviving)
-      report(t('menu.deleted'), true)
     })
-  }, [failureText, prompt, report, selected, sessionId, t])
+  }, [failureText, prompt, selected, sessionId, t])
 
   /**
    * Run one command the row menu handed back.

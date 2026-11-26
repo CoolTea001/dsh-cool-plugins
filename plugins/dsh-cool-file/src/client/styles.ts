@@ -287,10 +287,13 @@ const FILES_CSS = [
   // the whole surface, and the pane's padding is what keeps it off the edges.
   '.dsh-cf-image{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;box-sizing:border-box;min-height:100%;padding:24px}',
   '.dsh-cf-image-open{display:block;max-width:100%;padding:0;border:0;background:transparent;cursor:zoom-in}',
-  // The picture's frame is the shell's own elevation and radius, the pair the
-  // lightbox opens with: a hand-picked `rgba(0,0,0,…)` shadow would be the one
-  // colour on this page that a light theme and a third-party skin cannot adjust.
-  '.dsh-cf-image-img{display:block;max-width:100%;height:auto;border-radius:var(--dsw-radius-lg);box-shadow:var(--dsw-elevation-prominent)}',
+  // The picture draws itself and nothing else. The pane adds no stroke, shadow or
+  // corner radius around it: the elevation token's hairline plus its two soft
+  // layers read as a frame the page put there, and a screenshot that already
+  // carries its own window shadow wears two. No `object-fit` either — the
+  // proportions are the picture's, and the scrollport is what makes a big one
+  // reachable.
+  '.dsh-cf-image-img{display:block;max-width:100%;height:auto}',
   // The picture fades in as it decodes; a half-painted image beside the page's
   // own chrome reads as a glitch, while the status line says what is happening.
   '.dsh-cf-image[data-state=loading] .dsh-cf-image-img{opacity:0}',
